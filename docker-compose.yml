@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: report-checker-backend
+    restart: unless-stopped
+    environment:
+      # LM Studio runs on the host — use host.docker.internal to reach it
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-lm-studio}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://host.docker.internal:1234/v1}
+      - OPENAI_MODEL=${OPENAI_MODEL:-qwen3.5-2b}
+      - SYSTEM_PROMPT=${SYSTEM_PROMPT}
+    extra_hosts:
+      # Needed on Linux so host.docker.internal resolves to the host
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: report-checker-frontend
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-5173}:80"
+    depends_on:
+      - backend

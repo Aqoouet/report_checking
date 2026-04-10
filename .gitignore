@@ -1,0 +1,15 @@
+# Environment — never commit real secrets
+.env
+backend/.env
+
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Docker build cache
+*.tar
