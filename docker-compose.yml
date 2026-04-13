@@ -10,7 +10,12 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-lm-studio}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://host.docker.internal:1234/v1}
       - OPENAI_MODEL=${OPENAI_MODEL:-qwen3-coder-30b-a3b-instruct}
-      - SYSTEM_PROMPT=${SYSTEM_PROMPT}
+      - PROMPT_PRESET=${PROMPT_PRESET:-default}
+      - SYSTEM_PROMPT_FILE=${SYSTEM_PROMPT_FILE:-}
+      - SYSTEM_PROMPT=${SYSTEM_PROMPT:-}
+    volumes:
+      # Edit backend/prompts/*.txt on the host — picked up on the next page without rebuild
+      - ./backend/prompts:/app/prompts:ro
     extra_hosts:
       # Needed on Linux so host.docker.internal resolves to the host
       - "host.docker.internal:host-gateway"

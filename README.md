@@ -58,7 +58,9 @@ npm run dev
 | `OPENAI_API_KEY` | Любая строка (LM Studio не проверяет) | `lm-studio` |
 | `OPENAI_BASE_URL` | Адрес локального сервера LM Studio | `http://localhost:1234/v1` |
 | `OPENAI_MODEL` | Имя модели из вкладки Local Server в LM Studio | `local-model` |
-| `SYSTEM_PROMPT` | Системный промпт для проверки | см. `.env.example` |
+| `PROMPT_PRESET` | Имя файла в `backend/prompts/` без `.txt` (`default`, `formal`, `short`) | `default` |
+| `SYSTEM_PROMPT_FILE` | Путь к своему `.txt` (перекрывает пресет) | — |
+| `SYSTEM_PROMPT` | Запасной вариант, если файл пресета недоступен | короткий встроенный текст |
 
 > **Совет:** имя модели в LM Studio видно в разделе **Developer → Local Server** рядом с кнопкой Start. Скопируйте его точно в `OPENAI_MODEL`.
 
