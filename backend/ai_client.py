@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 # How long to wait for the model to respond to a single page (seconds).
-# qwen3.5-2b uses reasoning mode by default — can take 3-8 min per page.
+# Large local models can take several minutes per page.
 AI_TIMEOUT = int(os.getenv("AI_TIMEOUT", "600"))
 
 _client: OpenAI | None = None
@@ -34,7 +34,7 @@ def check_page(page_text: str, page_label: int) -> str:
         "SYSTEM_PROMPT",
         "Ты эксперт по проверке отчётов. Проверь следующий фрагмент и дай подробный комментарий.",
     )
-    model = os.getenv("OPENAI_MODEL", "qwen3.5-2b")
+    model = os.getenv("OPENAI_MODEL", "qwen3-coder-30b-a3b-instruct")
 
     preview = page_text[:200].replace("\n", " ")
     logger.info(

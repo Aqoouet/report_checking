@@ -9,7 +9,7 @@ services:
       # LM Studio runs on the host — use host.docker.internal to reach it
       - OPENAI_API_KEY=${OPENAI_API_KEY:-lm-studio}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://host.docker.internal:1234/v1}
-      - OPENAI_MODEL=${OPENAI_MODEL:-qwen3.5-2b}
+      - OPENAI_MODEL=${OPENAI_MODEL:-qwen3-coder-30b-a3b-instruct}
       - SYSTEM_PROMPT=${SYSTEM_PROMPT}
     extra_hosts:
       # Needed on Linux so host.docker.internal resolves to the host
