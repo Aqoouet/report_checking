@@ -11,6 +11,11 @@ services:
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://host.docker.internal:1234/v1}
       - OPENAI_MODEL=${OPENAI_MODEL:-qwen3-coder-30b-a3b-instruct}
       - SYSTEM_PROMPT=${SYSTEM_PROMPT}
+    volumes:
+      # Mount host directories read-only so the backend can access user-provided file paths.
+      # Covers Linux paths like /home/... and Windows-mapped paths like /mnt/d/...
+      - /home:/home:ro
+      - /mnt:/mnt:ro
     extra_hosts:
       # Needed on Linux so host.docker.internal resolves to the host
       - "host.docker.internal:host-gateway"
