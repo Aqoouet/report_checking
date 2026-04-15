@@ -61,7 +61,17 @@ export default function App() {
 
   const pct =
     progress && progress.total_checkpoints > 0
-      ? Math.round((progress.current_checkpoint / progress.total_checkpoints) * 100)
+      ? progress.checkpoint_sub_total
+        ? Math.round(
+            ((progress.current_checkpoint +
+              (progress.checkpoint_sub_current ?? 0) /
+                progress.checkpoint_sub_total) /
+              progress.total_checkpoints) *
+              100
+          )
+        : Math.round(
+            (progress.current_checkpoint / progress.total_checkpoints) * 100
+          )
       : 0;
 
   return (
@@ -114,7 +124,11 @@ export default function App() {
             </div>
             <div className="progress-label progress-label--sub">
               {progress && progress.total_checkpoints > 0
-                ? `Проверка ${progress.current_checkpoint} из ${progress.total_checkpoints}`
+                ? `Проверка ${progress.current_checkpoint} из ${progress.total_checkpoints}${
+                    progress.checkpoint_sub_total
+                      ? ` · фрагмент ${progress.checkpoint_sub_current} из ${progress.checkpoint_sub_total}`
+                      : ""
+                  }`
                 : ""}
             </div>
             <div className="progress-bar">

@@ -49,11 +49,13 @@ def process_document(job_id: str, file_path: str) -> None:
 
         all_errors: list[dict] = []
 
-        for cp in checkpoints:
+        for idx, cp in enumerate(checkpoints):
             job.current_checkpoint_name = cp.name
+            job.checkpoint_sub_current = 0
+            job.checkpoint_sub_total = 0
             job_store.update_job(job)
 
-            errors = cp.run(doc_data)
+            errors = cp.run(doc_data, job_id=job_id)
             for err in errors:
                 all_errors.append({
                     "checkpoint": cp.name,
@@ -114,6 +116,8 @@ async def status(job_id: str):
         "current_checkpoint": job.current_checkpoint,
         "total_checkpoints": job.total_checkpoints,
         "current_checkpoint_name": job.current_checkpoint_name,
+        "checkpoint_sub_current": job.checkpoint_sub_current,
+        "checkpoint_sub_total": job.checkpoint_sub_total,
         "error": job.error,
     }
 

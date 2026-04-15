@@ -15,8 +15,10 @@ class BaseCheckpoint(ABC):
         return fmt in self.supported_formats
 
     @abstractmethod
-    def run(self, doc_data: DocData) -> list[dict]:
+    def run(self, doc_data: DocData, *, job_id: str | None = None) -> list[dict]:
         """Run the checkpoint and return a list of errors.
+
+        *job_id* is set when the job should receive fine-grained progress updates.
 
         Each error is a dict with keys:
             location (str): human-readable location, e.g. "Параграф 12" or "Страница 5"

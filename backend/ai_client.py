@@ -5,6 +5,7 @@ import logging
 import os
 from typing import Any
 
+import httpx
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -13,7 +14,19 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-AI_TIMEOUT = int(os.getenv("AI_TIMEOUT", "600"))
+AI_TIMEOUT = float(os.getenv("AI_TIMEOUT", "600"))
+AI_CONNECT_TIMEOUT = float(os.getenv("AI_CONNECT_TIMEOUT", "15"))
+AI_CHUNK_MAX_TOKENS = int(os.getenv("AI_CHUNK_MAX_TOKENS", "2048"))
+AI_REF_MAX_TOKENS = int(os.getenv("AI_REF_MAX_TOKENS", "8192"))
+AI_AGG_MAX_TOKENS = int(os.getenv("AI_AGG_MAX_TOKENS", "8192"))
+
+# Separate connect vs read: unreachable LM Studio no longer blocks for the full read timeout.
+_HTTP_TIMEOUT = httpx.Timeout(
+    connect=AI_CONNECT_TIMEOUT,
+    read=AI_TIMEOUT,
+    write=min(AI_TIMEOUT, 120.0),
+    pool=AI_CONNECT_TIMEOUT,
+)
 
 _client: OpenAI | None = None
 
@@ -24,7 +37,7 @@ def _get_client() -> OpenAI:
         _client = OpenAI(
             api_key=os.getenv("OPENAI_API_KEY", "lm-studio"),
             base_url=os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1"),
-            timeout=AI_TIMEOUT,
+            timeout=_HTTP_TIMEOUT,
             max_retries=0,
         )
     return _client
@@ -48,6 +61,7 @@ def check_text_chunk(text: str, system_prompt: str) -> str:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": text},
         ],
+        max_tokens=AI_CHUNK_MAX_TOKENS,
     )
     result = response.choices[0].message.content or ""
     logger.info("check_text_chunk done (%d chars)", len(result))
@@ -68,6 +82,7 @@ def check_references(payload: dict[str, Any], system_prompt: str) -> list[dict]:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": payload_json},
         ],
+        max_tokens=AI_REF_MAX_TOKENS,
     )
     raw = (response.choices[0].message.content or "").strip()
     logger.info("check_references done (%d chars)", len(raw))
@@ -101,6 +116,7 @@ def aggregate_errors(errors_text: str, system_prompt: str) -> str:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": errors_text},
         ],
+        max_tokens=AI_AGG_MAX_TOKENS,
     )
     result = response.choices[0].message.content or ""
     logger.info("aggregate_errors done (%d chars)", len(result))

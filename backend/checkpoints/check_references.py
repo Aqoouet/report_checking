@@ -26,6 +26,7 @@ import re
 from typing import Any
 
 import ai_client
+import jobs as job_store
 from checkpoints.base import BaseCheckpoint
 from doc_parser import DocData
 
@@ -157,7 +158,7 @@ class CheckReferences(BaseCheckpoint):
     name = "Перекрёстные ссылки на таблицы и рисунки"
     supported_formats = ["docx"]
 
-    def run(self, doc_data: DocData) -> list[dict]:
+    def run(self, doc_data: DocData, *, job_id: str | None = None) -> list[dict]:
         doc = doc_data.raw_docx
         if doc is None:
             return []
@@ -175,6 +176,13 @@ class CheckReferences(BaseCheckpoint):
                 "caption": caption,
                 "mentions": ref_mentions.get(bm_name, []),
             }
+
+        if job_id:
+            job = job_store.get_job(job_id)
+            if job:
+                job.checkpoint_sub_current = 1
+                job.checkpoint_sub_total = 1
+                job_store.update_job(job)
 
         ai_response = ai_client.check_references(payload, _AI_PROMPT)
 
