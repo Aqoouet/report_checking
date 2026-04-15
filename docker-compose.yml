@@ -3,7 +3,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      network: host
     container_name: report-checker-backend
     restart: unless-stopped
     environment:
@@ -13,10 +12,8 @@ services:
       - OPENAI_MODEL=${OPENAI_MODEL:-qwen3-coder-30b-a3b-instruct}
       - SYSTEM_PROMPT=${SYSTEM_PROMPT}
     volumes:
-      # Mount host directories read-only so the backend can access user-provided file paths.
-      # Covers Linux paths like /home/... and Windows-mapped paths like /mnt/d/...
-      - /home:/home:ro
-      - /mnt:/mnt:ro
+      # Host report paths (e.g. path_mapping → /filer/users/rymax1e/...) must exist inside the container
+      - /filer/users/rymax1e:/filer/users/rymax1e:ro
     extra_hosts:
       # Needed on Linux so host.docker.internal resolves to the host
       - "host.docker.internal:host-gateway"
