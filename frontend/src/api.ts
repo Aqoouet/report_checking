@@ -9,8 +9,10 @@ export interface StatusResponse {
   current_checkpoint: number;
   total_checkpoints: number;
   current_checkpoint_name: string;
+  current_checkpoint_short_name?: string;
   checkpoint_sub_current?: number;
   checkpoint_sub_total?: number;
+  checkpoint_sub_location?: string;
   error: string | null;
 }
 

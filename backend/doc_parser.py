@@ -14,7 +14,7 @@ from typing import Optional
 import fitz  # PyMuPDF — used only for PDF
 from docx import Document  # python-docx — used only for .docx
 
-CHUNK_SIZE = 3000  # approximate target size in characters per chunk
+CHUNK_SIZE = 2000  # approximate target size in characters per chunk
 
 
 @dataclass
@@ -60,29 +60,40 @@ def _parse_docx(file_path: str) -> DocData:
     chunks: list[TextChunk] = []
 
     buffer = ""
-    start_idx = 0
+    section_num = 0
+    frag_num = 0
 
-    for idx, para in enumerate(doc.paragraphs):
+    def _is_heading(para) -> bool:
+        style = para.style.name.lower()
+        return style.startswith("heading") or style.startswith("заголовок")
+
+    def _flush(buf: str, sec: int, frag: int) -> TextChunk:
+        loc = f"Раздел {sec}" if frag <= 1 else f"Раздел {sec} · фрагмент {frag}"
+        return TextChunk(text=buf.strip(), location=loc)
+
+    for para in doc.paragraphs:
         text = para.text.strip()
         if not text:
             continue
 
+        if _is_heading(para):
+            if buffer.strip():
+                frag_num += 1
+                chunks.append(_flush(buffer, section_num or 1, frag_num))
+                buffer = ""
+            section_num += 1
+            frag_num = 0
+
         buffer += text + "\n"
 
         if len(buffer) >= CHUNK_SIZE:
-            chunks.append(TextChunk(
-                text=buffer.strip(),
-                location=f"Параграфы {start_idx + 1}–{idx + 1}",
-            ))
+            frag_num += 1
+            chunks.append(_flush(buffer, section_num or 1, frag_num))
             buffer = ""
-            start_idx = idx + 1
 
     if buffer.strip():
-        end_idx = len(doc.paragraphs)
-        chunks.append(TextChunk(
-            text=buffer.strip(),
-            location=f"Параграфы {start_idx + 1}–{end_idx}",
-        ))
+        frag_num += 1
+        chunks.append(_flush(buffer, section_num or 1, frag_num))
 
     return DocData(fmt="docx", file_path=file_path, chunks=chunks, raw_docx=doc)
 

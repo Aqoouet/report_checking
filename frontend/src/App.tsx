@@ -117,16 +117,16 @@ export default function App() {
           <div className="status-block">
             <div className="progress-label">
               {progress
-                ? progress.current_checkpoint_name
-                  ? `Выполняется: ${progress.current_checkpoint_name}`
+                ? (progress.current_checkpoint_short_name || progress.current_checkpoint_name)
+                  ? (progress.current_checkpoint_short_name || progress.current_checkpoint_name)
                   : "Инициализация…"
                 : "Инициализация…"}
             </div>
             <div className="progress-label progress-label--sub">
               {progress && progress.total_checkpoints > 0
-                ? `Проверка ${progress.current_checkpoint} из ${progress.total_checkpoints}${
-                    progress.checkpoint_sub_total
-                      ? ` · фрагмент ${progress.checkpoint_sub_current} из ${progress.checkpoint_sub_total}`
+                ? `Критерий ${progress.current_checkpoint + 1} из ${progress.total_checkpoints}${
+                    progress.checkpoint_sub_location
+                      ? ` · ${progress.checkpoint_sub_location}`
                       : ""
                   }`
                 : ""}

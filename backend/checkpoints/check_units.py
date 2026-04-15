@@ -19,6 +19,7 @@ _PROMPT_FILE = Path(__file__).parent.parent / "prompts" / "units.txt"
 
 class CheckUnits(BaseCheckpoint):
     name = "Представление физических величин и единиц измерения"
+    short_name = "Единицы измерения"
     supported_formats = ["docx", "pdf"]
 
     def run(self, doc_data: DocData, *, job_id: str | None = None) -> list[dict]:
@@ -32,6 +33,7 @@ class CheckUnits(BaseCheckpoint):
                 if job:
                     job.checkpoint_sub_current = i + 1
                     job.checkpoint_sub_total = total
+                    job.checkpoint_sub_location = chunk.location
                     job_store.update_job(job)
             result = ai_client.check_text_chunk(chunk.text, prompt)
             if result and "ошибок не найдено" not in result.lower():

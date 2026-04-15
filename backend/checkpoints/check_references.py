@@ -156,6 +156,7 @@ def _extract_field_display_text(para_elem: Any) -> str:
 
 class CheckReferences(BaseCheckpoint):
     name = "Перекрёстные ссылки на таблицы и рисунки"
+    short_name = "Ссылки на рисунки"
     supported_formats = ["docx"]
 
     def run(self, doc_data: DocData, *, job_id: str | None = None) -> list[dict]:
@@ -182,6 +183,7 @@ class CheckReferences(BaseCheckpoint):
             if job:
                 job.checkpoint_sub_current = 1
                 job.checkpoint_sub_total = 1
+                job.checkpoint_sub_location = "весь документ"
                 job_store.update_job(job)
 
         ai_response = ai_client.check_references(payload, _AI_PROMPT)

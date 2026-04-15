@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 class BaseCheckpoint(ABC):
     name: str
+    short_name: str = ""
     supported_formats: list[str]  # e.g. ["docx", "pdf"] or ["docx"]
 
     def supports(self, fmt: str) -> bool:

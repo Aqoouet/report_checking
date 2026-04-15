@@ -18,6 +18,7 @@ _PROMPT_FILE = Path(__file__).parent.parent / "prompts" / "clarity.txt"
 
 class CheckClarity(BaseCheckpoint):
     name = "Ясность изложения и научно-технический стиль"
+    short_name = "Ясность изложения"
     supported_formats = ["docx", "pdf"]
 
     def run(self, doc_data: DocData, *, job_id: str | None = None) -> list[dict]:
@@ -31,6 +32,7 @@ class CheckClarity(BaseCheckpoint):
                 if job:
                     job.checkpoint_sub_current = i + 1
                     job.checkpoint_sub_total = total
+                    job.checkpoint_sub_location = chunk.location
                     job_store.update_job(job)
             result = ai_client.check_text_chunk(chunk.text, prompt)
             if result and "ошибок не найдено" not in result.lower():

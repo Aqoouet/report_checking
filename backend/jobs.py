@@ -23,6 +23,8 @@ class Job:
     # Progress inside the current checkpoint (e.g. LLM chunk index).
     checkpoint_sub_current: int = 0
     checkpoint_sub_total: int = 0
+    checkpoint_sub_location: str = ""
+    current_checkpoint_short_name: str = ""
     error: Optional[str] = None
     result_path: Optional[str] = None
 
