@@ -1,17 +1,19 @@
+from __future__ import annotations
+
 import os
-import shutil
 import tempfile
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+import aggregator
 import jobs as job_store
-from ai_client import check_page
-from annotation_writer import write_annotations
-from pdf_parser import PageData, parse_page_range, parse_pages
+from checkpoints import load_checkpoints
+from doc_parser import parse_document
+from path_mapper import map_path
 
 load_dotenv()
 
@@ -24,11 +26,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = Path(tempfile.gettempdir()) / "report_checker"
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+RESULT_DIR = Path(tempfile.gettempdir()) / "report_checker"
+RESULT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def process_report(job_id: str, pdf_path: str, pages_str: str) -> None:
+def process_document(job_id: str, file_path: str) -> None:
     job = job_store.get_job(job_id)
     if not job:
         return
@@ -37,30 +39,33 @@ def process_report(job_id: str, pdf_path: str, pages_str: str) -> None:
         job.status = job_store.JobStatus.PROCESSING
         job_store.update_job(job)
 
-        pages_to_check = parse_page_range(pages_str)
-        if not pages_to_check:
-            raise ValueError("Не удалось распознать диапазон страниц")
+        doc_data = parse_document(file_path)
 
-        page_data_list: list[PageData] = parse_pages(pdf_path, pages_to_check)
+        checkpoints = [cp for cp in load_checkpoints() if cp.supports(doc_data.fmt)]
 
-        if not page_data_list:
-            raise ValueError("На указанных страницах не найден текст")
-
-        job.total_pages = len(page_data_list)
-        job.current_page = 0
+        job.total_checkpoints = len(checkpoints)
+        job.current_checkpoint = 0
         job_store.update_job(job)
 
-        page_comments: list[tuple[PageData, str]] = []
+        all_errors: list[dict] = []
 
-        for page_data in page_data_list:
-            comment = check_page(page_data.text, page_data.page_label)
-            page_comments.append((page_data, comment))
-
-            job.current_page += 1
+        for cp in checkpoints:
+            job.current_checkpoint_name = cp.name
             job_store.update_job(job)
 
-        result_path = str(UPLOAD_DIR / f"{job_id}_result.pdf")
-        write_annotations(pdf_path, result_path, page_comments)
+            errors = cp.run(doc_data)
+            for err in errors:
+                all_errors.append({
+                    "checkpoint": cp.name,
+                    "location": err.get("location", ""),
+                    "error": err.get("error", ""),
+                })
+
+            job.current_checkpoint += 1
+            job_store.update_job(job)
+
+        result_path = str(RESULT_DIR / f"{job_id}_result.txt")
+        aggregator.aggregate(all_errors, result_path)
 
         job.result_path = result_path
         job.status = job_store.JobStatus.DONE
@@ -70,29 +75,30 @@ def process_report(job_id: str, pdf_path: str, pages_str: str) -> None:
         job.status = job_store.JobStatus.ERROR
         job.error = str(exc)
         job_store.update_job(job)
-    finally:
-        try:
-            os.remove(pdf_path)
-        except OSError:
-            pass
 
 
-@app.post("/upload")
-async def upload(
+@app.post("/check")
+async def check(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    pages: str = Form(...),
+    file_path: str = Form(...),
 ):
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Допускаются только PDF-файлы")
+    linux_path = map_path(file_path)
+
+    if not Path(linux_path).exists():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Файл не найден: {linux_path}",
+        )
+
+    ext = Path(linux_path).suffix.lower()
+    if ext not in (".docx", ".pdf"):
+        raise HTTPException(
+            status_code=400,
+            detail="Поддерживаются только файлы .docx и .pdf",
+        )
 
     job = job_store.create_job()
-
-    pdf_path = str(UPLOAD_DIR / f"{job.id}_input.pdf")
-    with open(pdf_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-
-    background_tasks.add_task(process_report, job.id, pdf_path, pages)
+    background_tasks.add_task(process_document, job.id, linux_path)
 
     return {"job_id": job.id}
 
@@ -105,8 +111,9 @@ async def status(job_id: str):
 
     return {
         "status": job.status,
-        "current_page": job.current_page,
-        "total_pages": job.total_pages,
+        "current_checkpoint": job.current_checkpoint,
+        "total_checkpoints": job.total_checkpoints,
+        "current_checkpoint_name": job.current_checkpoint_name,
         "error": job.error,
     }
 
@@ -123,6 +130,6 @@ async def result(job_id: str):
 
     return FileResponse(
         path=job.result_path,
-        media_type="application/pdf",
-        filename="report_reviewed.pdf",
+        media_type="text/plain; charset=utf-8",
+        filename="report_errors.txt",
     )

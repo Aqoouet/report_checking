@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -15,8 +17,9 @@ class JobStatus(str, Enum):
 class Job:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     status: JobStatus = JobStatus.PENDING
-    current_page: int = 0
-    total_pages: int = 0
+    current_checkpoint: int = 0
+    total_checkpoints: int = 0
+    current_checkpoint_name: str = ""
     error: Optional[str] = None
     result_path: Optional[str] = None
 

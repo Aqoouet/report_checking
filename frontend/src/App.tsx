@@ -1,33 +1,25 @@
-import { useRef, useState } from "react";
-import { pollStatus, resultUrl, uploadPdf, type StatusResponse } from "./api";
+import { useState } from "react";
+import { pollStatus, resultUrl, startCheck, type StatusResponse } from "./api";
 import "./index.css";
 
-type Stage = "idle" | "uploading" | "processing" | "done" | "error";
+type Stage = "idle" | "starting" | "processing" | "done" | "error";
 
 export default function App() {
-  const [file, setFile] = useState<File | null>(null);
-  const [pages, setPages] = useState("");
+  const [filePath, setFilePath] = useState("");
   const [stage, setStage] = useState<Stage>("idle");
   const [jobId, setJobId] = useState("");
   const [progress, setProgress] = useState<StatusResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const f = e.dataTransfer.files[0];
-    if (f?.type === "application/pdf") setFile(f);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !pages.trim()) return;
+    if (!filePath.trim()) return;
 
-    setStage("uploading");
+    setStage("starting");
     setErrorMsg("");
 
     try {
-      const { job_id } = await uploadPdf(file, pages.trim());
+      const { job_id } = await startCheck(filePath.trim());
       setJobId(job_id);
       setStage("processing");
       pollLoop(job_id);
@@ -60,18 +52,16 @@ export default function App() {
   };
 
   const reset = () => {
-    setFile(null);
-    setPages("");
+    setFilePath("");
     setStage("idle");
     setJobId("");
     setProgress(null);
     setErrorMsg("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const pct =
-    progress && progress.total_pages > 0
-      ? Math.round((progress.current_page / progress.total_pages) * 100)
+    progress && progress.total_checkpoints > 0
+      ? Math.round((progress.current_checkpoint / progress.total_checkpoints) * 100)
       : 0;
 
   return (
@@ -79,102 +69,77 @@ export default function App() {
       <div className="card">
         <h1 className="title">Проверка отчёта</h1>
         <p className="subtitle">
-          Загрузите PDF-отчёт, укажите страницы для проверки — нейросеть добавит
-          комментарии прямо в документ.
+          Укажите путь к файлу отчёта (.docx или .pdf) — система запустит все
+          проверки и сформирует файл с замечаниями.
         </p>
 
-        {stage === "idle" || stage === "uploading" ? (
+        {stage === "idle" || stage === "starting" ? (
           <form onSubmit={handleSubmit} className="form">
-            <div
-              className={`drop-zone ${file ? "drop-zone--active" : ""}`}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) setFile(f);
-                }}
-              />
-              {file ? (
-                <div className="file-info">
-                  <span className="file-icon">📄</span>
-                  <span className="file-name">{file.name}</span>
-                  <span className="file-size">
-                    {(file.size / 1024 / 1024).toFixed(2)} МБ
-                  </span>
-                </div>
-              ) : (
-                <div className="drop-hint">
-                  <span className="drop-icon">⬆</span>
-                  <span>Перетащите PDF или нажмите для выбора</span>
-                </div>
-              )}
-            </div>
-
             <div className="field">
-              <label className="label" htmlFor="pages">
-                Страницы для проверки
+              <label className="label" htmlFor="filepath">
+                Путь к файлу
               </label>
               <input
-                id="pages"
+                id="filepath"
                 className="input"
                 type="text"
-                placeholder="Например: 5-30 или 1, 3, 10-25"
-                value={pages}
-                onChange={(e) => setPages(e.target.value)}
+                placeholder="Например: C:\Users\name\report.docx или /home/name/report.docx"
+                value={filePath}
+                onChange={(e) => setFilePath(e.target.value)}
                 required
+                autoComplete="off"
+                spellCheck={false}
               />
               <span className="hint">
-                Укажите диапазон или перечень: <code>5-30</code>,{" "}
-                <code>1, 3, 10-25</code>
+                Поддерживаются Windows- и Linux-пути. Файл должен быть доступен серверу.
               </span>
             </div>
 
             <button
               type="submit"
               className="btn btn--primary"
-              disabled={!file || !pages.trim() || stage === "uploading"}
+              disabled={!filePath.trim() || stage === "starting"}
             >
-              {stage === "uploading" ? "Загружаем…" : "Проверить"}
+              {stage === "starting" ? "Запускаем…" : "Проверить"}
             </button>
           </form>
         ) : stage === "processing" ? (
           <div className="status-block">
             <div className="progress-label">
               {progress
-                ? `Страница ${progress.current_page} из ${progress.total_pages}`
+                ? progress.current_checkpoint_name
+                  ? `Выполняется: ${progress.current_checkpoint_name}`
+                  : "Инициализация…"
                 : "Инициализация…"}
+            </div>
+            <div className="progress-label progress-label--sub">
+              {progress && progress.total_checkpoints > 0
+                ? `Проверка ${progress.current_checkpoint} из ${progress.total_checkpoints}`
+                : ""}
             </div>
             <div className="progress-bar">
               <div className="progress-fill" style={{ width: `${pct}%` }} />
             </div>
             <p className="processing-note">
-              Нейросеть проверяет каждую страницу по очереди. Не закрывайте
-              вкладку.
+              Нейросеть выполняет проверки по очереди. Не закрывайте вкладку.
             </p>
           </div>
         ) : stage === "done" ? (
           <div className="status-block status-block--done">
             <div className="done-icon">✓</div>
             <p className="done-text">
-              Проверено {progress?.total_pages ?? ""} стр. Комментарии добавлены
-              в документ.
+              Проверено {progress?.total_checkpoints ?? ""} критери
+              {progress?.total_checkpoints === 1 ? "й" : "ев"}. Отчёт готов.
             </p>
             <a
               href={resultUrl(jobId)}
-              download="report_reviewed.pdf"
+              download="report_errors.txt"
               className="btn btn--primary"
             >
-              Скачать PDF с комментариями
+              Скачать отчёт об ошибках
             </a>
             <button className="btn btn--secondary" onClick={reset}>
-              Проверить другой отчёт
+              Проверить другой файл
             </button>
           </div>
         ) : (

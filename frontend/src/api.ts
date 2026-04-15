@@ -1,27 +1,25 @@
-// In Docker: nginx proxies /api/* → backend:8000, so we use /api as base.
-// In dev (npm run dev): set VITE_API_URL=http://localhost:8000 in frontend/.env
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
-export interface UploadResponse {
+export interface CheckResponse {
   job_id: string;
 }
 
 export interface StatusResponse {
   status: "pending" | "processing" | "done" | "error";
-  current_page: number;
-  total_pages: number;
+  current_checkpoint: number;
+  total_checkpoints: number;
+  current_checkpoint_name: string;
   error: string | null;
 }
 
-export async function uploadPdf(file: File, pages: string): Promise<UploadResponse> {
+export async function startCheck(filePath: string): Promise<CheckResponse> {
   const form = new FormData();
-  form.append("file", file);
-  form.append("pages", pages);
+  form.append("file_path", filePath);
 
-  const res = await fetch(`${BASE}/upload`, { method: "POST", body: form });
+  const res = await fetch(`${BASE}/check`, { method: "POST", body: form });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail ?? `Ошибка загрузки: ${res.status}`);
+    throw new Error(data.detail ?? `Ошибка запуска проверки: ${res.status}`);
   }
   return res.json();
 }
