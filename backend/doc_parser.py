@@ -7,6 +7,7 @@ characters so that prompt-based checkpoints can process them uniformly.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -14,7 +15,8 @@ from typing import Optional
 import fitz  # PyMuPDF — used only for PDF
 from docx import Document  # python-docx — used only for .docx
 
-CHUNK_SIZE = 2000  # approximate target size in characters per chunk
+# Target chunk size in characters (prompt + system fit in model context).
+CHUNK_SIZE = int(os.getenv("DOC_CHUNK_SIZE", "10000"))
 
 
 @dataclass
