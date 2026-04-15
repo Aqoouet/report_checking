@@ -55,37 +55,6 @@ body {
 
 .form { display: flex; flex-direction: column; gap: 20px; }
 
-.drop-zone {
-  border: 2px dashed var(--border);
-  border-radius: var(--radius);
-  padding: 32px 24px;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color .2s, background .2s;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-.drop-zone:hover, .drop-zone--active {
-  border-color: var(--primary);
-  background: #eff6ff;
-  color: var(--primary);
-}
-
-.hidden { display: none; }
-
-.file-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-.file-icon { font-size: 2rem; }
-.file-name { font-weight: 600; color: var(--text); word-break: break-all; }
-.file-size { font-size: 0.8rem; color: var(--text-muted); }
-
-.drop-hint { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.drop-icon { font-size: 1.8rem; }
-
 .field { display: flex; flex-direction: column; gap: 6px; }
 
 .label {

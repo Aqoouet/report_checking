@@ -70,7 +70,7 @@ export default function App() {
         <h1 className="title">Проверка отчёта</h1>
         <p className="subtitle">
           Укажите путь к файлу отчёта (.docx или .pdf) — система запустит все
-          проверки и сформирует файл с замечаниями.
+          проверки и сформирует текстовый отчёт об ошибках.
         </p>
 
         {stage === "idle" || stage === "starting" ? (
