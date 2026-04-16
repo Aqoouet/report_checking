@@ -87,7 +87,7 @@ def process_document(job_id: str, file_path: str, range_spec: dict | None) -> No
 
         # Always write whatever was collected (full or partial)
         result_path = str(RESULT_DIR / f"{job_id}_result.txt")
-        aggregator.aggregate(all_errors, result_path)
+        aggregator.aggregate(all_errors, result_path, doc_data=doc_data)
 
         job = job_store.get_job(job_id)
         job.result_path = result_path

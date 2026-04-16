@@ -55,46 +55,52 @@ export default function App() {
       (inputType === "pages" && fileType === "docx"));
 
   const canSubmit =
-    filePath.trim() !== "" && stage !== "starting" && !isValidating;
+    filePath.trim() !== "" &&
+    stage !== "starting" &&
+    !isValidating &&
+    (rangeInput.trim() === "" || rangeState === "valid");
+
+  const canValidate =
+    rangeInput.trim() !== "" && !isValidating && stage === "idle";
+
+  const handleValidate = async () => {
+    if (!canValidate) return;
+    setIsValidating(true);
+    setRangeState("validating");
+    setRangeError("");
+    try {
+      const res = await validateRange(rangeInput.trim(), fileType || "docx");
+      if (!res.valid) {
+        setRangeResult(res);
+        setRangeState("invalid");
+        setRangeError(
+          res.suggestion
+            ? `Неверный диапазон. Возможное исправление: ${res.suggestion}`
+            : "Неверный диапазон. Проверьте формат.",
+        );
+      } else {
+        setRangeResult(res);
+        setRangeState("valid");
+      }
+    } catch {
+      setRangeState("invalid");
+      setRangeError("Ошибка при валидации диапазона. Попробуйте ещё раз.");
+    } finally {
+      setIsValidating(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
 
-    setRangeError("");
-
-    // If range is specified — validate first (on submit)
-    if (rangeInput.trim()) {
-      setIsValidating(true);
-      setRangeState("validating");
-      try {
-        const res = await validateRange(rangeInput.trim(), fileType || "docx");
-        if (!res.valid) {
-          setRangeResult(res);
-          setRangeState("invalid");
-          setRangeError(
-            res.suggestion
-              ? `Неверный диапазон. Возможное исправление: ${res.suggestion}`
-              : "Неверный диапазон. Проверьте формат.",
-          );
-          setIsValidating(false);
-          return; // stay on form with filled fields
-        }
-        setRangeResult(res);
-        setRangeState("valid");
-        setIsValidating(false);
-        await _runCheck(res);
-      } catch {
-        setRangeState("invalid");
-        setRangeError("Ошибка при валидации диапазона. Попробуйте ещё раз.");
-        setIsValidating(false);
-        return;
-      }
-    } else {
-      setRangeState("empty");
-      setRangeResult(null);
-      await _runCheck(null);
+    if (rangeInput.trim() && rangeState !== "valid") {
+      setRangeError("Сначала нажмите «Валидировать» для проверки диапазона.");
+      return;
     }
+
+    setRangeError("");
+    await _runCheck(rangeState === "valid" ? rangeResult : null);
   };
 
   const _runCheck = async (rangeRes: ValidateRangeResponse | null) => {
@@ -234,37 +240,47 @@ export default function App() {
                 <span className="label-optional">(необязательно)</span>
               </label>
               <div className="range-input-wrap">
-                <input
-                  id="range"
-                  className={`input${rangeState === "valid" ? " input--valid" : ""}${rangeState === "invalid" ? " input--invalid" : ""}`}
-                  type="text"
-                  placeholder={
-                    fileType === "pdf"
-                      ? "страница 1–3, 7"
-                      : "раздел 3.2 или 3.3–3.5"
-                  }
-                  value={rangeInput}
-                  onChange={(e) => {
-                    setRangeInput(e.target.value);
-                    // Reset validation state when user edits
-                    if (rangeState !== "empty") {
-                      setRangeState(e.target.value.trim() ? "empty" : "empty");
-                      setRangeError("");
-                      setRangeResult(null);
+                <div className="range-field-inner">
+                  <input
+                    id="range"
+                    className={`input${rangeState === "valid" ? " input--valid" : ""}${rangeState === "invalid" ? " input--invalid" : ""}`}
+                    type="text"
+                    placeholder={
+                      fileType === "pdf"
+                        ? "страница 1–3, 7"
+                        : "раздел 3.2 или 3.3–3.5"
                     }
-                  }}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                {isValidating && (
-                  <span className="range-spinner" title="Валидация…">⟳</span>
-                )}
-                {!isValidating && rangeState === "valid" && (
-                  <span className="range-badge range-badge--ok">✓</span>
-                )}
-                {!isValidating && rangeState === "invalid" && (
-                  <span className="range-badge range-badge--err">✕</span>
-                )}
+                    value={rangeInput}
+                    onChange={(e) => {
+                      setRangeInput(e.target.value);
+                      if (rangeState !== "empty") {
+                        setRangeState(e.target.value.trim() ? "empty" : "empty");
+                        setRangeError("");
+                        setRangeResult(null);
+                      }
+                    }}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  {isValidating && (
+                    <span className="range-spinner" title="Валидация…">⟳</span>
+                  )}
+                  {!isValidating && rangeState === "valid" && (
+                    <span className="range-badge range-badge--ok">✓</span>
+                  )}
+                  {!isValidating && rangeState === "invalid" && (
+                    <span className="range-badge range-badge--err">✕</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="btn btn--validate"
+                  onClick={handleValidate}
+                  disabled={!canValidate}
+                  title="Проверить корректность введённого диапазона"
+                >
+                  {isValidating ? "…" : "Валидировать"}
+                </button>
               </div>
 
               {rangeState === "valid" && rangeResult?.display && (

@@ -77,6 +77,11 @@ def _model() -> str:
     return os.getenv("OPENAI_MODEL", "qwen3-coder-30b-a3b-instruct")
 
 
+def _validate_model() -> str:
+    """Smaller/faster model used only for range validation (user input parsing)."""
+    return os.getenv("OPENAI_VALIDATE_MODEL", "qwen3-4b")
+
+
 def check_text_chunk(text: str, system_prompt: str) -> str:
     """Send a text chunk to the AI with the given system prompt.
 
@@ -182,11 +187,11 @@ def validate_range(text: str, file_type: str) -> dict:
     On any failure returns {"valid": False, "suggestion": "Не удалось обработать запрос"}.
     """
     user_content = f"Тип файла: {file_type}\nВвод пользователя: {text}"
-    logger.info("validate_range | file_type=%s | text=%s", file_type, text[:100])
+    logger.info("validate_range | model=%s | file_type=%s | text=%s", _validate_model(), file_type, text[:100])
 
     try:
         response = _get_client().chat.completions.create(
-            model=_model(),
+            model=_validate_model(),
             messages=[
                 {"role": "system", "content": _VALIDATE_RANGE_PROMPT},
                 {"role": "user", "content": user_content},

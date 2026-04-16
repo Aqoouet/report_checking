@@ -103,6 +103,26 @@ body {
 .btn--secondary:hover { background: #e5e7eb; }
 .btn--danger { background: #ef4444; color: #fff; }
 .btn--danger:hover { background: #dc2626; }
+.btn--validate {
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: #f0f4ff;
+  color: var(--primary);
+  border: 1.5px solid var(--primary);
+  border-radius: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.btn--validate:hover:not(:disabled) {
+  background: var(--primary);
+  color: #fff;
+}
+.btn--validate:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
 
 .status-block {
   display: flex;
@@ -171,12 +191,19 @@ body {
 }
 
 .range-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.range-field-inner {
   position: relative;
+  flex: 1;
   display: flex;
   align-items: center;
 }
-.range-input-wrap .input {
-  flex: 1;
+.range-field-inner .input {
+  width: 100%;
   padding-right: 36px;
 }
 

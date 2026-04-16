@@ -7,7 +7,12 @@ result to a plain-text file.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import ai_client
+
+if TYPE_CHECKING:
+    from doc_parser import DocData
 
 _SYSTEM_PROMPT = """Ты эксперт по проверке технических отчётов.
 Тебе передан список ошибок, найденных в документе несколькими независимыми проверками.
@@ -27,14 +32,67 @@ _SYSTEM_PROMPT = """Ты эксперт по проверке техническ
 """
 
 
-def aggregate(all_errors: list[dict], result_path: str) -> None:
+def _build_summary(doc_data: "DocData") -> str:
+    """Build a static preamble with checked sections, tables and figures."""
+    lines = ["=" * 40, "СВОДКА ПРОВЕРКИ", "=" * 40]
+
+    sections = doc_data.sections
+    if sections:
+        first = sections[0].number
+        last = sections[-1].number
+        if doc_data.fmt == "pdf":
+            if first == last:
+                lines.append(f"Проверены страницы: {first}")
+            else:
+                lines.append(f"Проверены страницы: {first} – {last}")
+        else:
+            if first == last:
+                lines.append(f"Проверены разделы: {first}")
+            else:
+                lines.append(f"Проверены разделы: {first} – {last}")
+    else:
+        lines.append("Разделы: не определены")
+
+    fig_table = doc_data.fig_table_dict
+    tables = [e for e in fig_table if e.label.lower().startswith("таблица")]
+    figures = [e for e in fig_table if e.label.lower().startswith("рисунок")]
+
+    if tables:
+        first_t = tables[0].label
+        last_t = tables[-1].label
+        lines.append(
+            f"Таблиц найдено: {len(tables)}  (с {first_t!r} по {last_t!r})"
+        )
+    else:
+        lines.append("Таблиц найдено: 0")
+
+    if figures:
+        first_f = figures[0].label
+        last_f = figures[-1].label
+        lines.append(
+            f"Рисунков найдено: {len(figures)}  (с {first_f!r} по {last_f!r})"
+        )
+    else:
+        lines.append("Рисунков найдено: 0")
+
+    lines.append("=" * 40)
+    lines.append("")
+    return "\n".join(lines)
+
+
+def aggregate(all_errors: list[dict], result_path: str, doc_data: "DocData | None" = None) -> None:
     """Aggregate *all_errors* via AI and write the report to *result_path*.
 
     Each element of *all_errors* must have keys:
         checkpoint (str), location (str), error (str)
+
+    If *doc_data* is provided a static summary preamble is prepended to the
+    report listing the checked sections, tables and figures.
     """
+    preamble = _build_summary(doc_data) if doc_data is not None else ""
+
     if not all_errors:
-        report = "Ошибок не найдено. Документ соответствует проверенным критериям."
+        report = preamble + "Ошибок не найдено. Документ соответствует проверенным критериям."
         _write(result_path, report)
         return
 
@@ -45,8 +103,8 @@ def aggregate(all_errors: list[dict], result_path: str) -> None:
         )
     errors_text = "\n---\n".join(lines)
 
-    report = ai_client.aggregate_errors(errors_text, _SYSTEM_PROMPT)
-    _write(result_path, report)
+    ai_report = ai_client.aggregate_errors(errors_text, _SYSTEM_PROMPT)
+    _write(result_path, preamble + ai_report)
 
 
 def _write(path: str, text: str) -> None:
