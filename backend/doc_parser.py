@@ -156,12 +156,36 @@ def _extract_heading_number(title: str) -> str:
     """Try to pull a leading numbering token from a heading title.
 
     E.g. "3.2 Методы исследования" → "3.2".
-    Falls back to the raw title if no number is found.
+    Returns "" if no numeric prefix is found (auto-numbering will be applied later).
     """
     m = re.match(r"^([\d]+(?:[.\-–—][\d]+)*)\s*", title)
     if m:
         return m.group(1)
-    return title
+    return ""
+
+
+def _apply_auto_numbering(headings: list["_HeadingInfo"]) -> None:
+    """Assign synthetic section numbers to headings that have no explicit numeric prefix.
+
+    Uses the heading hierarchy order to generate "1", "1.1", "2.3" etc.
+    Only applied when ALL headings lack explicit numbers (i.e. the document uses
+    Word automatic list-numbering where the number is not part of para.text).
+    """
+    # If any heading already has an explicit number, keep the existing behaviour
+    # (mixed documents with some numbered, some not).
+    has_explicit = any(h.number for h in headings)
+    if has_explicit:
+        return
+
+    counters: dict[int, int] = {}
+    for h in headings:
+        level = h.level
+        counters[level] = counters.get(level, 0) + 1
+        # Reset all deeper levels when ascending or staying at same level
+        for deeper in [k for k in counters if k > level]:
+            del counters[deeper]
+        parts = [str(counters[lvl]) for lvl in sorted(counters)]
+        h.number = ".".join(parts)
 
 
 @dataclass
@@ -185,6 +209,8 @@ def _parse_docx(file_path: str, range_spec: dict | None) -> DocData:
         title = para.text.strip()
         number = _extract_heading_number(title)
         headings.append(_HeadingInfo(level=level, number=number, title=title, para_idx=idx))
+
+    _apply_auto_numbering(headings)
 
     # --- Pass 2: identify leaf headings (no child heading before next same/parent) ---
     leaf_indices: set[int] = set()
