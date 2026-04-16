@@ -20,7 +20,7 @@ from docx import Document  # python-docx — used only for .docx
 _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
 _CAPTION_RE = re.compile(
-    r"^(Таблица|Рисунок)\s+([\d\.]+[-–—][\d\.]+|[\d\.]+)",
+    r"^(Таблица|Рисунок)\s+([\d\.]+[-–—][\d\.]+|[\d\.]+|.+?\d+)(?=\s*[-–—]|\s*$)",
     re.IGNORECASE,
 )
 
@@ -212,6 +212,16 @@ def _parse_docx(file_path: str, range_spec: dict | None) -> DocData:
 
     _apply_auto_numbering(headings)
 
+    # Build para_idx → section_number using the already-numbered headings so
+    # that _build_fig_table_dict_docx gets correct numbers (incl. auto-numbered).
+    _heading_num_by_para = {h.para_idx: h.number for h in headings}
+    _p2s: dict[int, str] = {}
+    _cur_sec = ""
+    for _idx in range(len(paras)):
+        if _idx in _heading_num_by_para:
+            _cur_sec = _heading_num_by_para[_idx]
+        _p2s[_idx] = _cur_sec
+
     # --- Pass 2: identify leaf headings (no child heading before next same/parent) ---
     leaf_indices: set[int] = set()
     for i, h in enumerate(headings):
@@ -230,7 +240,7 @@ def _parse_docx(file_path: str, range_spec: dict | None) -> DocData:
     if not headings:
         full_text = "\n".join(p.text.strip() for p in paras if p.text.strip())
         sections = [Section(number="", title="Документ", text=full_text, level=0)]
-        fig_table_dict = _build_fig_table_dict_docx(doc, sections)
+        fig_table_dict = _build_fig_table_dict_docx(doc, sections, para_to_section=None)
         return DocData(fmt="docx", file_path=file_path,
                        sections=sections, fig_table_dict=fig_table_dict, raw_docx=doc)
 
@@ -267,7 +277,7 @@ def _parse_docx(file_path: str, range_spec: dict | None) -> DocData:
             sections = [s for s in sections if _section_in_range(s.number, items)]
 
     # --- Build figure/table dictionary (always from whole doc, then filter) ---
-    fig_table_dict = _build_fig_table_dict_docx(doc, sections)
+    fig_table_dict = _build_fig_table_dict_docx(doc, sections, para_to_section=_p2s)
 
     if range_spec and range_spec.get("type") == "sections":
         items = range_spec.get("items", [])
@@ -285,24 +295,34 @@ def _para_text_elem(para_elem: Any) -> str:
     return "".join(node.text or "" for node in para_elem.iter(f"{{{_W}}}t"))
 
 
-def _build_fig_table_dict_docx(doc: Document, sections: list[Section]) -> list[FigTableEntry]:
+def _build_fig_table_dict_docx(
+    doc: Document,
+    sections: list[Section],
+    para_to_section: dict[int, str] | None = None,
+) -> list[FigTableEntry]:
     """Build a list of FigTableEntry from the whole document.
 
     Uses bookmark-based REF fields for docx plus a fallback text scan.
     The section_number for each mention is inferred from the surrounding text.
+
+    *para_to_section* maps flat-paragraph index → section number.  When
+    provided (built by the caller after auto-numbering) it is used directly;
+    otherwise it is rebuilt here via _extract_heading_number (legacy path).
     """
     body = doc.element.body
     paras_elems = list(body.iter(f"{{{_W}}}p"))
 
-    # Map each paragraph element index to a section number
-    # (simplistic: use the flat paragraph list from doc.paragraphs)
     flat_paras = doc.paragraphs
-    para_to_section: dict[int, str] = {}
-    current_sec = ""
-    for idx, para in enumerate(flat_paras):
-        if _heading_level(para) > 0:
-            current_sec = _extract_heading_number(para.text.strip())
-        para_to_section[idx] = current_sec
+    if para_to_section is None:
+        para_to_section = {}
+        current_sec = ""
+        for idx, para in enumerate(flat_paras):
+            if _heading_level(para) > 0:
+                current_sec = _extract_heading_number(para.text.strip())
+            para_to_section[idx] = current_sec
+
+    # Build accurate per-element section list (replaces fraction-based heuristic)
+    elem_section = _build_elem_section_list(paras_elems, flat_paras, para_to_section)
 
     # Collect captions
     entries: dict[str, FigTableEntry] = {}  # label → entry
@@ -315,8 +335,7 @@ def _build_fig_table_dict_docx(doc: Document, sections: list[Section]) -> list[F
         m = _CAPTION_RE.match(text)
         if m:
             label = m.group(0).strip()
-            # Try to find paragraph index in flat list
-            sec_num = _infer_section_for_elem(para_idx_e, paras_elems, para_to_section, flat_paras)
+            sec_num = elem_section[para_idx_e]
             entry = FigTableEntry(label=label, caption=text, section_number=sec_num)
             entries[label] = entry
 
@@ -350,7 +369,7 @@ def _build_fig_table_dict_docx(doc: Document, sections: list[Section]) -> list[F
             if para_idx_e < len(paras_elems) - 1:
                 context_parts.append(_para_text_elem(paras_elems[para_idx_e + 1]).strip())
             context = "\n".join(p for p in context_parts if p)
-            sec_num = _infer_section_for_elem(para_idx_e, paras_elems, para_to_section, flat_paras)
+            sec_num = elem_section[para_idx_e]
             entries[label].mentions.append(FigTableMention(context=context, section_number=sec_num))
 
     # Fallback: text scan for mentions not covered by REF fields
@@ -376,7 +395,7 @@ def _build_fig_table_dict_docx(doc: Document, sections: list[Section]) -> list[F
             context = "\n".join(p for p in context_parts if p)
             if context[:50] in mentioned_via_ref:
                 continue  # already captured by REF field
-            sec_num = _infer_section_for_elem(para_idx_e, paras_elems, para_to_section, flat_paras)
+            sec_num = elem_section[para_idx_e]
             entries[label_candidate].mentions.append(
                 FigTableMention(context=context, section_number=sec_num)
             )
@@ -398,17 +417,32 @@ def _normalise_mention(raw: str) -> str:
     return raw
 
 
-def _infer_section_for_elem(
-    para_idx_e: int,
+def _build_elem_section_list(
     paras_elems: list,
-    para_to_section: dict[int, str],
     flat_paras,
-) -> str:
-    """Best-effort: map element paragraph index to a section number."""
-    # The element list and flat_paras may not align perfectly; use proximity
-    frac = para_idx_e / max(len(paras_elems), 1)
-    flat_idx = min(int(frac * len(flat_paras)), len(flat_paras) - 1)
-    return para_to_section.get(flat_idx, "")
+    para_to_section: dict[int, str],
+) -> list[str]:
+    """Return a section-number string for every element in *paras_elems*.
+
+    Scans *paras_elems* in document order.  When an element is a top-level
+    paragraph (found in *flat_paras* by object identity), the current section
+    is updated from *para_to_section*.  Table-cell paragraphs (absent from
+    *flat_paras*) inherit the last seen section.  This avoids the severe
+    distortion caused by the old fraction-based heuristic when
+    len(paras_elems) >> len(flat_paras).
+    """
+    flat_id_to_sec: dict[int, str] = {
+        id(p._p): para_to_section.get(i, "")
+        for i, p in enumerate(flat_paras)
+    }
+    result: list[str] = []
+    current = ""
+    for para_e in paras_elems:
+        sec = flat_id_to_sec.get(id(para_e))
+        if sec is not None:
+            current = sec
+        result.append(current)
+    return result
 
 
 # ---------------------------------------------------------------------------
