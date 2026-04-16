@@ -182,6 +182,21 @@ _VALIDATE_RANGE_PROMPT = """Ты помощник по разбору польз
 - Смешанные записи: «3.1 3.3-3.5» → [{start:"3.1",end:"3.1"},{start:"3.3",end:"3.5"}].
 - Игнорируй лишние пробелы, опечатки в ключевых словах («раздлел», «стрнаица» и т.п.).
 
+НОМЕРА РАЗДЕЛОВ — только цифры и ТОЧКИ: «5», «5.1», «5.2.3».
+
+ДЕСЯТИЧНАЯ ЗАПЯТАЯ (русская традиция): если запятая стоит между двумя числами И результат
+выглядит как номер подраздела (например «5,1», «3,2», «10,4»), трактуй как точку:
+  «5,1» → раздел 5.1: [{start:"5.1",end:"5.1"}]
+  «3,2» → раздел 3.2: [{start:"3.2",end:"3.2"}]
+
+ЗАПЯТАЯ КАК РАЗДЕЛИТЕЛЬ СПИСКА — только когда хотя бы один операнд сам содержит точку
+или явно введено несколько независимых разделов с пробелами:
+  «5.1,5.3» = раздел 5.1 И раздел 5.3: [{start:"5.1",end:"5.1"},{start:"5.3",end:"5.3"}]
+  «раздел 1, раздел 5» = раздел 1 И раздел 5
+
+ДИАПАЗОН — только через дефис или тире:
+  «5.1-5.3» или «5.1–5.3» = диапазон от 5.1 до 5.3 → [{start:"5.1",end:"5.3"}]
+
 ПОЛЕ suggestion:
 - Когда valid=true: suggestion="" (пусто).
 - Когда valid=false: suggestion должен содержать КОНКРЕТНУЮ исправленную строку в стандартном формате,
@@ -246,7 +261,7 @@ def validate_range(text: str, file_type: str) -> dict:
                 {"role": "system", "content": _VALIDATE_RANGE_PROMPT},
                 {"role": "user", "content": user_content},
             ],
-            max_tokens=512,
+            max_tokens=150,
         )
     except (APIConnectionError, APITimeoutError) as exc:
         logger.warning("validate_range API transport error: %s", exc)
@@ -261,13 +276,6 @@ def validate_range(text: str, file_type: str) -> dict:
     except APIStatusError as exc:
         sc = getattr(exc, "status_code", None)
         logger.warning("validate_range API status error: %s", exc)
-        # region agent log
-        _debug_validate_range_log(
-            "H1",
-            "api_status_error",
-            {"status": sc, "exc_msg": str(exc)[:400]},
-        )
-        # endregion
         # 400: distinguish wrong model id (OPENAI_VALIDATE_MODEL) from bad user range / params.
         if sc == 400:
             err = _openai_error_payload(exc)
@@ -325,6 +333,7 @@ def validate_range(text: str, file_type: str) -> dict:
     logger.info("validate_range done: %s", raw[:300])
 
     result = _parse_validate_range_json(raw)
+
     if result is not None:
         return result
 

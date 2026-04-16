@@ -119,7 +119,15 @@ def _section_in_range(number: str, items: list[dict]) -> bool:
     for item in items:
         start_key = _key(item.get("start", ""))
         end_key = _key(item.get("end", item.get("start", "")))
+        if not start_key:
+            continue
+        # Direct range check (same-level sections)
         if start_key <= num_key <= end_key:
+            return True
+        # Subsection/prefix check: "5.1", "5.1.2" should match range "5"–"5"
+        # Truncate num_key to the length of start_key and compare the prefix
+        prefix = num_key[:len(start_key)]
+        if prefix and start_key <= prefix <= end_key:
             return True
     return False
 

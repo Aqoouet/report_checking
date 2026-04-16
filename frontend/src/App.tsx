@@ -290,7 +290,7 @@ export default function App() {
               </div>
 
               {rangeState === "valid" && rangeResult?.display && (
-                <span className="range-display">{rangeResult.display}</span>
+                <span className="range-display">Будут проверяться {rangeResult.display.replace(/^[А-ЯЁ]/, (c: string) => c.toLowerCase())}</span>
               )}
               {rangeState === "invalid" && rangeError && (
                 <span className="range-error">{rangeError}</span>
