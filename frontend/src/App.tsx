@@ -338,7 +338,7 @@ export default function App() {
 
             <div className="progress-label progress-label--sub">
               {progress && progress.total_checkpoints > 0
-                ? `Критерий ${progress.current_checkpoint + 1} из ${progress.total_checkpoints}${
+                ? `Критерий ${Math.min(progress.current_checkpoint + 1, progress.total_checkpoints)} из ${progress.total_checkpoints}${
                     progress.checkpoint_sub_location
                       ? ` · ${progress.checkpoint_sub_location}`
                       : ""

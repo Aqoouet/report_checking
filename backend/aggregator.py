@@ -104,7 +104,18 @@ def aggregate(all_errors: list[dict], result_path: str, doc_data: "DocData | Non
     errors_text = "\n---\n".join(lines)
 
     ai_report = ai_client.aggregate_errors(errors_text, _SYSTEM_PROMPT)
-    _write(result_path, preamble + ai_report)
+
+    details_lines = ["=" * 40, "ДЕТАЛИ ПРОВЕРКИ", "=" * 40, ""]
+    for item in all_errors:
+        details_lines.append(f"[{item['checkpoint']}] {item['location']}")
+        details_lines.append(item["error"])
+        details_lines.append("")
+        details_lines.append("---")
+        details_lines.append("")
+    details_section = "\n".join(details_lines)
+
+    summary_block = "=" * 40 + "\nИТОГОВОЕ РЕЗЮМЕ\n" + "=" * 40 + "\n" + ai_report + "\n\n"
+    _write(result_path, preamble + summary_block + details_section)
 
 
 def _write(path: str, text: str) -> None:
