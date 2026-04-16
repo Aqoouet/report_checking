@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 
 load_dotenv()
 
@@ -78,8 +78,30 @@ def _model() -> str:
 
 
 def _validate_model() -> str:
-    """Smaller/faster model used only for range validation (user input parsing)."""
-    return os.getenv("OPENAI_VALIDATE_MODEL", "qwen3-4b")
+    """Model id for range validation. If OPENAI_VALIDATE_MODEL is empty, uses OPENAI_MODEL."""
+    raw = os.getenv("OPENAI_VALIDATE_MODEL", "").strip()
+    if raw:
+        return raw
+    return _model()
+
+
+def _openai_error_payload(exc: APIStatusError) -> dict[str, Any]:
+    try:
+        body = getattr(exc, "body", None)
+        if isinstance(body, dict) and isinstance(body.get("error"), dict):
+            return body["error"]
+        if isinstance(body, str) and body.strip().startswith("{"):
+            data = json.loads(body)
+            if isinstance(data, dict) and isinstance(data.get("error"), dict):
+                return data["error"]
+        r = getattr(exc, "response", None)
+        if r is not None:
+            data = r.json()
+            if isinstance(data, dict) and isinstance(data.get("error"), dict):
+                return data["error"]
+    except Exception:
+        pass
+    return {}
 
 
 def check_text_chunk(text: str, system_prompt: str) -> str:
@@ -180,11 +202,39 @@ _VALIDATE_RANGE_PROMPT = """Ты помощник по разбору польз
 """
 
 
+def _parse_validate_range_json(raw: str) -> dict | None:
+    """Parse model output into a single JSON object, or None if not possible."""
+    if not raw or not raw.strip():
+        return None
+    t = raw.strip()
+    if t.startswith("```"):
+        parts = t.split("```")
+        if len(parts) >= 2:
+            t = parts[1]
+            if t.lstrip().startswith("json"):
+                t = t.lstrip()[4:]
+    t = t.strip()
+    candidates: list[str] = [t]
+    i, j = t.find("{"), t.rfind("}")
+    if i >= 0 and j > i:
+        candidates.append(t[i : j + 1])
+    for candidate in candidates:
+        try:
+            obj = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    return None
+
+
 def validate_range(text: str, file_type: str) -> dict:
     """Ask the AI to parse and normalise a free-form range string.
 
     Returns a dict with keys: valid, type, items, display, suggestion.
-    On any failure returns {"valid": False, "suggestion": "Не удалось обработать запрос"}.
+    - On API/transport failure: valid=False, suggestion="", server_error=True.
+    - When the model replied but output is not a JSON object: valid=False,
+      suggestion="", server_error=False (UI: check format).
     """
     user_content = f"Тип файла: {file_type}\nВвод пользователя: {text}"
     logger.info("validate_range | model=%s | file_type=%s | text=%s", _validate_model(), file_type, text[:100])
@@ -198,21 +248,95 @@ def validate_range(text: str, file_type: str) -> dict:
             ],
             max_tokens=512,
         )
-        raw = (response.choices[0].message.content or "").strip()
-        logger.info("validate_range done: %s", raw[:300])
-
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-
-        result = json.loads(raw)
-        if isinstance(result, dict):
-            return result
+    except (APIConnectionError, APITimeoutError) as exc:
+        logger.warning("validate_range API transport error: %s", exc)
+        return {
+            "valid": False,
+            "type": "",
+            "items": [],
+            "display": "",
+            "suggestion": "",
+            "server_error": True,
+        }
+    except APIStatusError as exc:
+        sc = getattr(exc, "status_code", None)
+        logger.warning("validate_range API status error: %s", exc)
+        # region agent log
+        _debug_validate_range_log(
+            "H1",
+            "api_status_error",
+            {"status": sc, "exc_msg": str(exc)[:400]},
+        )
+        # endregion
+        # 400: distinguish wrong model id (OPENAI_VALIDATE_MODEL) from bad user range / params.
+        if sc == 400:
+            err = _openai_error_payload(exc)
+            code = err.get("code")
+            if code == "model_not_found":
+                msg = (err.get("message") or "").strip()
+                if len(msg) > 500:
+                    msg = msg[:500] + "…"
+                logger.warning("validate_range: HTTP 400 model_not_found — check OPENAI_VALIDATE_MODEL / OPENAI_MODEL")
+                return {
+                    "valid": False,
+                    "type": "",
+                    "items": [],
+                    "display": "",
+                    "suggestion": "",
+                    "server_error": True,
+                    "range_message": (
+                        "Неверный идентификатор модели для валидации диапазона (OPENAI_VALIDATE_MODEL). "
+                        "Укажите в .env точное имя модели из LM Studio или оставьте OPENAI_VALIDATE_MODEL пустым — "
+                        "будет использована OPENAI_MODEL. "
+                        f"Ответ сервера: {msg}"
+                    ),
+                }
+            logger.warning(
+                "validate_range: HTTP 400 from API — using format fallback (not server_error)",
+            )
+            return {
+                "valid": False,
+                "type": "",
+                "items": [],
+                "display": "",
+                "suggestion": "",
+                "server_error": False,
+            }
+        return {
+            "valid": False,
+            "type": "",
+            "items": [],
+            "display": "",
+            "suggestion": "",
+            "server_error": True,
+        }
     except Exception as exc:
-        logger.warning("validate_range error: %s", exc)
+        logger.warning("validate_range unexpected API error: %s", exc)
+        return {
+            "valid": False,
+            "type": "",
+            "items": [],
+            "display": "",
+            "suggestion": "",
+            "server_error": True,
+        }
 
-    return {"valid": False, "type": "", "items": [], "display": "", "suggestion": "Не удалось обработать запрос"}
+    raw = (response.choices[0].message.content or "").strip()
+    logger.info("validate_range done: %s", raw[:300])
+
+    result = _parse_validate_range_json(raw)
+    if result is not None:
+        return result
+
+    logger.warning("validate_range: model output not a JSON object (format fallback)")
+    return {
+        "valid": False,
+        "type": "",
+        "items": [],
+        "display": "",
+        "suggestion": "",
+        "server_error": False,
+    }
 
 
 def aggregate_errors(errors_text: str, system_prompt: str) -> str:

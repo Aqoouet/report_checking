@@ -24,6 +24,10 @@ export interface ValidateRangeResponse {
   items: Array<{ start: string; end: string }>;
   display: string;
   suggestion: string;
+  /** True when the backend could not call or parse the model (not a format hint). */
+  server_error?: boolean;
+  /** Explicit message (e.g. wrong OPENAI_VALIDATE_MODEL); overrides generic server_error text. */
+  range_message?: string;
 }
 
 export async function validateRange(

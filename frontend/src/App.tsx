@@ -73,11 +73,17 @@ export default function App() {
       if (!res.valid) {
         setRangeResult(res);
         setRangeState("invalid");
-        setRangeError(
-          res.suggestion
-            ? `Неверный диапазон. Возможное исправление: ${res.suggestion}`
-            : "Неверный диапазон. Проверьте формат.",
-        );
+        if (res.range_message) {
+          setRangeError(res.range_message);
+        } else if (res.server_error) {
+          setRangeError(
+            "Не удалось обработать запрос. Проверьте, что сервис ИИ доступен, и повторите попытку.",
+          );
+        } else if (res.suggestion) {
+          setRangeError(`Неверный диапазон. Возможное исправление: ${res.suggestion}`);
+        } else {
+          setRangeError("Неверный диапазон. Проверьте формат.");
+        }
       } else {
         setRangeResult(res);
         setRangeState("valid");

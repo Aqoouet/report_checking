@@ -1,4 +1,6 @@
-FROM python:3.12-slim
+# Override via build-arg if Docker Hub is unreachable (TLS timeout): e.g. a registry mirror or pre-pulled tag.
+ARG PYTHON_IMAGE=python:3.12-slim
+FROM ${PYTHON_IMAGE}
 
 WORKDIR /app
 
