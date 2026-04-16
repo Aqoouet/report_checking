@@ -5,7 +5,7 @@ export interface CheckResponse {
 }
 
 export interface StatusResponse {
-  status: "pending" | "processing" | "done" | "error";
+  status: "pending" | "processing" | "done" | "error" | "cancelled";
   current_checkpoint: number;
   total_checkpoints: number;
   current_checkpoint_name: string;
@@ -64,6 +64,11 @@ export async function pollStatus(jobId: string): Promise<StatusResponse> {
   const res = await fetch(`${BASE}/status/${jobId}`);
   if (!res.ok) throw new Error(`Ошибка статуса: ${res.status}`);
   return res.json();
+}
+
+export async function cancelJob(jobId: string): Promise<void> {
+  const res = await fetch(`${BASE}/cancel/${jobId}`, { method: "POST" });
+  if (!res.ok) throw new Error(`Ошибка отмены: ${res.status}`);
 }
 
 export function resultUrl(jobId: string): string {

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import ai_client
 import jobs as job_store
+from jobs import JobCancelledError
 from checkpoints.base import BaseCheckpoint
 from doc_parser import DocData, FigTableEntry
 
@@ -39,7 +40,7 @@ _AI_PROMPT = """Ты эксперт по проверке технических
 
 class CheckReferences(BaseCheckpoint):
     name = "Перекрёстные ссылки на таблицы и рисунки"
-    short_name = "Ссылки на рисунки"
+    short_name = "Ссылки на таблицы и рисунки"
     supported_formats = ["docx", "pdf"]
 
     def run(self, doc_data: DocData, *, job_id: str | None = None) -> list[dict]:
@@ -70,6 +71,8 @@ class CheckReferences(BaseCheckpoint):
                 if job:
                     job.previous_result = result.strip() if result else ""
                     job_store.update_job(job)
+                    if job.cancelled:
+                        raise JobCancelledError()
 
             if result and "ошибок не найдено" not in result.lower():
                 errors.append({

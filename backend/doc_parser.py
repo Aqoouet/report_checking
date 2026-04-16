@@ -240,8 +240,16 @@ def _parse_docx(file_path: str, range_spec: dict | None) -> DocData:
         if items:
             sections = [s for s in sections if _section_in_range(s.number, items)]
 
-    # --- Build figure/table dictionary ---
+    # --- Build figure/table dictionary (always from whole doc, then filter) ---
     fig_table_dict = _build_fig_table_dict_docx(doc, sections)
+
+    if range_spec and range_spec.get("type") == "sections":
+        items = range_spec.get("items", [])
+        if items:
+            fig_table_dict = [
+                e for e in fig_table_dict
+                if _section_in_range(e.section_number, items)
+            ]
 
     return DocData(fmt="docx", file_path=file_path,
                    sections=sections, fig_table_dict=fig_table_dict, raw_docx=doc)
@@ -408,8 +416,16 @@ def _parse_pdf(file_path: str, range_spec: dict | None) -> DocData:
         if items:
             sections = [s for s in sections if _page_in_range(int(s.number), items)]
 
-    # Build figure/table dict for PDF (text scan only)
+    # Build figure/table dict for PDF (text scan only; already from filtered sections)
     fig_table_dict = _build_fig_table_dict_pdf(sections)
+
+    if range_spec and range_spec.get("type") == "pages":
+        items = range_spec.get("items", [])
+        if items:
+            fig_table_dict = [
+                e for e in fig_table_dict
+                if _page_in_range(int(e.section_number), items)
+            ]
 
     return DocData(fmt="pdf", file_path=file_path,
                    sections=sections, fig_table_dict=fig_table_dict, raw_pdf=pdf)

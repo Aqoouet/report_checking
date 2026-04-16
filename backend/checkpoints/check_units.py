@@ -10,6 +10,7 @@ from pathlib import Path
 
 import ai_client
 import jobs as job_store
+from jobs import JobCancelledError
 from checkpoints.base import BaseCheckpoint
 from doc_parser import DocData
 
@@ -51,6 +52,8 @@ class CheckUnits(BaseCheckpoint):
                 if job:
                     job.previous_result = result.strip() if result else ""
                     job_store.update_job(job)
+                    if job.cancelled:
+                        raise JobCancelledError()
 
             if result and "ошибок не найдено" not in result.lower():
                 errors.append({

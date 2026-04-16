@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 import ai_client
 import aggregator
 import jobs as job_store
+from jobs import JobCancelledError, JobStatus
 
 from checkpoints import load_checkpoints
 from doc_parser import parse_document
@@ -39,7 +40,7 @@ def process_document(job_id: str, file_path: str, range_spec: dict | None) -> No
         return
 
     try:
-        job.status = job_store.JobStatus.PROCESSING
+        job.status = JobStatus.PROCESSING
         job_store.update_job(job)
 
         doc_data = parse_document(file_path, range_spec=range_spec)
@@ -51,8 +52,15 @@ def process_document(job_id: str, file_path: str, range_spec: dict | None) -> No
         job_store.update_job(job)
 
         all_errors: list[dict] = []
+        was_cancelled = False
 
         for idx, cp in enumerate(checkpoints):
+            # Refresh job to catch cancellation set by the /cancel endpoint
+            job = job_store.get_job(job_id)
+            if job and job.cancelled:
+                was_cancelled = True
+                break
+
             job.current_checkpoint_name = cp.name
             job.current_checkpoint_short_name = cp.short_name
             job.checkpoint_sub_current = 0
@@ -61,7 +69,11 @@ def process_document(job_id: str, file_path: str, range_spec: dict | None) -> No
             job.checkpoint_sub_name = ""
             job_store.update_job(job)
 
-            errors = cp.run(doc_data, job_id=job_id)
+            try:
+                errors = cp.run(doc_data, job_id=job_id)
+            except JobCancelledError:
+                was_cancelled = True
+                break
 
             for err in errors:
                 all_errors.append({
@@ -73,17 +85,21 @@ def process_document(job_id: str, file_path: str, range_spec: dict | None) -> No
             job.current_checkpoint += 1
             job_store.update_job(job)
 
+        # Always write whatever was collected (full or partial)
         result_path = str(RESULT_DIR / f"{job_id}_result.txt")
         aggregator.aggregate(all_errors, result_path)
 
+        job = job_store.get_job(job_id)
         job.result_path = result_path
-        job.status = job_store.JobStatus.DONE
+        job.status = JobStatus.CANCELLED if was_cancelled else JobStatus.DONE
         job_store.update_job(job)
 
     except Exception as exc:
-        job.status = job_store.JobStatus.ERROR
-        job.error = str(exc)
-        job_store.update_job(job)
+        job = job_store.get_job(job_id)
+        if job:
+            job.status = JobStatus.ERROR
+            job.error = str(exc)
+            job_store.update_job(job)
 
 
 @app.post("/validate_range")
@@ -91,15 +107,23 @@ async def validate_range(
     range_text: str = Form(...),
     file_type: str = Form(...),
 ):
-    """Validate and normalise a free-form range string via AI.
-
-    Returns ``{valid, type, items, display, suggestion}``.
-    """
+    """Validate and normalise a free-form range string via AI."""
     if not range_text.strip():
         return {"valid": True, "type": "", "items": [], "display": "", "suggestion": ""}
 
     result = ai_client.validate_range(range_text.strip(), file_type)
     return result
+
+
+@app.post("/cancel/{job_id}")
+async def cancel_job(job_id: str):
+    """Signal the background job to stop after the current sub-item."""
+    job = job_store.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+    job.cancelled = True
+    job_store.update_job(job)
+    return {"ok": True}
 
 
 @app.post("/check")
@@ -164,13 +188,18 @@ async def result(job_id: str):
     job = job_store.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Задача не найдена")
-    if job.status != job_store.JobStatus.DONE:
+    if job.status not in (JobStatus.DONE, JobStatus.CANCELLED):
         raise HTTPException(status_code=400, detail="Результат ещё не готов")
     if not job.result_path or not os.path.exists(job.result_path):
         raise HTTPException(status_code=404, detail="Файл результата не найден")
 
+    filename = (
+        "report_errors_partial.txt"
+        if job.status == JobStatus.CANCELLED
+        else "report_errors.txt"
+    )
     return FileResponse(
         path=job.result_path,
         media_type="text/plain; charset=utf-8",
-        filename="report_errors.txt",
+        filename=filename,
     )

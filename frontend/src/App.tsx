@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
+  cancelJob,
   pollStatus,
   resultUrl,
   startCheck,
@@ -9,7 +10,7 @@ import {
 } from "./api";
 import "./index.css";
 
-type Stage = "idle" | "starting" | "processing" | "done" | "error";
+type Stage = "idle" | "starting" | "processing" | "done" | "error" | "cancelled";
 type RangeState = "empty" | "validating" | "valid" | "invalid";
 
 function detectFileType(path: string): "docx" | "pdf" | "" {
@@ -32,6 +33,7 @@ export default function App() {
   const [rangeState, setRangeState] = useState<RangeState>("empty");
   const [rangeResult, setRangeResult] = useState<ValidateRangeResponse | null>(null);
   const [rangeError, setRangeError] = useState("");
+  const [isValidating, setIsValidating] = useState(false);
   const [prevResultOpen, setPrevResultOpen] = useState(false);
 
   const [stage, setStage] = useState<Stage>("idle");
@@ -39,7 +41,7 @@ export default function App() {
   const [progress, setProgress] = useState<StatusResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fileType = detectFileType(filePath);
 
@@ -52,75 +54,57 @@ export default function App() {
     ((inputType === "sections" && fileType === "pdf") ||
       (inputType === "pages" && fileType === "docx"));
 
-  const triggerValidation = useCallback(
-    async (text: string, ft: string) => {
-      if (!text.trim()) {
-        setRangeState("empty");
-        setRangeResult(null);
-        setRangeError("");
-        return;
-      }
-      if (!ft) {
-        return;
-      }
-      setRangeState("validating");
-      setRangeError("");
-      try {
-        const res = await validateRange(text, ft);
-        setRangeResult(res);
-        if (res.valid) {
-          setRangeState("valid");
-          setRangeError("");
-        } else {
-          setRangeState("invalid");
-          setRangeError(
-            res.suggestion
-              ? `Неверный диапазон. Возможное исправление: ${res.suggestion}`
-              : "Неверный диапазон",
-          );
-        }
-      } catch {
-        setRangeState("invalid");
-        setRangeError("Ошибка при валидации диапазона");
-      }
-    },
-    [],
-  );
-
-  // Debounced validation on range input change
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!rangeInput.trim()) {
-      setRangeState("empty");
-      setRangeResult(null);
-      setRangeError("");
-      return;
-    }
-    debounceRef.current = setTimeout(() => {
-      triggerValidation(rangeInput, fileType);
-    }, 800);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [rangeInput, fileType, triggerValidation]);
-
   const canSubmit =
-    filePath.trim() !== "" &&
-    stage !== "starting" &&
-    (rangeInput.trim() === "" || rangeState === "valid");
+    filePath.trim() !== "" && stage !== "starting" && !isValidating;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
 
+    setRangeError("");
+
+    // If range is specified — validate first (on submit)
+    if (rangeInput.trim()) {
+      setIsValidating(true);
+      setRangeState("validating");
+      try {
+        const res = await validateRange(rangeInput.trim(), fileType || "docx");
+        if (!res.valid) {
+          setRangeResult(res);
+          setRangeState("invalid");
+          setRangeError(
+            res.suggestion
+              ? `Неверный диапазон. Возможное исправление: ${res.suggestion}`
+              : "Неверный диапазон. Проверьте формат.",
+          );
+          setIsValidating(false);
+          return; // stay on form with filled fields
+        }
+        setRangeResult(res);
+        setRangeState("valid");
+        setIsValidating(false);
+        await _runCheck(res);
+      } catch {
+        setRangeState("invalid");
+        setRangeError("Ошибка при валидации диапазона. Попробуйте ещё раз.");
+        setIsValidating(false);
+        return;
+      }
+    } else {
+      setRangeState("empty");
+      setRangeResult(null);
+      await _runCheck(null);
+    }
+  };
+
+  const _runCheck = async (rangeRes: ValidateRangeResponse | null) => {
     setStage("starting");
     setErrorMsg("");
     setPrevResultOpen(false);
-
     try {
       const { job_id } = await startCheck(
         filePath.trim(),
-        rangeResult?.valid ? rangeResult : undefined,
+        rangeRes?.valid ? rangeRes : undefined,
       );
       setJobId(job_id);
       setStage("processing");
@@ -132,33 +116,60 @@ export default function App() {
   };
 
   const pollLoop = (id: string) => {
-    const interval = setInterval(async () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(async () => {
       try {
         const status = await pollStatus(id);
         setProgress(status);
 
         if (status.status === "done") {
-          clearInterval(interval);
+          clearInterval(intervalRef.current!);
+          intervalRef.current = null;
           setStage("done");
+        } else if (status.status === "cancelled") {
+          clearInterval(intervalRef.current!);
+          intervalRef.current = null;
+          setStage("cancelled");
         } else if (status.status === "error") {
-          clearInterval(interval);
+          clearInterval(intervalRef.current!);
+          intervalRef.current = null;
           setErrorMsg(status.error ?? "Неизвестная ошибка");
           setStage("error");
         }
       } catch {
-        clearInterval(interval);
+        clearInterval(intervalRef.current!);
+        intervalRef.current = null;
         setErrorMsg("Потеряна связь с сервером");
         setStage("error");
       }
     }, 1500);
   };
 
+  const handleStop = async () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    try {
+      await cancelJob(jobId);
+    } catch {
+      // best effort
+    }
+    // Resume polling so we catch the cancelled/done status and can download
+    pollLoop(jobId);
+  };
+
   const reset = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     setFilePath("");
     setRangeInput("");
     setRangeState("empty");
     setRangeResult(null);
     setRangeError("");
+    setIsValidating(false);
     setStage("idle");
     setJobId("");
     setProgress(null);
@@ -184,6 +195,8 @@ export default function App() {
   const prevResult = progress?.previous_result ?? "";
   const currentSubName = progress?.checkpoint_sub_name ?? "";
 
+  const isFormStage = stage === "idle" || stage === "starting";
+
   return (
     <div className="page">
       <div className="card">
@@ -193,7 +206,7 @@ export default function App() {
           проверки и сформирует текстовый отчёт об ошибках.
         </p>
 
-        {stage === "idle" || stage === "starting" ? (
+        {isFormStage ? (
           <form onSubmit={handleSubmit} className="form">
             <div className="field">
               <label className="label" htmlFor="filepath">
@@ -228,20 +241,28 @@ export default function App() {
                   placeholder={
                     fileType === "pdf"
                       ? "страница 1–3, 7"
-                      : "раздел 3.2 3.3–5"
+                      : "раздел 3.2 или 3.3–3.5"
                   }
                   value={rangeInput}
-                  onChange={(e) => setRangeInput(e.target.value)}
+                  onChange={(e) => {
+                    setRangeInput(e.target.value);
+                    // Reset validation state when user edits
+                    if (rangeState !== "empty") {
+                      setRangeState(e.target.value.trim() ? "empty" : "empty");
+                      setRangeError("");
+                      setRangeResult(null);
+                    }
+                  }}
                   autoComplete="off"
                   spellCheck={false}
                 />
-                {rangeState === "validating" && (
+                {isValidating && (
                   <span className="range-spinner" title="Валидация…">⟳</span>
                 )}
-                {rangeState === "valid" && (
+                {!isValidating && rangeState === "valid" && (
                   <span className="range-badge range-badge--ok">✓</span>
                 )}
-                {rangeState === "invalid" && (
+                {!isValidating && rangeState === "invalid" && (
                   <span className="range-badge range-badge--err">✕</span>
                 )}
               </div>
@@ -262,7 +283,7 @@ export default function App() {
               )}
 
               <span className="hint">
-                Для .docx — разделы (раздел 3.1 3.2–3.5); для .pdf — страницы (страница 1–3, 7).
+                Для .docx — разделы (раздел 3.1 или 3.2–3.5); для .pdf — страницы (страница 1–3, 7).
                 Оставьте пустым для проверки всего документа.
               </span>
             </div>
@@ -272,7 +293,11 @@ export default function App() {
               className="btn btn--primary"
               disabled={!canSubmit}
             >
-              {stage === "starting" ? "Запускаем…" : "Проверить"}
+              {isValidating
+                ? "Проверяем диапазон…"
+                : stage === "starting"
+                  ? "Запускаем…"
+                  : "Проверить"}
             </button>
           </form>
         ) : stage === "processing" ? (
@@ -318,9 +343,18 @@ export default function App() {
               </div>
             )}
 
-            <p className="processing-note">
-              Нейросеть выполняет проверки по очереди. Не закрывайте вкладку.
-            </p>
+            <div className="processing-actions">
+              <p className="processing-note">
+                Нейросеть выполняет проверки по очереди. Не закрывайте вкладку.
+              </p>
+              <button
+                className="btn btn--danger"
+                onClick={handleStop}
+                type="button"
+              >
+                Остановить
+              </button>
+            </div>
           </div>
         ) : stage === "done" ? (
           <div className="status-block status-block--done">
@@ -338,6 +372,23 @@ export default function App() {
             </a>
             <button className="btn btn--secondary" onClick={reset}>
               Проверить другой файл
+            </button>
+          </div>
+        ) : stage === "cancelled" ? (
+          <div className="status-block status-block--cancelled">
+            <div className="stopped-icon">⏹</div>
+            <p className="done-text">
+              Проверка остановлена. Частичный отчёт готов.
+            </p>
+            <a
+              href={resultUrl(jobId)}
+              download="report_errors_partial.txt"
+              className="btn btn--primary"
+            >
+              Скачать частичный отчёт
+            </a>
+            <button className="btn btn--secondary" onClick={reset}>
+              Проверить снова
             </button>
           </div>
         ) : (

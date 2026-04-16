@@ -11,6 +11,11 @@ class JobStatus(str, Enum):
     PROCESSING = "processing"
     DONE = "done"
     ERROR = "error"
+    CANCELLED = "cancelled"
+
+
+class JobCancelledError(Exception):
+    """Raised by checkpoints when they detect job.cancelled == True."""
 
 
 @dataclass
@@ -29,6 +34,8 @@ class Job:
     checkpoint_sub_name: str = ""
     # AI response for the previously completed sub-item.
     previous_result: str = ""
+    # Cancellation flag — set to True by POST /cancel/{job_id}.
+    cancelled: bool = False
     error: Optional[str] = None
     result_path: Optional[str] = None
 
