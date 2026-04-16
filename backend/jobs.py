@@ -20,11 +20,15 @@ class Job:
     current_checkpoint: int = 0
     total_checkpoints: int = 0
     current_checkpoint_name: str = ""
-    # Progress inside the current checkpoint (e.g. LLM chunk index).
+    current_checkpoint_short_name: str = ""
+    # Progress inside the current checkpoint (section / figure / table index).
     checkpoint_sub_current: int = 0
     checkpoint_sub_total: int = 0
     checkpoint_sub_location: str = ""
-    current_checkpoint_short_name: str = ""
+    # Name of the current sub-item (section title or figure/table label).
+    checkpoint_sub_name: str = ""
+    # AI response for the previously completed sub-item.
+    previous_result: str = ""
     error: Optional[str] = None
     result_path: Optional[str] = None
 

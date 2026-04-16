@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -9,6 +10,7 @@ from fastapi import BackgroundTasks, FastAPI, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+import ai_client
 import aggregator
 import jobs as job_store
 
@@ -31,7 +33,7 @@ RESULT_DIR = Path(tempfile.gettempdir()) / "report_checker"
 RESULT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def process_document(job_id: str, file_path: str) -> None:
+def process_document(job_id: str, file_path: str, range_spec: dict | None) -> None:
     job = job_store.get_job(job_id)
     if not job:
         return
@@ -40,7 +42,7 @@ def process_document(job_id: str, file_path: str) -> None:
         job.status = job_store.JobStatus.PROCESSING
         job_store.update_job(job)
 
-        doc_data = parse_document(file_path)
+        doc_data = parse_document(file_path, range_spec=range_spec)
 
         checkpoints = [cp for cp in load_checkpoints() if cp.supports(doc_data.fmt)]
 
@@ -56,6 +58,7 @@ def process_document(job_id: str, file_path: str) -> None:
             job.checkpoint_sub_current = 0
             job.checkpoint_sub_total = 0
             job.checkpoint_sub_location = ""
+            job.checkpoint_sub_name = ""
             job_store.update_job(job)
 
             errors = cp.run(doc_data, job_id=job_id)
@@ -83,10 +86,27 @@ def process_document(job_id: str, file_path: str) -> None:
         job_store.update_job(job)
 
 
+@app.post("/validate_range")
+async def validate_range(
+    range_text: str = Form(...),
+    file_type: str = Form(...),
+):
+    """Validate and normalise a free-form range string via AI.
+
+    Returns ``{valid, type, items, display, suggestion}``.
+    """
+    if not range_text.strip():
+        return {"valid": True, "type": "", "items": [], "display": "", "suggestion": ""}
+
+    result = ai_client.validate_range(range_text.strip(), file_type)
+    return result
+
+
 @app.post("/check")
 async def check(
     background_tasks: BackgroundTasks,
     file_path: str = Form(...),
+    range_spec: str = Form(""),
 ):
     linux_path = map_path(file_path)
 
@@ -103,8 +123,17 @@ async def check(
             detail="Поддерживаются только файлы .docx и .pdf",
         )
 
+    parsed_range: dict | None = None
+    if range_spec.strip():
+        try:
+            parsed_range = json.loads(range_spec)
+            if not isinstance(parsed_range, dict) or not parsed_range.get("valid"):
+                parsed_range = None
+        except (json.JSONDecodeError, ValueError):
+            parsed_range = None
+
     job = job_store.create_job()
-    background_tasks.add_task(process_document, job.id, linux_path)
+    background_tasks.add_task(process_document, job.id, linux_path, parsed_range)
 
     return {"job_id": job.id}
 
@@ -124,6 +153,8 @@ async def status(job_id: str):
         "checkpoint_sub_current": job.checkpoint_sub_current,
         "checkpoint_sub_total": job.checkpoint_sub_total,
         "checkpoint_sub_location": job.checkpoint_sub_location,
+        "checkpoint_sub_name": job.checkpoint_sub_name,
+        "previous_result": job.previous_result,
         "error": job.error,
     }
 

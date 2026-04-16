@@ -137,6 +137,66 @@ def check_references(payload: dict[str, Any], system_prompt: str) -> list[dict]:
     return []
 
 
+_VALIDATE_RANGE_PROMPT = """Ты помощник по разбору пользовательского ввода.
+Пользователь хочет указать диапазон проверки документа.
+Возможные форматы:
+  - Разделы (для .docx): "раздел 3.2", "разделы 3.1-3.4", "3.2 3.3", "раздел 3.1 и 3.3-3.5"
+  - Страницы (для .pdf): "страница 5", "страницы 1-3, 7", "стр. 2 4 6"
+
+Твоя задача — разобрать текст и вернуть СТРОГО JSON без пояснений:
+{
+  "valid": true|false,
+  "type": "sections"|"pages",
+  "items": [{"start": "3.1", "end": "3.4"}, {"start": "5", "end": "5"}],
+  "display": "Разделы: 3.1–3.4, 5",
+  "suggestion": "..."
+}
+
+Правила:
+- Если невозможно распознать — valid=false, items=[], suggestion содержит вероятное исправление.
+- Если задан только один раздел/страница — start и end одинаковы.
+- "display" — читаемая строка на русском.
+- "suggestion" — пусто ("") когда valid=true.
+- Для диапазона через тире: start=левая граница, end=правая граница.
+- Отвечай ТОЛЬКО JSON, никакого текста вокруг.
+"""
+
+
+def validate_range(text: str, file_type: str) -> dict:
+    """Ask the AI to parse and normalise a free-form range string.
+
+    Returns a dict with keys: valid, type, items, display, suggestion.
+    On any failure returns {"valid": False, "suggestion": "Не удалось обработать запрос"}.
+    """
+    user_content = f"Тип файла: {file_type}\nВвод пользователя: {text}"
+    logger.info("validate_range | file_type=%s | text=%s", file_type, text[:100])
+
+    try:
+        response = _get_client().chat.completions.create(
+            model=_model(),
+            messages=[
+                {"role": "system", "content": _VALIDATE_RANGE_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+            max_tokens=512,
+        )
+        raw = (response.choices[0].message.content or "").strip()
+        logger.info("validate_range done: %s", raw[:300])
+
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+
+        result = json.loads(raw)
+        if isinstance(result, dict):
+            return result
+    except Exception as exc:
+        logger.warning("validate_range error: %s", exc)
+
+    return {"valid": False, "type": "", "items": [], "display": "", "suggestion": "Не удалось обработать запрос"}
+
+
 def aggregate_errors(errors_text: str, system_prompt: str) -> str:
     """Send all collected errors to the AI for final aggregation.
 

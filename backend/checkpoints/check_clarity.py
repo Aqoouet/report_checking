@@ -1,7 +1,7 @@
 """Checkpoint 1 — Clarity, coherence and scientific-technical style.
 
-Splits the document into text chunks and sends each one to the AI with
-a prompt from ``prompts/clarity.txt``.  Works for both .docx and .pdf.
+Iterates over leaf sections (docx) or pages (pdf) and sends each one to the
+AI with a prompt from ``prompts/clarity.txt``.  Works for both .docx and .pdf.
 """
 
 from __future__ import annotations
@@ -24,20 +24,37 @@ class CheckClarity(BaseCheckpoint):
     def run(self, doc_data: DocData, *, job_id: str | None = None) -> list[dict]:
         prompt = _PROMPT_FILE.read_text(encoding="utf-8").strip()
         errors: list[dict] = []
-        total = len(doc_data.chunks)
+        sections = doc_data.sections
+        total = len(sections)
 
-        for i, chunk in enumerate(doc_data.chunks):
+        for i, section in enumerate(sections):
+            if doc_data.fmt == "pdf":
+                location = f"Страница {section.number}"
+                sub_name = location
+            else:
+                location = f"Раздел {section.number} — {section.title}".strip(" —")
+                sub_name = f"{section.number} {section.title}".strip()
+
             if job_id:
                 job = job_store.get_job(job_id)
                 if job:
                     job.checkpoint_sub_current = i + 1
                     job.checkpoint_sub_total = total
-                    job.checkpoint_sub_location = chunk.location
+                    job.checkpoint_sub_location = location
+                    job.checkpoint_sub_name = sub_name
                     job_store.update_job(job)
-            result = ai_client.check_text_chunk(chunk.text, prompt)
+
+            result = ai_client.check_text_chunk(section.text, prompt)
+
+            if job_id:
+                job = job_store.get_job(job_id)
+                if job:
+                    job.previous_result = result.strip() if result else ""
+                    job_store.update_job(job)
+
             if result and "ошибок не найдено" not in result.lower():
                 errors.append({
-                    "location": chunk.location,
+                    "location": location,
                     "error": result.strip(),
                 })
 

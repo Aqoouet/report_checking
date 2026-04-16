@@ -1,35 +1,65 @@
 """Unified document parser for Word (.docx) and PDF files.
 
 Produces a ``DocData`` object that checkpoints consume regardless of the
-original file format.  Text is split into chunks of roughly ``CHUNK_SIZE``
-characters so that prompt-based checkpoints can process them uniformly.
+original file format.  For docx, text is split into *leaf sections* (the
+deepest heading level that has no child headings beneath it).  For pdf, each
+page becomes one section.  The parser also pre-builds a dictionary of all
+table/figure captions and the passages that reference them.
 """
 
 from __future__ import annotations
 
-import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import fitz  # PyMuPDF — used only for PDF
 from docx import Document  # python-docx — used only for .docx
 
-# Target chunk size in characters (prompt + system fit in model context).
-CHUNK_SIZE = int(os.getenv("DOC_CHUNK_SIZE", "10000"))
+_W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+_CAPTION_RE = re.compile(
+    r"^(Таблица|Рисунок)\s+([\d\.]+[-–—][\d\.]+|[\d\.]+)",
+    re.IGNORECASE,
+)
+
+# Patterns for in-text references to figures/tables (e.g. "см. таблицу 3.1-2")
+_MENTION_RE = re.compile(
+    r"(таблиц[еуией]?\s+[\d\.]+[-–—][\d\.]+|рисун[окке]+\s+[\d\.]+[-–—][\d\.]+|"
+    r"таблиц[еуией]?\s+[\d\.]+|рисун[окке]+\s+[\d\.]+)",
+    re.IGNORECASE,
+)
 
 
 @dataclass
-class TextChunk:
-    text: str
-    location: str  # "Страница 5" | "Параграфы 12-15"
+class Section:
+    number: str   # "3.2" / "1.1.2" / "Страница 5"
+    title: str    # заголовок раздела или ""
+    text: str     # весь текст раздела
+    level: int    # уровень заголовка (1-based); 0 для страниц PDF
+
+
+@dataclass
+class FigTableMention:
+    context: str          # абзац(ы) где встречается ссылка
+    section_number: str   # номер раздела где встречается ссылка
+
+
+@dataclass
+class FigTableEntry:
+    label: str                       # "Таблица 3.1-2"
+    caption: str                     # полный текст подписи
+    section_number: str              # раздел где находится сама подпись
+    mentions: list[FigTableMention] = field(default_factory=list)
 
 
 @dataclass
 class DocData:
-    fmt: str                          # "docx" | "pdf"
+    fmt: str                                    # "docx" | "pdf"
     file_path: str
-    chunks: list[TextChunk] = field(default_factory=list)
+    sections: list[Section] = field(default_factory=list)
+    fig_table_dict: list[FigTableEntry] = field(default_factory=list)
     raw_docx: Optional[Document] = field(default=None, repr=False)
     raw_pdf: Optional[fitz.Document] = field(default=None, repr=False)
 
@@ -38,78 +68,322 @@ class DocData:
 # Public API
 # ---------------------------------------------------------------------------
 
-def parse_document(file_path: str) -> DocData:
-    """Detect format and parse *file_path* into a :class:`DocData`."""
+def parse_document(
+    file_path: str,
+    range_spec: dict | None = None,
+) -> DocData:
+    """Detect format and parse *file_path* into a :class:`DocData`.
+
+    *range_spec* is a dict produced by AI range validation::
+
+        {"type": "sections"|"pages",
+         "items": [{"start": "3.1", "end": "3.4"}, ...]}
+
+    If *range_spec* is None the full document is processed.
+    """
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"Файл не найден: {file_path}")
 
     ext = path.suffix.lower()
     if ext == ".docx":
-        return _parse_docx(file_path)
+        return _parse_docx(file_path, range_spec)
     elif ext == ".pdf":
-        return _parse_pdf(file_path)
+        return _parse_pdf(file_path, range_spec)
     else:
         raise ValueError(f"Неподдерживаемый формат файла: {ext}. Ожидается .docx или .pdf")
+
+
+# ---------------------------------------------------------------------------
+# Range helpers
+# ---------------------------------------------------------------------------
+
+def _section_in_range(number: str, items: list[dict]) -> bool:
+    """Return True if *number* falls within any of the given ranges.
+
+    Comparison is done as a dot-separated tuple of ints (best-effort).
+    """
+    def _key(s: str) -> tuple[int, ...]:
+        parts = re.split(r"[.\-–—]", s)
+        result = []
+        for p in parts:
+            try:
+                result.append(int(p))
+            except ValueError:
+                pass
+        return tuple(result)
+
+    num_key = _key(number)
+    if not num_key:
+        return False
+    for item in items:
+        start_key = _key(item.get("start", ""))
+        end_key = _key(item.get("end", item.get("start", "")))
+        if start_key <= num_key <= end_key:
+            return True
+    return False
+
+
+def _page_in_range(page_num: int, items: list[dict]) -> bool:
+    for item in items:
+        try:
+            s = int(re.sub(r"\D", "", str(item.get("start", page_num))))
+            e = int(re.sub(r"\D", "", str(item.get("end", item.get("start", page_num)))))
+            if s <= page_num <= e:
+                return True
+        except (ValueError, TypeError):
+            pass
+    return False
 
 
 # ---------------------------------------------------------------------------
 # Word parser
 # ---------------------------------------------------------------------------
 
-def _parse_docx(file_path: str) -> DocData:
+def _heading_level(para) -> int:
+    """Return heading level (1-based) or 0 if not a heading."""
+    style = para.style.name.lower()
+    for prefix in ("heading ", "заголовок "):
+        if style.startswith(prefix):
+            try:
+                return int(style[len(prefix):].strip().split()[0])
+            except (ValueError, IndexError):
+                return 1
+    return 0
+
+
+def _extract_heading_number(title: str) -> str:
+    """Try to pull a leading numbering token from a heading title.
+
+    E.g. "3.2 Методы исследования" → "3.2".
+    Falls back to the raw title if no number is found.
+    """
+    m = re.match(r"^([\d]+(?:[.\-–—][\d]+)*)\s*", title)
+    if m:
+        return m.group(1)
+    return title
+
+
+@dataclass
+class _HeadingInfo:
+    level: int
+    number: str
+    title: str
+    para_idx: int  # index in the flat paragraph list
+
+
+def _parse_docx(file_path: str, range_spec: dict | None) -> DocData:
     doc = Document(file_path)
-    chunks: list[TextChunk] = []
+    paras = doc.paragraphs
 
-    buffer = ""
-    section_num = 0
-    frag_num = 0
+    # --- Pass 1: collect all headings ---
+    headings: list[_HeadingInfo] = []
+    for idx, para in enumerate(paras):
+        level = _heading_level(para)
+        if level == 0:
+            continue
+        title = para.text.strip()
+        number = _extract_heading_number(title)
+        headings.append(_HeadingInfo(level=level, number=number, title=title, para_idx=idx))
 
-    def _is_heading(para) -> bool:
-        style = para.style.name.lower()
-        return style.startswith("heading") or style.startswith("заголовок")
+    # --- Pass 2: identify leaf headings (no child heading before next same/parent) ---
+    leaf_indices: set[int] = set()
+    for i, h in enumerate(headings):
+        is_leaf = True
+        for j in range(i + 1, len(headings)):
+            nxt = headings[j]
+            if nxt.level <= h.level:
+                break
+            if nxt.level > h.level:
+                is_leaf = False
+                break
+        if is_leaf:
+            leaf_indices.add(i)
 
-    def _flush(buf: str, sec: int, frag: int) -> TextChunk:
-        loc = f"Раздел {sec}" if frag <= 1 else f"Раздел {sec} · фрагмент {frag}"
-        return TextChunk(text=buf.strip(), location=loc)
+    # If document has no headings at all, treat the whole text as one section
+    if not headings:
+        full_text = "\n".join(p.text.strip() for p in paras if p.text.strip())
+        sections = [Section(number="", title="Документ", text=full_text, level=0)]
+        fig_table_dict = _build_fig_table_dict_docx(doc, sections)
+        return DocData(fmt="docx", file_path=file_path,
+                       sections=sections, fig_table_dict=fig_table_dict, raw_docx=doc)
 
-    for para in doc.paragraphs:
-        text = para.text.strip()
-        if not text:
+    # --- Pass 3: collect text for each leaf section ---
+    sections: list[Section] = []
+
+    for i, h in enumerate(headings):
+        if i not in leaf_indices:
             continue
 
-        if _is_heading(para):
-            if buffer.strip():
-                frag_num += 1
-                chunks.append(_flush(buffer, section_num or 1, frag_num))
-                buffer = ""
-            section_num += 1
-            frag_num = 0
+        # Text spans from h.para_idx to the next heading's para_idx (exclusive)
+        if i + 1 < len(headings):
+            end_idx = headings[i + 1].para_idx
+        else:
+            end_idx = len(paras)
 
-        buffer += text + "\n"
+        text_parts = [h.title]
+        for idx in range(h.para_idx + 1, end_idx):
+            t = paras[idx].text.strip()
+            if t:
+                text_parts.append(t)
 
-        if len(buffer) >= CHUNK_SIZE:
-            frag_num += 1
-            chunks.append(_flush(buffer, section_num or 1, frag_num))
-            buffer = ""
+        sections.append(Section(
+            number=h.number,
+            title=h.title,
+            text="\n".join(text_parts),
+            level=h.level,
+        ))
 
-    if buffer.strip():
-        frag_num += 1
-        chunks.append(_flush(buffer, section_num or 1, frag_num))
+    # --- Filter by range_spec ---
+    if range_spec and range_spec.get("type") == "sections":
+        items = range_spec.get("items", [])
+        if items:
+            sections = [s for s in sections if _section_in_range(s.number, items)]
 
-    return DocData(fmt="docx", file_path=file_path, chunks=chunks, raw_docx=doc)
+    # --- Build figure/table dictionary ---
+    fig_table_dict = _build_fig_table_dict_docx(doc, sections)
+
+    return DocData(fmt="docx", file_path=file_path,
+                   sections=sections, fig_table_dict=fig_table_dict, raw_docx=doc)
+
+
+def _para_text_elem(para_elem: Any) -> str:
+    return "".join(node.text or "" for node in para_elem.iter(f"{{{_W}}}t"))
+
+
+def _build_fig_table_dict_docx(doc: Document, sections: list[Section]) -> list[FigTableEntry]:
+    """Build a list of FigTableEntry from the whole document.
+
+    Uses bookmark-based REF fields for docx plus a fallback text scan.
+    The section_number for each mention is inferred from the surrounding text.
+    """
+    body = doc.element.body
+    paras_elems = list(body.iter(f"{{{_W}}}p"))
+
+    # Map each paragraph element index to a section number
+    # (simplistic: use the flat paragraph list from doc.paragraphs)
+    flat_paras = doc.paragraphs
+    para_to_section: dict[int, str] = {}
+    current_sec = ""
+    for idx, para in enumerate(flat_paras):
+        if _heading_level(para) > 0:
+            current_sec = _extract_heading_number(para.text.strip())
+        para_to_section[idx] = current_sec
+
+    # Collect captions
+    entries: dict[str, FigTableEntry] = {}  # label → entry
+
+    # Also build a bookmark→label map for REF-field lookup
+    bm_to_label: dict[str, str] = {}
+
+    for para_idx_e, para_e in enumerate(paras_elems):
+        text = _para_text_elem(para_e).strip()
+        m = _CAPTION_RE.match(text)
+        if m:
+            label = m.group(0).strip()
+            # Try to find paragraph index in flat list
+            sec_num = _infer_section_for_elem(para_idx_e, paras_elems, para_to_section, flat_paras)
+            entry = FigTableEntry(label=label, caption=text, section_number=sec_num)
+            entries[label] = entry
+
+            # Record bookmarks in this paragraph
+            for bm in para_e.iter(f"{{{_W}}}bookmarkStart"):
+                bm_name = bm.get(f"{{{_W}}}name", "")
+                if bm_name:
+                    bm_to_label[bm_name] = label
+
+    # Collect mentions via REF fields
+    for para_idx_e, para_e in enumerate(paras_elems):
+        instr_texts = [
+            node.text or ""
+            for node in para_e.iter(f"{{{_W}}}instrText")
+        ]
+        for instr in instr_texts:
+            instr = instr.strip()
+            if not instr.upper().startswith("REF "):
+                continue
+            parts = instr.split()
+            if len(parts) < 2:
+                continue
+            bm_name = parts[1]
+            if bm_name not in bm_to_label:
+                continue
+            label = bm_to_label[bm_name]
+            context_parts = []
+            if para_idx_e > 0:
+                context_parts.append(_para_text_elem(paras_elems[para_idx_e - 1]).strip())
+            context_parts.append(_para_text_elem(para_e).strip())
+            if para_idx_e < len(paras_elems) - 1:
+                context_parts.append(_para_text_elem(paras_elems[para_idx_e + 1]).strip())
+            context = "\n".join(p for p in context_parts if p)
+            sec_num = _infer_section_for_elem(para_idx_e, paras_elems, para_to_section, flat_paras)
+            entries[label].mentions.append(FigTableMention(context=context, section_number=sec_num))
+
+    # Fallback: text scan for mentions not covered by REF fields
+    mentioned_via_ref: set[str] = set()
+    for entry in entries.values():
+        for m in entry.mentions:
+            mentioned_via_ref.add(m.context[:50])  # rough dedup key
+
+    for para_idx_e, para_e in enumerate(paras_elems):
+        text = _para_text_elem(para_e).strip()
+        for m in _MENTION_RE.finditer(text):
+            raw = m.group(0)
+            # Normalise to label key
+            label_candidate = _normalise_mention(raw)
+            if label_candidate not in entries:
+                continue
+            context_parts = []
+            if para_idx_e > 0:
+                context_parts.append(_para_text_elem(paras_elems[para_idx_e - 1]).strip())
+            context_parts.append(text)
+            if para_idx_e < len(paras_elems) - 1:
+                context_parts.append(_para_text_elem(paras_elems[para_idx_e + 1]).strip())
+            context = "\n".join(p for p in context_parts if p)
+            if context[:50] in mentioned_via_ref:
+                continue  # already captured by REF field
+            sec_num = _infer_section_for_elem(para_idx_e, paras_elems, para_to_section, flat_paras)
+            entries[label_candidate].mentions.append(
+                FigTableMention(context=context, section_number=sec_num)
+            )
+            mentioned_via_ref.add(context[:50])
+
+    return list(entries.values())
+
+
+def _normalise_mention(raw: str) -> str:
+    """Convert a loose mention like 'таблицу 3.1-2' to 'Таблица 3.1-2'."""
+    raw = raw.strip()
+    if re.match(r"таблиц", raw, re.IGNORECASE):
+        kind = "Таблица"
+    else:
+        kind = "Рисунок"
+    num_m = re.search(r"[\d\.]+[-–—][\d\.]+|[\d\.]+", raw)
+    if num_m:
+        return f"{kind} {num_m.group(0)}"
+    return raw
+
+
+def _infer_section_for_elem(
+    para_idx_e: int,
+    paras_elems: list,
+    para_to_section: dict[int, str],
+    flat_paras,
+) -> str:
+    """Best-effort: map element paragraph index to a section number."""
+    # The element list and flat_paras may not align perfectly; use proximity
+    frac = para_idx_e / max(len(paras_elems), 1)
+    flat_idx = min(int(frac * len(flat_paras)), len(flat_paras) - 1)
+    return para_to_section.get(flat_idx, "")
 
 
 # ---------------------------------------------------------------------------
 # PDF parser
 # ---------------------------------------------------------------------------
 
-def _parse_pdf(file_path: str) -> DocData:
+def _parse_pdf(file_path: str, range_spec: dict | None) -> DocData:
     pdf = fitz.open(file_path)
-    chunks: list[TextChunk] = []
-
-    buffer = ""
-    start_page = 1
+    sections: list[Section] = []
 
     for page_num in range(len(pdf)):
         page = pdf[page_num]
@@ -120,25 +394,54 @@ def _parse_pdf(file_path: str) -> DocData:
         if not page_text:
             continue
 
-        buffer += page_text + "\n"
+        page_label = str(page_num + 1)
+        sections.append(Section(
+            number=page_label,
+            title=f"Страница {page_label}",
+            text=page_text,
+            level=0,
+        ))
 
-        if len(buffer) >= CHUNK_SIZE:
-            label = (
-                f"Страница {start_page}"
-                if start_page == page_num + 1
-                else f"Страницы {start_page}–{page_num + 1}"
-            )
-            chunks.append(TextChunk(text=buffer.strip(), location=label))
-            buffer = ""
-            start_page = page_num + 2
+    # Filter by range_spec
+    if range_spec and range_spec.get("type") == "pages":
+        items = range_spec.get("items", [])
+        if items:
+            sections = [s for s in sections if _page_in_range(int(s.number), items)]
 
-    if buffer.strip():
-        end_page = len(pdf)
-        label = (
-            f"Страница {start_page}"
-            if start_page == end_page
-            else f"Страницы {start_page}–{end_page}"
-        )
-        chunks.append(TextChunk(text=buffer.strip(), location=label))
+    # Build figure/table dict for PDF (text scan only)
+    fig_table_dict = _build_fig_table_dict_pdf(sections)
 
-    return DocData(fmt="pdf", file_path=file_path, chunks=chunks, raw_pdf=pdf)
+    return DocData(fmt="pdf", file_path=file_path,
+                   sections=sections, fig_table_dict=fig_table_dict, raw_pdf=pdf)
+
+
+def _build_fig_table_dict_pdf(sections: list[Section]) -> list[FigTableEntry]:
+    entries: dict[str, FigTableEntry] = {}
+
+    for sec in sections:
+        lines = sec.text.splitlines()
+        for line_idx, line in enumerate(lines):
+            m = _CAPTION_RE.match(line.strip())
+            if m:
+                label = m.group(0).strip()
+                if label not in entries:
+                    entries[label] = FigTableEntry(
+                        label=label, caption=line.strip(), section_number=sec.number
+                    )
+
+    for sec in sections:
+        lines = sec.text.splitlines()
+        for line_idx, line in enumerate(lines):
+            for m in _MENTION_RE.finditer(line):
+                raw = m.group(0)
+                label_candidate = _normalise_mention(raw)
+                if label_candidate not in entries:
+                    continue
+                ctx_start = max(0, line_idx - 1)
+                ctx_end = min(len(lines), line_idx + 2)
+                context = "\n".join(lines[ctx_start:ctx_end])
+                entries[label_candidate].mentions.append(
+                    FigTableMention(context=context, section_number=sec.number)
+                )
+
+    return list(entries.values())
