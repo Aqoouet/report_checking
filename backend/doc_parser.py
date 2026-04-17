@@ -368,6 +368,11 @@ def _para_caption_text(para_e: Any, section_number: str) -> str:
             if re.match(r"STYLEREF", instr, re.IGNORECASE):
                 is_styleref = True
                 level = _styleref_level(instr)
+        elif tag == f"{{{_W}}}noBreakHyphen":
+            # Non-breaking hyphen stored as XML element (not <w:t>).
+            # Emit it when outside a STYLEREF cached result.
+            if not in_field or (in_field_result and not is_styleref):
+                parts.append("\u2011")
         elif tag == f"{{{_W}}}t":
             if not in_field:
                 parts.append(node.text or "")
@@ -375,6 +380,60 @@ def _para_caption_text(para_e: Any, section_number: str) -> str:
                 # Non-STYLEREF field result (e.g. SEQ counter) — keep as-is
                 parts.append(node.text or "")
             # STYLEREF result: skip the stale cached heading text
+
+    return "".join(parts)
+
+
+def _para_ref_resolved_text(para_e: Any, bm_to_label: dict[str, str]) -> str:
+    """Like _para_text_elem but replaces REF field cached text with correct labels.
+
+    Body paragraphs reference figure/table captions via REF fields whose cached
+    result is the stale label (e.g. 'Рисунок Методы...-1').  We substitute
+    the cached text with the correctly resolved label from *bm_to_label*
+    (e.g. 'Рисунок 3‑1') so the AI context is clean.
+    """
+    parts: list[str] = []
+    in_field = False
+    in_field_result = False
+    is_ref = False
+    ref_label: str = ""
+
+    for node in para_e.iter():
+        tag = node.tag
+        if tag == f"{{{_W}}}fldChar":
+            fld_type = node.get(f"{{{_W}}}fldCharType", "")
+            if fld_type == "begin":
+                in_field = True
+                in_field_result = False
+                is_ref = False
+                ref_label = ""
+            elif fld_type == "separate":
+                in_field_result = True
+            elif fld_type == "end":
+                if is_ref and ref_label:
+                    parts.append(ref_label)
+                in_field = False
+                in_field_result = False
+                is_ref = False
+                ref_label = ""
+        elif tag == f"{{{_W}}}instrText":
+            instr = (node.text or "").strip()
+            if instr.upper().startswith("REF "):
+                instr_parts = instr.split()
+                if len(instr_parts) >= 2:
+                    bm = instr_parts[1]
+                    if bm in bm_to_label:
+                        is_ref = True
+                        ref_label = bm_to_label[bm]
+        elif tag == f"{{{_W}}}noBreakHyphen":
+            if not in_field or (in_field_result and not is_ref):
+                parts.append("\u2011")
+        elif tag == f"{{{_W}}}t":
+            if not in_field:
+                parts.append(node.text or "")
+            elif in_field_result and not is_ref:
+                parts.append(node.text or "")
+            # REF result: skip stale cached text (correct label appended at field end)
 
     return "".join(parts)
 
@@ -429,6 +488,7 @@ def _build_fig_table_dict_docx(
                 if bm_name:
                     bm_to_label[bm_name] = label
 
+
     # Collect mentions via REF fields
     for para_idx_e, para_e in enumerate(paras_elems):
         instr_texts = [
@@ -448,13 +508,14 @@ def _build_fig_table_dict_docx(
             label = bm_to_label[bm_name]
             context_parts = []
             if para_idx_e > 0:
-                context_parts.append(_para_text_elem(paras_elems[para_idx_e - 1]).strip())
-            context_parts.append(_para_text_elem(para_e).strip())
+                context_parts.append(_para_ref_resolved_text(paras_elems[para_idx_e - 1], bm_to_label).strip())
+            context_parts.append(_para_ref_resolved_text(para_e, bm_to_label).strip())
             if para_idx_e < len(paras_elems) - 1:
-                context_parts.append(_para_text_elem(paras_elems[para_idx_e + 1]).strip())
+                context_parts.append(_para_ref_resolved_text(paras_elems[para_idx_e + 1], bm_to_label).strip())
             context = "\n".join(p for p in context_parts if p)
             sec_num = elem_section[para_idx_e]
             entries[label].mentions.append(FigTableMention(context=context, section_number=sec_num))
+
 
     # Fallback: text scan for mentions not covered by REF fields
     mentioned_via_ref: set[str] = set()
