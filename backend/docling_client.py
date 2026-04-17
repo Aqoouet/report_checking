@@ -1,21 +1,14 @@
 """HTTP client for the official docling-serve microservice.
 
-Uses the v1 API of ``ghcr.io/docling-project/docling-serve-cpu``.
-
-File-upload endpoint:  ``POST /v1/convert/file``
-Request:  multipart/form-data  (field ``files`` + conversion options)
-Response: ``{"document": {"json_content": <DoclingDocument dict>}, "status": "..."}``
-
-Only ``to_formats=json`` is requested so the returned payload is exactly the
-same ``DoclingDocument.export_to_dict()`` dict that ``docling_docx_parser``
-knows how to map.
+Converts a .docx file to Markdown via ``POST /v1/convert/file``.
+OCR is always disabled — DOCX files contain embedded text.
 
 Environment variables
 ---------------------
 DOCLING_URL
     Base URL of docling-serve (default: ``http://docling:5001``).
 DOCLING_TIMEOUT
-    Total request timeout in seconds (default: ``180``).
+    Total request timeout in seconds (default: ``300``).
 """
 
 from __future__ import annotations
@@ -26,36 +19,35 @@ from pathlib import Path
 import httpx
 
 _DOCLING_URL = os.getenv("DOCLING_URL", "http://docling:5001").rstrip("/")
-_TIMEOUT = float(os.getenv("DOCLING_TIMEOUT", "180"))
+_TIMEOUT = float(os.getenv("DOCLING_TIMEOUT", "300"))
 
-# Parameters sent with every conversion request.
-# OCR is disabled — our DOCX files contain embedded text.
-# image_export_mode=placeholder keeps the JSON small (we don't need image bytes).
 _CONVERT_PARAMS = {
-    "to_formats": "json",
+    "to_formats": "md",
     "do_ocr": "false",
     "image_export_mode": "placeholder",
+    "table_mode": "accurate",
+    "do_table_structure": "true",
+    "include_images": "false",
+    "do_picture_classification": "false",
+    "do_picture_description": "false",
     "abort_on_error": "false",
+    "md_page_break_placeholder": "",
 }
 
 
-def convert_file(file_path: str) -> dict:
-    """Upload *file_path* to docling-serve and return the DoclingDocument dict.
-
-    Extracts ``response["document"]["json_content"]`` from the v1 API response
-    and returns it directly — this is the same structure as
-    ``DoclingDocument.export_to_dict()``, ready for ``docling_docx_parser``.
+def convert_file_to_md(file_path: str) -> str:
+    """Upload *file_path* to docling-serve and return the Markdown string.
 
     Raises
     ------
+    FileNotFoundError
+        If *file_path* does not exist locally.
     httpx.HTTPStatusError
         If the service returns a 4xx/5xx response.
     httpx.TimeoutException
         If the service does not respond within *DOCLING_TIMEOUT* seconds.
-    FileNotFoundError
-        If *file_path* does not exist locally.
     RuntimeError
-        If docling-serve reports a conversion failure or returns no JSON content.
+        If docling-serve reports a conversion failure or returns no MD content.
     """
     path = Path(file_path)
     if not path.exists():
@@ -72,23 +64,23 @@ def convert_file(file_path: str) -> dict:
 
     body = response.json()
     status = body.get("status", "")
+
     if status == "failure":
         errors = body.get("errors", [])
         raise RuntimeError(f"docling-serve conversion failed: {errors}")
 
     doc = body.get("document") or {}
-    json_content = doc.get("json_content")
-    if not json_content:
+    md = doc.get("md_content")
+    if not md:
         raise RuntimeError(
-            f"docling-serve returned no JSON content (status={status!r}). "
-            "Check that to_formats=json is supported by this server version."
+            f"docling-serve returned no md_content (status={status!r}). "
+            "Ensure the server version supports to_formats=md."
         )
 
-    return json_content
+    return md
 
 
 def _content_type(suffix: str) -> str:
     return {
         ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ".pdf": "application/pdf",
     }.get(suffix.lower(), "application/octet-stream")

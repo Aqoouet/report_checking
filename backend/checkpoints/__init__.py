@@ -1,8 +1,8 @@
 """Auto-discovery of checkpoint modules.
 
 Any module inside this package whose name starts with ``check_`` and
-that contains exactly one subclass of BaseCheckpoint is loaded
-automatically when :func:`load_checkpoints` is called.
+contains a subclass of BaseCheckpoint is loaded automatically when
+:func:`load_checkpoints` is called.
 """
 
 from __future__ import annotations
@@ -20,13 +20,13 @@ def load_checkpoints() -> list[BaseCheckpoint]:
     checkpoints: list[BaseCheckpoint] = []
     package_dir = Path(__file__).parent
 
-    for finder, module_name, _ in pkgutil.iter_modules([str(package_dir)]):
+    for _, module_name, _ in pkgutil.iter_modules([str(package_dir)]):
         if not module_name.startswith("check_"):
             continue
         module = importlib.import_module(f"checkpoints.{module_name}")
         expected_module = f"checkpoints.{module_name}"
         for _, obj in inspect.getmembers(module, inspect.isclass):
-            if issubclass(obj, BaseCheckpoint) and obj.__module__ == expected_module:
+            if issubclass(obj, BaseCheckpoint) and obj is not BaseCheckpoint and obj.__module__ == expected_module:
                 checkpoints.append(obj())
 
     return checkpoints

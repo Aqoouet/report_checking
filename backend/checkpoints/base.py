@@ -5,11 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from doc_parser import DocData
-
-# ---------------------------------------------------------------------------
-# Shared "no error" detection
-# ---------------------------------------------------------------------------
+    from doc_models import DocData
 
 _NO_ERROR_VARIANTS = (
     "ошибок не найдено",
@@ -27,7 +23,6 @@ _NO_ERROR_VARIANTS = (
 
 
 def is_no_error(result: str) -> bool:
-    """Return True if *result* is a model response indicating no errors were found."""
     r = result.lower().strip()
     return any(v in r for v in _NO_ERROR_VARIANTS)
 
@@ -35,30 +30,18 @@ def is_no_error(result: str) -> bool:
 class BaseCheckpoint(ABC):
     name: str
     short_name: str = ""
-    supported_formats: list[str]  # e.g. ["docx", "pdf"] or ["docx"]
+    supported_formats: list[str]
 
     def supports(self, fmt: str) -> bool:
         return fmt in self.supported_formats
 
     @abstractmethod
     def run(self, doc_data: "DocData", *, job_id: str | None = None) -> list[dict]:
-        """Run the checkpoint and return a list of errors.
-
-        *job_id* is set when the job should receive fine-grained progress updates.
-
-        Each error is a dict with keys:
-            location (str): human-readable location, e.g. "Параграф 12" or "Страница 5"
-            error    (str): description of the found problem
-        """
+        """Run the checkpoint and return a list of error dicts (location, error)."""
 
 
 class PerSectionCheckpoint(BaseCheckpoint):
-    """Base for checkpoints that send each section/page to the AI individually.
-
-    Subclasses only need to declare ``name``, ``short_name``,
-    ``supported_formats``, and ``prompt_file``.  The iteration, progress
-    reporting, and cancellation detection are handled here.
-    """
+    """Sends each section chunk to the AI and collects errors."""
 
     prompt_file: Path
 
@@ -73,12 +56,8 @@ class PerSectionCheckpoint(BaseCheckpoint):
         total = len(sections)
 
         for i, section in enumerate(sections):
-            if doc_data.fmt == "pdf":
-                location = f"Страница {section.number}"
-                sub_name = location
-            else:
-                location = f"Раздел {section.number} — {section.title}".strip(" —")
-                sub_name = f"{section.number} {section.title}".strip()
+            location = f"Раздел {section.number} — {section.title}".strip(" —")
+            sub_name = f"{section.number} {section.title}".strip()
 
             if job_id:
                 job = job_store.get_job(job_id)

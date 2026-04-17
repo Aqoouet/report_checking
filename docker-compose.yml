@@ -2,20 +2,15 @@ services:
   # ------------------------------------------------------------------
   # docling-serve — official IBM Docling HTTP service (CPU-only build).
   # Image: ghcr.io/docling-project/docling-serve-cpu (~4.4 GB)
-  #
-  # Set USE_DOCLING=true in backend's environment to activate.
-  # The service is defined here but only consulted when USE_DOCLING=true.
-  #
-  # Internal port: 5001  (set by docling-serve, not configurable here).
-  # No external port is exposed — only the backend talks to this service.
+  # Internal port: 5001 — only the backend talks to this service.
   # ------------------------------------------------------------------
   docling:
     image: ghcr.io/docling-project/docling-serve-cpu:latest
     container_name: report-checker-docling
     restart: unless-stopped
     environment:
-      # Disable OCR — our DOCX files have embedded text
       - DOCLING_SERVE_ENABLE_UI=0
+      - DOCLING_SERVE_MAX_SYNC_WAIT=3600
 
   backend:
     build:
@@ -27,30 +22,18 @@ services:
     container_name: report-checker-backend
     restart: unless-stopped
     environment:
-      # LM Studio runs on the host — use host.docker.internal to reach it
       - OPENAI_API_KEY=${OPENAI_API_KEY:-lm-studio}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://host.docker.internal:1234/v1}
-      # Quick switch examples:
-      # - OPENAI_MODEL=qwen3-coder-30b-a3b-instruct
-      # - OPENAI_MODEL=qwen/qwen3-4b-2507
-      - OPENAI_MODEL=${OPENAI_MODEL:-qwen3-coder-30b-a3b-instruct}
-      # Range validation uses a small model id from LM Studio (/v1/models). Override if needed.
+      - OPENAI_MODEL=${OPENAI_MODEL:-qwen/qwen3-4b-2507}
       - OPENAI_VALIDATE_MODEL=${OPENAI_VALIDATE_MODEL:-qwen/qwen3-4b-2507}
       - AI_TIMEOUT=${AI_TIMEOUT:-0}
       - AI_CONNECT_TIMEOUT=${AI_CONNECT_TIMEOUT:-15}
       - DOC_CHUNK_SIZE=${DOC_CHUNK_SIZE:-10000}
-      - AI_CHUNK_MAX_TOKENS=${AI_CHUNK_MAX_TOKENS:-0}
-      - PDF_PAGES_PER_CHUNK=${PDF_PAGES_PER_CHUNK:-1}
-      # Docling integration — set USE_DOCLING=true to route .docx files
-      # through the docling-service instead of the built-in OOXML parser.
-      - USE_DOCLING=${USE_DOCLING:-false}
       - DOCLING_URL=${DOCLING_URL:-http://docling:5001}
-      - DOCLING_TIMEOUT=${DOCLING_TIMEOUT:-180}
+      - DOCLING_TIMEOUT=${DOCLING_TIMEOUT:-300}
     volumes:
-      # Host report paths (e.g. path_mapping → /filer/users/rymax1e/...) must exist inside the container
       - /filer/users/rymax1e:/filer/users/rymax1e:ro
     extra_hosts:
-      # Needed on Linux so host.docker.internal resolves to the host
       - "host.docker.internal:host-gateway"
     depends_on:
       - docling

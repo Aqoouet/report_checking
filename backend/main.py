@@ -14,7 +14,6 @@ import ai_client
 import aggregator
 import jobs as job_store
 from jobs import JobCancelledError, JobStatus
-
 from checkpoints import load_checkpoints
 from doc_parser import parse_document
 from path_mapper import map_path
@@ -46,8 +45,7 @@ def process_document(job_id: str, file_path: str, range_spec: dict | None) -> No
 
         doc_data = parse_document(file_path, range_spec=range_spec)
 
-        checkpoints = [cp for cp in load_checkpoints() if cp.supports(doc_data.fmt)]
-
+        checkpoints = load_checkpoints()
         job.total_checkpoints = len(checkpoints)
         job.current_checkpoint = 0
         job_store.update_job(job)
@@ -55,8 +53,7 @@ def process_document(job_id: str, file_path: str, range_spec: dict | None) -> No
         all_errors: list[dict] = []
         was_cancelled = False
 
-        for idx, cp in enumerate(checkpoints):
-            # Refresh job to catch cancellation set by the /cancel endpoint
+        for cp in checkpoints:
             job = job_store.get_job(job_id)
             if job is None:
                 break
@@ -88,7 +85,6 @@ def process_document(job_id: str, file_path: str, range_spec: dict | None) -> No
             job.current_checkpoint += 1
             job_store.update_job(job)
 
-        # Always write whatever was collected (full or partial)
         result_path = str(RESULT_DIR / f"{job_id}_result.txt")
         aggregator.aggregate(all_errors, result_path, doc_data=doc_data)
 
@@ -108,30 +104,19 @@ def process_document(job_id: str, file_path: str, range_spec: dict | None) -> No
 
 
 @app.post("/validate_range_quick")
-async def validate_range_quick(
-    range_text: str = Form(...),
-    file_type: str = Form(...),
-):
-    """Validate and normalise a range string using pure script logic (no AI)."""
-    return parse_range_script(range_text.strip(), file_type)
+async def validate_range_quick(range_text: str = Form(...)):
+    return parse_range_script(range_text.strip())
 
 
 @app.post("/validate_range")
-async def validate_range(
-    range_text: str = Form(...),
-    file_type: str = Form(...),
-):
-    """Validate and normalise a free-form range string via AI."""
+async def validate_range(range_text: str = Form(...)):
     if not range_text.strip():
-        return {"valid": True, "type": "", "items": [], "display": "", "suggestion": ""}
-
-    result = ai_client.validate_range(range_text.strip(), file_type)
-    return result
+        return {"valid": True, "type": "sections", "items": [], "display": "", "suggestion": ""}
+    return ai_client.validate_range(range_text.strip())
 
 
 @app.post("/cancel/{job_id}")
 async def cancel_job(job_id: str):
-    """Signal the background job to stop after the current sub-item."""
     job = job_store.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Задача не найдена")
@@ -149,17 +134,10 @@ async def check(
     linux_path = map_path(file_path)
 
     if not Path(linux_path).exists():
-        raise HTTPException(
-            status_code=400,
-            detail=f"Файл не найден: {linux_path}",
-        )
+        raise HTTPException(status_code=400, detail=f"Файл не найден: {linux_path}")
 
-    ext = Path(linux_path).suffix.lower()
-    if ext not in (".docx", ".pdf"):
-        raise HTTPException(
-            status_code=400,
-            detail="Поддерживаются только файлы .docx и .pdf",
-        )
+    if not linux_path.lower().endswith(".docx"):
+        raise HTTPException(status_code=400, detail="Поддерживаются только файлы .docx")
 
     parsed_range: dict | None = None
     if range_spec.strip():
@@ -172,7 +150,6 @@ async def check(
 
     job = job_store.create_job()
     background_tasks.add_task(process_document, job.id, linux_path, parsed_range)
-
     return {"job_id": job.id}
 
 
@@ -181,7 +158,6 @@ async def status(job_id: str):
     job = job_store.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Задача не найдена")
-
     return {
         "status": job.status,
         "current_checkpoint": job.current_checkpoint,

@@ -20,24 +20,17 @@ export interface StatusResponse {
 
 export interface ValidateRangeResponse {
   valid: boolean;
-  type: "sections" | "pages" | "";
+  type: "sections" | "";
   items: Array<{ start: string; end: string }>;
   display: string;
   suggestion: string;
-  /** True when the backend could not call or parse the model (not a format hint). */
   server_error?: boolean;
-  /** Explicit message (e.g. wrong OPENAI_VALIDATE_MODEL); overrides generic server_error text. */
   range_message?: string;
 }
 
-export async function validateRange(
-  rangeText: string,
-  fileType: string,
-): Promise<ValidateRangeResponse> {
+export async function validateRange(rangeText: string): Promise<ValidateRangeResponse> {
   const form = new FormData();
   form.append("range_text", rangeText);
-  form.append("file_type", fileType);
-
   const res = await fetch(`${BASE}/validate_range`, { method: "POST", body: form });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -46,14 +39,9 @@ export async function validateRange(
   return res.json();
 }
 
-export async function validateRangeQuick(
-  rangeText: string,
-  fileType: string,
-): Promise<ValidateRangeResponse> {
+export async function validateRangeQuick(rangeText: string): Promise<ValidateRangeResponse> {
   const form = new FormData();
   form.append("range_text", rangeText);
-  form.append("file_type", fileType);
-
   const res = await fetch(`${BASE}/validate_range_quick`, { method: "POST", body: form });
   if (!res.ok) throw new Error(`Ошибка быстрой валидации: ${res.status}`);
   return res.json();
@@ -68,7 +56,6 @@ export async function startCheck(
   if (rangeSpec && rangeSpec.valid && rangeSpec.items.length > 0) {
     form.append("range_spec", JSON.stringify(rangeSpec));
   }
-
   const res = await fetch(`${BASE}/check`, { method: "POST", body: form });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));

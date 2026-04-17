@@ -15,13 +15,6 @@ import "./index.css";
 
 type Stage = "idle" | "starting" | "processing" | TerminalStage;
 
-function detectFileType(path: string): "docx" | "pdf" | "" {
-  const lower = path.toLowerCase().trim();
-  if (lower.endsWith(".docx")) return "docx";
-  if (lower.endsWith(".pdf")) return "pdf";
-  return "";
-}
-
 export default function App() {
   const [filePath, setFilePath] = useState("");
   const [rangeInput, setRangeInput] = useState("");
@@ -37,20 +30,13 @@ export default function App() {
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fileType = detectFileType(filePath);
-
-  const canSubmit =
-    filePath.trim() !== "" &&
-    stage !== "starting" &&
-    !isValidating;
-
-  const canValidate =
-    rangeInput.trim() !== "" && !isValidating && stage === "idle";
+  const canSubmit = filePath.trim() !== "" && stage !== "starting" && !isValidating;
+  const canValidate = rangeInput.trim() !== "" && !isValidating && stage === "idle";
 
   const handleRangeChange = (value: string) => {
     setRangeInput(value);
     if (rangeState !== "empty") {
-      setRangeState(value.trim() ? "empty" : "empty");
+      setRangeState("empty");
       setRangeError("");
       setRangeResult(null);
     }
@@ -62,16 +48,14 @@ export default function App() {
     setRangeState("validating");
     setRangeError("");
     try {
-      const res = await validateRange(rangeInput.trim(), fileType || "docx");
+      const res = await validateRange(rangeInput.trim());
       if (!res.valid) {
         setRangeResult(res);
         setRangeState("invalid");
         if (res.range_message) {
           setRangeError(res.range_message);
         } else if (res.server_error) {
-          setRangeError(
-            "Не удалось обработать запрос. Проверьте, что сервис ИИ доступен, и повторите попытку.",
-          );
+          setRangeError("Не удалось обработать запрос. Проверьте доступность сервиса ИИ.");
         } else if (res.suggestion) {
           setRangeError(`Неверный диапазон. Возможное исправление: ${res.suggestion}`);
         } else {
@@ -98,7 +82,7 @@ export default function App() {
     if (rangeInput.trim() && rangeState !== "valid") {
       setIsValidating(true);
       try {
-        const res = await validateRangeQuick(rangeInput.trim(), fileType || "docx");
+        const res = await validateRangeQuick(rangeInput.trim());
         setIsValidating(false);
         if (!res.valid) {
           setRangeState("invalid");
@@ -143,22 +127,15 @@ export default function App() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(async () => {
       try {
-        const status = await pollStatus(id);
-        setProgress(status);
-
-        if (status.status === "done") {
+        const s = await pollStatus(id);
+        setProgress(s);
+        if (s.status === "done" || s.status === "cancelled" || s.status === "error") {
           clearInterval(intervalRef.current!);
           intervalRef.current = null;
-          setStage("done");
-        } else if (status.status === "cancelled") {
-          clearInterval(intervalRef.current!);
-          intervalRef.current = null;
-          setStage("cancelled");
-        } else if (status.status === "error") {
-          clearInterval(intervalRef.current!);
-          intervalRef.current = null;
-          setErrorMsg(status.error ?? "Неизвестная ошибка");
-          setStage("error");
+          if (s.status === "error") {
+            setErrorMsg(s.error ?? "Неизвестная ошибка");
+          }
+          setStage(s.status as TerminalStage);
         }
       } catch {
         clearInterval(intervalRef.current!);
@@ -206,8 +183,8 @@ export default function App() {
       <div className="card">
         <h1 className="title">Проверка отчёта</h1>
         <p className="subtitle">
-          Укажите путь к файлу отчёта (.docx или .pdf) — система запустит все
-          проверки и сформирует текстовый отчёт об ошибках.
+          Укажите путь к файлу отчёта (.docx) — система проверит стиль изложения
+          и сформирует текстовый отчёт об ошибках.
         </p>
 
         {isFormStage ? (
@@ -220,7 +197,7 @@ export default function App() {
                 id="filepath"
                 className="input"
                 type="text"
-                placeholder="Например: C:\Users\name\report.docx или /home/name/report.docx"
+                placeholder="C:\Users\name\report.docx или /home/name/report.docx"
                 value={filePath}
                 onChange={(e) => setFilePath(e.target.value)}
                 required
@@ -228,12 +205,11 @@ export default function App() {
                 spellCheck={false}
               />
               <span className="hint">
-                Поддерживаются Windows- и Linux-пути. Файл должен быть доступен серверу.
+                Поддерживаются Windows- и Linux-пути. Принимаются только файлы .docx.
               </span>
             </div>
 
             <RangeField
-              filePath={filePath}
               rangeInput={rangeInput}
               rangeState={rangeState}
               rangeResult={rangeResult}
