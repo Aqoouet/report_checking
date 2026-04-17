@@ -1,26 +1,15 @@
 """Final error aggregation step.
 
-Takes the raw list of errors collected from all checkpoints, sends them to
-the AI to merge duplicates and produce a structured report, and writes the
-result to a plain-text file.
+Takes the raw list of errors collected from all checkpoints and writes the
+result to a plain-text file. No AI call is made here.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import ai_client
-
 if TYPE_CHECKING:
     from doc_parser import DocData
-
-_SYSTEM_PROMPT = """Ты эксперт по проверке технических отчётов.
-Тебе передан список ошибок, найденных в документе.
-
-Напиши ОДИН краткий абзац на русском языке: сколько и каких категорий ошибок найдено
-(стиль / физические величины / ссылки на таблицы и рисунки), без перечисления деталей.
-Максимум 200 токенов. Только читаемый текст, без Markdown и XML.
-"""
 
 
 def _build_summary(doc_data: "DocData") -> str:
@@ -72,7 +61,7 @@ def _build_summary(doc_data: "DocData") -> str:
 
 
 def aggregate(all_errors: list[dict], result_path: str, doc_data: "DocData | None" = None) -> None:
-    """Aggregate *all_errors* via AI and write the report to *result_path*.
+    """Write the collected errors to *result_path* as a plain-text report.
 
     Each element of *all_errors* must have keys:
         checkpoint (str), location (str), error (str)
@@ -87,15 +76,6 @@ def aggregate(all_errors: list[dict], result_path: str, doc_data: "DocData | Non
         _write(result_path, report)
         return
 
-    lines = []
-    for item in all_errors:
-        lines.append(
-            f"[{item['checkpoint']}] {item['location']}\n{item['error']}\n"
-        )
-    errors_text = "\n---\n".join(lines)
-
-    ai_report = ai_client.aggregate_errors(errors_text, _SYSTEM_PROMPT)
-
     details_lines = ["=" * 40, "ДЕТАЛИ ПРОВЕРКИ", "=" * 40, ""]
     for item in all_errors:
         details_lines.append(f"[{item['checkpoint']}] {item['location']}")
@@ -105,8 +85,7 @@ def aggregate(all_errors: list[dict], result_path: str, doc_data: "DocData | Non
         details_lines.append("")
     details_section = "\n".join(details_lines)
 
-    summary_block = "=" * 40 + "\nИТОГОВОЕ РЕЗЮМЕ\n" + "=" * 40 + "\n" + ai_report + "\n\n"
-    _write(result_path, preamble + summary_block + details_section)
+    _write(result_path, preamble + details_section)
 
 
 def _write(path: str, text: str) -> None:
