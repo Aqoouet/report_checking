@@ -267,16 +267,41 @@ def _parse_docx_inner(doc_path: str, original_path: str, range_spec: dict | None
     # --- Preliminary: build bm_to_label so REF fields in body text can be resolved ---
     _paras_elems_pre = list(doc.element.body.iter(f"{{{_W}}}p"))
     _elem_sec_pre = _build_elem_section_list(_paras_elems_pre, paras, _p2s)
-    _bm_to_label: dict[str, str] = {}
+
+    # Collect raw caption labels in document order, then renumber per-section
+    _pre_raw: list[tuple[str, str, list[str]]] = []  # (raw_label, sec, [bm_names])
+    _pre_seen: set[str] = set()  # dedup: same raw_label only counted once
     for _pe_idx, _pe in enumerate(_paras_elems_pre):
         _cap_text = _para_caption_text(_pe, _elem_sec_pre[_pe_idx]).strip()
         _cap_m = _CAPTION_RE.match(_cap_text)
         if _cap_m:
             _lbl = _cap_m.group(0).strip()
-            for _bm in _pe.iter(f"{{{_W}}}bookmarkStart"):
-                _bm_name = _bm.get(f"{{{_W}}}name", "")
-                if _bm_name:
-                    _bm_to_label[_bm_name] = _lbl
+            _bm_names = [
+                _bm.get(f"{{{_W}}}name", "")
+                for _bm in _pe.iter(f"{{{_W}}}bookmarkStart")
+                if _bm.get(f"{{{_W}}}name", "")
+            ]
+            _pre_raw.append((_lbl, _elem_sec_pre[_pe_idx], _bm_names))
+
+    # Renumber unique labels per (section, kind)
+    _pre_sk: dict[tuple[str, str], int] = {}
+    _pre_remap: dict[str, str] = {}
+    for _lbl, _sec, _ in _pre_raw:
+        if _lbl in _pre_remap:
+            continue  # already renumbered
+        _km = re.match(r'^(Таблица|Рисунок)\b', _lbl, re.IGNORECASE)
+        if not _km:
+            continue
+        _kind = _km.group(1)
+        _key = (_sec, _kind)
+        _pre_sk[_key] = _pre_sk.get(_key, 0) + 1
+        _pre_remap[_lbl] = f"{_kind} {_sec}\u2011{_pre_sk[_key]}"
+
+    _bm_to_label: dict[str, str] = {}
+    for _lbl, _sec, _bm_names in _pre_raw:
+        _new_lbl = _pre_remap.get(_lbl, _lbl)
+        for _bm_name in _bm_names:
+            _bm_to_label[_bm_name] = _new_lbl
 
     # --- Pass 3: collect text for each leaf section ---
     sections: list[Section] = []
@@ -297,10 +322,17 @@ def _parse_docx_inner(doc_path: str, original_path: str, range_spec: dict | None
             if t:
                 text_parts.append(t)
 
+        sec_text = "\n".join(text_parts)
+        # Caption paragraphs in body text still carry stale SEQ values (e.g. "5.3‑26").
+        # Apply the same per-section renumbering map so section.text matches fig_table_dict.
+        for _old, _new in _pre_remap.items():
+            if _old in sec_text:
+                sec_text = sec_text.replace(_old, _new)
+
         sections.append(Section(
             number=h.number,
             title=h.title,
-            text="\n".join(text_parts),
+            text=sec_text,
             level=h.level,
         ))
 
@@ -573,6 +605,11 @@ def _build_fig_table_dict_docx(
                 if bm_name:
                     bm_to_label[bm_name] = label
 
+    # Renumber per-section before collecting mentions so that context text
+    # resolved via REF fields already uses the renumbered labels.
+    entries, bm_to_label = _renumber_entries_by_section(
+        list(entries.keys()), entries, bm_to_label
+    )
 
     # Collect mentions via REF fields
     for para_idx_e, para_e in enumerate(paras_elems):
@@ -632,6 +669,51 @@ def _build_fig_table_dict_docx(
             mentioned_via_ref.add(context[:50])
 
     return list(entries.values())
+
+
+def _renumber_entries_by_section(
+    label_order: list[str],
+    entries: dict[str, "FigTableEntry"],
+    bm_to_label: dict[str, str],
+) -> tuple[dict[str, "FigTableEntry"], dict[str, str]]:
+    """Renumber figure/table entries 1, 2, 3… within each (section, kind) group.
+
+    Word's SEQ field uses a chapter-wide running counter so captions in section
+    5.3 may have values 25–31 even though they are the 1st–7th figure of that
+    section.  This function reassigns sequential per-section numbers so that
+    the first figure in 5.3 gets label 'Рисунок 5.3‑1', the second
+    'Рисунок 5.3‑2', etc.
+    """
+    sec_kind_count: dict[tuple[str, str], int] = {}
+    remap: dict[str, str] = {}
+
+    for old_label in label_order:
+        entry = entries.get(old_label)
+        if entry is None:
+            continue
+        m = re.match(r'^(Таблица|Рисунок)\b', old_label, re.IGNORECASE)
+        if not m:
+            remap[old_label] = old_label
+            continue
+        kind = m.group(1)
+        key = (entry.section_number, kind)
+        sec_kind_count[key] = sec_kind_count.get(key, 0) + 1
+        seq = sec_kind_count[key]
+        remap[old_label] = f"{kind} {entry.section_number}\u2011{seq}"
+
+    new_entries: dict[str, FigTableEntry] = {}
+    for old_label, entry in entries.items():
+        new_label = remap.get(old_label, old_label)
+        new_caption = entry.caption.replace(old_label, new_label, 1) if old_label in entry.caption else entry.caption
+        new_entries[new_label] = FigTableEntry(
+            label=new_label,
+            caption=new_caption,
+            section_number=entry.section_number,
+            mentions=entry.mentions,
+        )
+
+    new_bm_to_label = {bm: remap.get(lbl, lbl) for bm, lbl in bm_to_label.items()}
+    return new_entries, new_bm_to_label
 
 
 def _normalise_mention(raw: str) -> str:

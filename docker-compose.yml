@@ -19,9 +19,9 @@ services:
       - AI_TIMEOUT=${AI_TIMEOUT:-0}
       - AI_CONNECT_TIMEOUT=${AI_CONNECT_TIMEOUT:-15}
       - DOC_CHUNK_SIZE=${DOC_CHUNK_SIZE:-10000}
-      - AI_CHUNK_MAX_TOKENS=${AI_CHUNK_MAX_TOKENS:-300}
-      - AI_REF_MAX_TOKENS=${AI_REF_MAX_TOKENS:-8192}
-      - AI_AGG_MAX_TOKENS=${AI_AGG_MAX_TOKENS:-250}
+      - AI_CHUNK_MAX_TOKENS=${AI_CHUNK_MAX_TOKENS:-0}
+      - AI_REF_MAX_TOKENS=${AI_REF_MAX_TOKENS:-0}
+      - AI_AGG_MAX_TOKENS=${AI_AGG_MAX_TOKENS:-0}
     volumes:
       # Host report paths (e.g. path_mapping → /filer/users/rymax1e/...) must exist inside the container
       - /filer/users/rymax1e:/filer/users/rymax1e:ro

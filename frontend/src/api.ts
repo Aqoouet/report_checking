@@ -46,6 +46,19 @@ export async function validateRange(
   return res.json();
 }
 
+export async function validateRangeQuick(
+  rangeText: string,
+  fileType: string,
+): Promise<ValidateRangeResponse> {
+  const form = new FormData();
+  form.append("range_text", rangeText);
+  form.append("file_type", fileType);
+
+  const res = await fetch(`${BASE}/validate_range_quick`, { method: "POST", body: form });
+  if (!res.ok) throw new Error(`Ошибка быстрой валидации: ${res.status}`);
+  return res.json();
+}
+
 export async function startCheck(
   filePath: string,
   rangeSpec?: ValidateRangeResponse,

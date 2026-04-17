@@ -5,6 +5,7 @@ import {
   resultUrl,
   startCheck,
   validateRange,
+  validateRangeQuick,
   type StatusResponse,
   type ValidateRangeResponse,
 } from "./api";
@@ -57,8 +58,7 @@ export default function App() {
   const canSubmit =
     filePath.trim() !== "" &&
     stage !== "starting" &&
-    !isValidating &&
-    (rangeInput.trim() === "" || rangeState === "valid");
+    !isValidating;
 
   const canValidate =
     rangeInput.trim() !== "" && !isValidating && stage === "idle";
@@ -100,12 +100,34 @@ export default function App() {
     e.preventDefault();
     if (!canSubmit) return;
 
+    setRangeError("");
+
+    // If range entered but not yet validated — auto-validate via script (no AI)
     if (rangeInput.trim() && rangeState !== "valid") {
-      setRangeError("Сначала нажмите «Валидировать» для проверки диапазона.");
+      setIsValidating(true);
+      try {
+        const res = await validateRangeQuick(rangeInput.trim(), fileType || "docx");
+        setIsValidating(false);
+        if (!res.valid) {
+          setRangeState("invalid");
+          setRangeError(
+            res.suggestion
+              ? `Неверный диапазон: ${res.suggestion}`
+              : "Неверный формат диапазона. Проверьте ввод или нажмите «Валидировать».",
+          );
+          return;
+        }
+        setRangeResult(res);
+        setRangeState("valid");
+        await _runCheck(res);
+      } catch {
+        setIsValidating(false);
+        // Quick validation unavailable — run without range
+        await _runCheck(null);
+      }
       return;
     }
 
-    setRangeError("");
     await _runCheck(rangeState === "valid" ? rangeResult : null);
   };
 

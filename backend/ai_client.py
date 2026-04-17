@@ -104,6 +104,15 @@ def _openai_error_payload(exc: APIStatusError) -> dict[str, Any]:
     return {}
 
 
+_COMMON_PREAMBLE = (
+    "ОБЩЕЕ ПРАВИЛО (применяется ко всем проверкам):\n"
+    "Конструкции «Рисунок Рисунок X.Y‑N» и «Таблица Таблица X.Y‑N» — это НЕ ошибка и НЕ тавтология. "
+    "Это артефакт скрытых полей Word: часть текста скрыта в реальном документе, "
+    "поэтому слово «Рисунок»/«Таблица» может казаться продублированным. "
+    "Никогда не отмечай это как ошибку.\n\n"
+)
+
+
 def check_text_chunk(text: str, system_prompt: str) -> str:
     """Send a text chunk to the AI with the given system prompt.
 
@@ -112,10 +121,12 @@ def check_text_chunk(text: str, system_prompt: str) -> str:
     preview = text[:200].replace("\n", " ")
     logger.info("check_text_chunk | model=%s | preview: %s...", _model(), preview)
 
+    full_prompt = _COMMON_PREAMBLE + system_prompt
+
     create_kwargs: dict[str, Any] = {
         "model": _model(),
         "messages": [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": full_prompt},
             {"role": "user", "content": text},
         ],
     }
@@ -143,7 +154,6 @@ def check_references(payload: dict[str, Any], system_prompt: str) -> list[dict]:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": payload_json},
         ],
-        max_tokens=AI_REF_MAX_TOKENS,
     )
     raw = (response.choices[0].message.content or "").strip()
     logger.info("check_references done (%d chars)", len(raw))
@@ -206,6 +216,7 @@ _VALIDATE_RANGE_PROMPT = """Ты помощник по разбору польз
            ввод "3 по 5" → suggestion="разделы 3–5"
            ввод "abc xyz" → suggestion="Не удалось распознать. Пример: раздел 3.1 или страница 5"
 
+Стремись уложиться в 20 токенов.
 Верни СТРОГО JSON без пояснений вокруг:
 {
   "valid": true|false,
@@ -361,7 +372,6 @@ def aggregate_errors(errors_text: str, system_prompt: str) -> str:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": errors_text},
         ],
-        max_tokens=AI_AGG_MAX_TOKENS,
     )
     result = response.choices[0].message.content or ""
     logger.info("aggregate_errors done (%d chars)", len(result))
