@@ -151,7 +151,7 @@ def check_references(payload: dict[str, Any], system_prompt: str) -> list[dict]:
     response = _get_client().chat.completions.create(
         model=_model(),
         messages=[
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": _COMMON_PREAMBLE + system_prompt},
             {"role": "user", "content": payload_json},
         ],
     )
@@ -369,7 +369,7 @@ def aggregate_errors(errors_text: str, system_prompt: str) -> str:
     response = _get_client().chat.completions.create(
         model=_model(),
         messages=[
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": _COMMON_PREAMBLE + system_prompt},
             {"role": "user", "content": errors_text},
         ],
     )
