@@ -19,14 +19,17 @@ from docx import Document  # python-docx — used only for .docx
 
 _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
+# U+2011 NON-BREAKING HYPHEN is used by Word between chapter and figure numbers
+_DASH = r"[-–—‑]"
+
 _CAPTION_RE = re.compile(
-    r"^(Таблица|Рисунок)\s+([\d\.]+[-–—][\d\.]+|[\d\.]+|.+?\d+)(?=\s*[-–—]|\s*$)",
+    r"^(Таблица|Рисунок)\s+([\d\.]+[-–—‑][\d\.]+|[\d\.]+)(?=\s*[-–—‑]|\s*$)",
     re.IGNORECASE,
 )
 
 # Patterns for in-text references to figures/tables (e.g. "см. таблицу 3.1-2")
 _MENTION_RE = re.compile(
-    r"(таблиц[еуией]?\s+[\d\.]+[-–—][\d\.]+|рисун[окке]+\s+[\d\.]+[-–—][\d\.]+|"
+    r"(таблиц[еуией]?\s+[\d\.]+[-–—‑][\d\.]+|рисун[окке]+\s+[\d\.]+[-–—‑][\d\.]+|"
     r"таблиц[еуией]?\s+[\d\.]+|рисун[окке]+\s+[\d\.]+)",
     re.IGNORECASE,
 )
@@ -303,6 +306,70 @@ def _para_text_elem(para_elem: Any) -> str:
     return "".join(node.text or "" for node in para_elem.iter(f"{{{_W}}}t"))
 
 
+def _styleref_level(instr: str) -> int:
+    """Extract heading level from a STYLEREF instruction.
+
+    Examples:
+        ' STYLEREF "Заголовок 1" \\s ' → 1
+        ' STYLEREF "Heading 2" \\s '   → 2
+    """
+    m = re.search(r'(?:heading|заголовок)\s+(\d+)', instr, re.IGNORECASE)
+    return int(m.group(1)) if m else 1
+
+
+def _para_caption_text(para_e: Any, section_number: str) -> str:
+    """Read paragraph text, substituting STYLEREF field results with the correct
+    chapter-level number derived from *section_number*.
+
+    Word caches the full heading title (e.g. 'Методы исследования...') as the
+    STYLEREF result rather than the auto-list number.  We replace it with the
+    appropriate prefix of *section_number* so a caption like
+    'Рисунок Методы...-1' becomes 'Рисунок 5-1'.
+
+    Non-STYLEREF fields (e.g. SEQ counters) are left untouched — their cached
+    numeric result is used as-is.
+    """
+    parts: list[str] = []
+    in_field = False
+    in_field_result = False
+    is_styleref = False
+    level = 1
+
+    for node in para_e.iter():
+        tag = node.tag
+        if tag == f"{{{_W}}}fldChar":
+            fld_type = node.get(f"{{{_W}}}fldCharType", "")
+            if fld_type == "begin":
+                in_field = True
+                in_field_result = False
+                is_styleref = False
+                level = 1
+            elif fld_type == "separate":
+                in_field_result = True
+            elif fld_type == "end":
+                if is_styleref and section_number:
+                    # Use the first *level* components of the section number
+                    num_parts = section_number.split(".")
+                    parts.append(".".join(num_parts[:level]))
+                in_field = False
+                in_field_result = False
+                is_styleref = False
+        elif tag == f"{{{_W}}}instrText":
+            instr = (node.text or "").strip()
+            if re.match(r"STYLEREF", instr, re.IGNORECASE):
+                is_styleref = True
+                level = _styleref_level(instr)
+        elif tag == f"{{{_W}}}t":
+            if not in_field:
+                parts.append(node.text or "")
+            elif in_field_result and not is_styleref:
+                # Non-STYLEREF field result (e.g. SEQ counter) — keep as-is
+                parts.append(node.text or "")
+            # STYLEREF result: skip the stale cached heading text
+
+    return "".join(parts)
+
+
 def _build_fig_table_dict_docx(
     doc: Document,
     sections: list[Section],
@@ -339,11 +406,11 @@ def _build_fig_table_dict_docx(
     bm_to_label: dict[str, str] = {}
 
     for para_idx_e, para_e in enumerate(paras_elems):
-        text = _para_text_elem(para_e).strip()
+        sec_num = elem_section[para_idx_e]
+        text = _para_caption_text(para_e, sec_num).strip()
         m = _CAPTION_RE.match(text)
         if m:
             label = m.group(0).strip()
-            sec_num = elem_section[para_idx_e]
             entry = FigTableEntry(label=label, caption=text, section_number=sec_num)
             entries[label] = entry
 
@@ -419,7 +486,7 @@ def _normalise_mention(raw: str) -> str:
         kind = "Таблица"
     else:
         kind = "Рисунок"
-    num_m = re.search(r"[\d\.]+[-–—][\d\.]+|[\d\.]+", raw)
+    num_m = re.search(r"[\d\.]+[-–—‑][\d\.]+|[\d\.]+", raw)
     if num_m:
         return f"{kind} {num_m.group(0)}"
     return raw
