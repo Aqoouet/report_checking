@@ -12,7 +12,10 @@ services:
       # LM Studio runs on the host — use host.docker.internal to reach it
       - OPENAI_API_KEY=${OPENAI_API_KEY:-lm-studio}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://host.docker.internal:1234/v1}
-      - OPENAI_MODEL=${OPENAI_MODEL:-qwen/qwen3-4b-2507}
+      # Quick switch examples:
+      # - OPENAI_MODEL=qwen3-coder-30b-a3b-instruct
+      # - OPENAI_MODEL=qwen/qwen3-4b-2507
+      - OPENAI_MODEL=${OPENAI_MODEL:-qwen3-coder-30b-a3b-instruct}
       # Range validation uses a small model id from LM Studio (/v1/models). Override if needed.
       - OPENAI_VALIDATE_MODEL=${OPENAI_VALIDATE_MODEL:-qwen/qwen3-4b-2507}
       - AI_TIMEOUT=${AI_TIMEOUT:-0}
