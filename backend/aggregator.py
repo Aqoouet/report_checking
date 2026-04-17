@@ -18,8 +18,12 @@ def _build_summary(doc_data: "DocData") -> str:
 
     sections = doc_data.sections
     if sections:
-        first = sections[0].number
-        last = sections[-1].number
+        # For PDF with multi-page chunks, section.number may be "43-46";
+        # extract the actual first/last page numbers for a clean summary line.
+        raw_first = sections[0].number
+        raw_last = sections[-1].number
+        first = raw_first.split("-")[0].strip()
+        last = raw_last.split("-")[-1].strip()
         if doc_data.fmt == "pdf":
             if first == last:
                 lines.append(f"Проверены страницы: {first}")
