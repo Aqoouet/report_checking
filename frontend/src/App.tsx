@@ -2,29 +2,23 @@ import { useRef, useState } from "react";
 import {
   cancelJob,
   pollStatus,
-  resultUrl,
   startCheck,
   validateRange,
   validateRangeQuick,
   type StatusResponse,
   type ValidateRangeResponse,
 } from "./api";
+import RangeField, { type RangeState } from "./components/RangeField";
+import ProcessingView from "./components/ProcessingView";
+import ResultView, { type TerminalStage } from "./components/ResultView";
 import "./index.css";
 
-type Stage = "idle" | "starting" | "processing" | "done" | "error" | "cancelled";
-type RangeState = "empty" | "validating" | "valid" | "invalid";
+type Stage = "idle" | "starting" | "processing" | TerminalStage;
 
 function detectFileType(path: string): "docx" | "pdf" | "" {
   const lower = path.toLowerCase().trim();
   if (lower.endsWith(".docx")) return "docx";
   if (lower.endsWith(".pdf")) return "pdf";
-  return "";
-}
-
-function detectInputType(text: string): "sections" | "pages" | "" {
-  const lower = text.toLowerCase();
-  if (/страниц|стр\./.test(lower)) return "pages";
-  if (/раздел/.test(lower)) return "sections";
   return "";
 }
 
@@ -35,7 +29,6 @@ export default function App() {
   const [rangeResult, setRangeResult] = useState<ValidateRangeResponse | null>(null);
   const [rangeError, setRangeError] = useState("");
   const [isValidating, setIsValidating] = useState(false);
-  const [prevResultOpen, setPrevResultOpen] = useState(false);
 
   const [stage, setStage] = useState<Stage>("idle");
   const [jobId, setJobId] = useState("");
@@ -46,15 +39,6 @@ export default function App() {
 
   const fileType = detectFileType(filePath);
 
-  // Warning when user specifies sections for PDF or pages for DOCX
-  const inputType = detectInputType(rangeInput);
-  const rangeTypeMismatch =
-    rangeInput.trim() !== "" &&
-    inputType !== "" &&
-    fileType !== "" &&
-    ((inputType === "sections" && fileType === "pdf") ||
-      (inputType === "pages" && fileType === "docx"));
-
   const canSubmit =
     filePath.trim() !== "" &&
     stage !== "starting" &&
@@ -62,6 +46,15 @@ export default function App() {
 
   const canValidate =
     rangeInput.trim() !== "" && !isValidating && stage === "idle";
+
+  const handleRangeChange = (value: string) => {
+    setRangeInput(value);
+    if (rangeState !== "empty") {
+      setRangeState(value.trim() ? "empty" : "empty");
+      setRangeError("");
+      setRangeResult(null);
+    }
+  };
 
   const handleValidate = async () => {
     if (!canValidate) return;
@@ -102,7 +95,6 @@ export default function App() {
 
     setRangeError("");
 
-    // If range entered but not yet validated — auto-validate via script (no AI)
     if (rangeInput.trim() && rangeState !== "valid") {
       setIsValidating(true);
       try {
@@ -122,7 +114,6 @@ export default function App() {
         await _runCheck(res);
       } catch {
         setIsValidating(false);
-        // Quick validation unavailable — run without range
         await _runCheck(null);
       }
       return;
@@ -134,7 +125,6 @@ export default function App() {
   const _runCheck = async (rangeRes: ValidateRangeResponse | null) => {
     setStage("starting");
     setErrorMsg("");
-    setPrevResultOpen(false);
     try {
       const { job_id } = await startCheck(
         filePath.trim(),
@@ -189,7 +179,6 @@ export default function App() {
     } catch {
       // best effort
     }
-    // Resume polling so we catch the cancelled/done status and can download
     pollLoop(jobId);
   };
 
@@ -208,26 +197,7 @@ export default function App() {
     setJobId("");
     setProgress(null);
     setErrorMsg("");
-    setPrevResultOpen(false);
   };
-
-  const pct =
-    progress && progress.total_checkpoints > 0
-      ? progress.checkpoint_sub_total
-        ? Math.round(
-            ((progress.current_checkpoint +
-              (progress.checkpoint_sub_current ?? 0) /
-                progress.checkpoint_sub_total) /
-              progress.total_checkpoints) *
-              100,
-          )
-        : Math.round(
-            (progress.current_checkpoint / progress.total_checkpoints) * 100,
-          )
-      : 0;
-
-  const prevResult = progress?.previous_result ?? "";
-  const currentSubName = progress?.checkpoint_sub_name ?? "";
 
   const isFormStage = stage === "idle" || stage === "starting";
 
@@ -262,75 +232,17 @@ export default function App() {
               </span>
             </div>
 
-            <div className="field">
-              <label className="label" htmlFor="range">
-                Диапазон проверки{" "}
-                <span className="label-optional">(необязательно)</span>
-              </label>
-              <div className="range-input-wrap">
-                <div className="range-field-inner">
-                  <input
-                    id="range"
-                    className={`input${rangeState === "valid" ? " input--valid" : ""}${rangeState === "invalid" ? " input--invalid" : ""}`}
-                    type="text"
-                    placeholder={
-                      fileType === "pdf"
-                        ? "страница 1–3, 7"
-                        : "раздел 3.2 или 3.3–3.5"
-                    }
-                    value={rangeInput}
-                    onChange={(e) => {
-                      setRangeInput(e.target.value);
-                      if (rangeState !== "empty") {
-                        setRangeState(e.target.value.trim() ? "empty" : "empty");
-                        setRangeError("");
-                        setRangeResult(null);
-                      }
-                    }}
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                  {isValidating && (
-                    <span className="range-spinner" title="Валидация…">⟳</span>
-                  )}
-                  {!isValidating && rangeState === "valid" && (
-                    <span className="range-badge range-badge--ok">✓</span>
-                  )}
-                  {!isValidating && rangeState === "invalid" && (
-                    <span className="range-badge range-badge--err">✕</span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  className="btn btn--validate"
-                  onClick={handleValidate}
-                  disabled={!canValidate}
-                  title="Проверить корректность введённого диапазона"
-                >
-                  {isValidating ? "…" : "Валидировать"}
-                </button>
-              </div>
-
-              {rangeState === "valid" && rangeResult?.display && (
-                <span className="range-display">Будут проверяться {rangeResult.display.replace(/^[А-ЯЁ]/, (c: string) => c.toLowerCase())}</span>
-              )}
-              {rangeState === "invalid" && rangeError && (
-                <span className="range-error">{rangeError}</span>
-              )}
-
-              {rangeTypeMismatch && (
-                <div className="warning">
-                  {inputType === "sections" && fileType === "pdf"
-                    ? "Для PDF-файлов рекомендуется указывать страницы, а не разделы."
-                    : "Для DOCX-файлов рекомендуется указывать разделы, а не страницы."}
-                </div>
-              )}
-
-              <span className="hint">
-                Для .docx — разделы (раздел 3.1 или 3.2–3.5); для .pdf — страницы (страница 1–3, 7).
-                Оставьте пустым для проверки всего документа.
-              </span>
-            </div>
+            <RangeField
+              filePath={filePath}
+              rangeInput={rangeInput}
+              rangeState={rangeState}
+              rangeResult={rangeResult}
+              rangeError={rangeError}
+              isValidating={isValidating}
+              canValidate={canValidate}
+              onChange={handleRangeChange}
+              onValidate={handleValidate}
+            />
 
             <button
               type="submit"
@@ -345,104 +257,15 @@ export default function App() {
             </button>
           </form>
         ) : stage === "processing" ? (
-          <div className="status-block">
-            <div className="progress-label">
-              {progress
-                ? progress.current_checkpoint_short_name ||
-                  progress.current_checkpoint_name ||
-                  "Инициализация…"
-                : "Инициализация…"}
-            </div>
-
-            {currentSubName && (
-              <div className="progress-sub-name">{currentSubName}</div>
-            )}
-
-            <div className="progress-label progress-label--sub">
-              {progress && progress.total_checkpoints > 0
-                ? `Критерий ${Math.min(progress.current_checkpoint + 1, progress.total_checkpoints)} из ${progress.total_checkpoints}${
-                    progress.checkpoint_sub_location
-                      ? ` · ${progress.checkpoint_sub_location}`
-                      : ""
-                  }`
-                : ""}
-            </div>
-
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${pct}%` }} />
-            </div>
-
-            {prevResult && (
-              <div className="prev-result-block">
-                <button
-                  className="prev-result-toggle"
-                  onClick={() => setPrevResultOpen((o) => !o)}
-                  type="button"
-                >
-                  {prevResultOpen ? "▲" : "▼"} Результат предыдущей проверки
-                </button>
-                {prevResultOpen && (
-                  <div className="prev-result-body">{prevResult}</div>
-                )}
-              </div>
-            )}
-
-            <div className="processing-actions">
-              <p className="processing-note">
-                Нейросеть выполняет проверки по очереди. Не закрывайте вкладку.
-              </p>
-              <button
-                className="btn btn--danger"
-                onClick={handleStop}
-                type="button"
-              >
-                Остановить
-              </button>
-            </div>
-          </div>
-        ) : stage === "done" ? (
-          <div className="status-block status-block--done">
-            <div className="done-icon">✓</div>
-            <p className="done-text">
-              Проверено {progress?.total_checkpoints ?? ""} критери
-              {progress?.total_checkpoints === 1 ? "й" : "ев"}. Отчёт готов.
-            </p>
-            <a
-              href={resultUrl(jobId)}
-              download="report_errors.txt"
-              className="btn btn--primary"
-            >
-              Скачать отчёт об ошибках
-            </a>
-            <button className="btn btn--secondary" onClick={reset}>
-              Проверить другой файл
-            </button>
-          </div>
-        ) : stage === "cancelled" ? (
-          <div className="status-block status-block--cancelled">
-            <div className="stopped-icon">⏹</div>
-            <p className="done-text">
-              Проверка остановлена. Частичный отчёт готов.
-            </p>
-            <a
-              href={resultUrl(jobId)}
-              download="report_errors_partial.txt"
-              className="btn btn--primary"
-            >
-              Скачать частичный отчёт
-            </a>
-            <button className="btn btn--secondary" onClick={reset}>
-              Проверить снова
-            </button>
-          </div>
+          <ProcessingView progress={progress} onStop={handleStop} />
         ) : (
-          <div className="status-block status-block--error">
-            <div className="error-icon">✕</div>
-            <p className="error-text">{errorMsg}</p>
-            <button className="btn btn--secondary" onClick={reset}>
-              Попробовать снова
-            </button>
-          </div>
+          <ResultView
+            stage={stage as TerminalStage}
+            jobId={jobId}
+            errorMsg={errorMsg}
+            totalCheckpoints={progress?.total_checkpoints ?? 0}
+            onReset={reset}
+          />
         )}
       </div>
     </div>

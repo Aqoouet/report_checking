@@ -19,7 +19,7 @@ import re
 import ai_client
 import jobs as job_store
 from jobs import JobCancelledError
-from checkpoints.base import BaseCheckpoint
+from checkpoints.base import BaseCheckpoint, is_no_error
 from doc_parser import DocData, FigTableEntry
 
 _AI_PROMPT = """Ты проверяешь технический отчёт.
@@ -39,31 +39,11 @@ _AI_PROMPT = """Ты проверяешь технический отчёт.
 Иначе — укажи номер пункта и в чём несоответствие. Максимум 150 токенов.
 """
 
-# All natural-language variants of "no errors found" any model might output.
-_NO_ERROR_VARIANTS = (
-    "ошибок не найдено",
-    "ошибки не найдено",
-    "ошибка не найдена",
-    "нет ошибок",
-    "ошибок нет",
-    "без ошибок",
-    "все в порядке",
-    "всё в порядке",
-    "all good",
-    "no errors",
-    "no issues",
-)
-
-
-def _is_no_error(result: str) -> bool:
-    r = result.lower().strip()
-    return any(v in r for v in _NO_ERROR_VARIANTS)
-
 
 class CheckReferences(BaseCheckpoint):
     name = "Перекрёстные ссылки на таблицы и рисунки"
     short_name = "Ссылки на таблицы и рисунки"
-    supported_formats = ["docx", "pdf"]
+    supported_formats = ["docx"]
 
     def run(self, doc_data: DocData, *, job_id: str | None = None) -> list[dict]:
         entries = doc_data.fig_table_dict
@@ -97,7 +77,7 @@ class CheckReferences(BaseCheckpoint):
                     if job.cancelled:
                         raise JobCancelledError()
 
-            if result and not _is_no_error(result):
+            if result and not is_no_error(result):
                 errors.append({
                     "location": entry.label,
                     "error": result.strip(),

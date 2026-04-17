@@ -15,13 +15,10 @@ services:
       - OPENAI_MODEL=${OPENAI_MODEL:-qwen3-4b}
       # Range validation uses a small model id from LM Studio (/v1/models). Override if needed.
       - OPENAI_VALIDATE_MODEL=${OPENAI_VALIDATE_MODEL:-qwen/qwen3-4b-2507}
-      - SYSTEM_PROMPT=${SYSTEM_PROMPT}
       - AI_TIMEOUT=${AI_TIMEOUT:-0}
       - AI_CONNECT_TIMEOUT=${AI_CONNECT_TIMEOUT:-15}
       - DOC_CHUNK_SIZE=${DOC_CHUNK_SIZE:-10000}
       - AI_CHUNK_MAX_TOKENS=${AI_CHUNK_MAX_TOKENS:-0}
-      - AI_REF_MAX_TOKENS=${AI_REF_MAX_TOKENS:-0}
-      - AI_AGG_MAX_TOKENS=${AI_AGG_MAX_TOKENS:-0}
     volumes:
       # Host report paths (e.g. path_mapping → /filer/users/rymax1e/...) must exist inside the container
       - /filer/users/rymax1e:/filer/users/rymax1e:ro
@@ -34,7 +31,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NODE_IMAGE: ${DOCKER_NODE_IMAGE:-node:20-alpine}
+        NODE_IMAGE: ${DOCKER_NODE_IMAGE:-node:20-slim}
         NGINX_IMAGE: ${DOCKER_NGINX_IMAGE:-nginx:alpine}
     container_name: report-checker-frontend
     restart: unless-stopped

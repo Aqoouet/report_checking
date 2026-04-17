@@ -24,8 +24,9 @@ def load_checkpoints() -> list[BaseCheckpoint]:
         if not module_name.startswith("check_"):
             continue
         module = importlib.import_module(f"checkpoints.{module_name}")
+        expected_module = f"checkpoints.{module_name}"
         for _, obj in inspect.getmembers(module, inspect.isclass):
-            if issubclass(obj, BaseCheckpoint) and obj is not BaseCheckpoint:
+            if issubclass(obj, BaseCheckpoint) and obj.__module__ == expected_module:
                 checkpoints.append(obj())
 
     return checkpoints

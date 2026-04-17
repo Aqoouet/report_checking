@@ -15,20 +15,6 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 AI_CONNECT_TIMEOUT = float(os.getenv("AI_CONNECT_TIMEOUT", "15"))
-AI_REF_MAX_TOKENS = int(os.getenv("AI_REF_MAX_TOKENS", "8192"))
-AI_AGG_MAX_TOKENS = int(os.getenv("AI_AGG_MAX_TOKENS", "8192"))
-
-
-def _chunk_max_tokens() -> int | None:
-    """None = omit max_tokens (LM Studio / server default)."""
-    raw = os.getenv("AI_CHUNK_MAX_TOKENS", "0").strip().lower()
-    if raw in ("0", "", "none", "unlimited"):
-        return None
-    try:
-        v = int(raw)
-    except ValueError:
-        return None
-    return v if v > 0 else None
 
 
 def _read_timeout_seconds() -> float | None:
@@ -46,6 +32,21 @@ def _read_timeout_seconds() -> float | None:
 
 
 _READ_TIMEOUT = _read_timeout_seconds()
+
+
+def _compute_chunk_max_tokens() -> int | None:
+    """None = omit max_tokens (LM Studio / server default)."""
+    raw = os.getenv("AI_CHUNK_MAX_TOKENS", "0").strip().lower()
+    if raw in ("0", "", "none", "unlimited"):
+        return None
+    try:
+        v = int(raw)
+    except ValueError:
+        return None
+    return v if v > 0 else None
+
+
+_CHUNK_MAX_TOKENS: int | None = _compute_chunk_max_tokens()
 
 
 def _http_timeout() -> httpx.Timeout | None:
@@ -130,48 +131,13 @@ def check_text_chunk(text: str, system_prompt: str) -> str:
             {"role": "user", "content": text},
         ],
     }
-    _mt = _chunk_max_tokens()
-    if _mt is not None:
-        create_kwargs["max_tokens"] = _mt
+    if _CHUNK_MAX_TOKENS is not None:
+        create_kwargs["max_tokens"] = _CHUNK_MAX_TOKENS
 
     response = _get_client().chat.completions.create(**create_kwargs)
     result = response.choices[0].message.content or ""
     logger.info("check_text_chunk done (%d chars)", len(result))
     return result
-
-
-def check_references(payload: dict[str, Any], system_prompt: str) -> list[dict]:
-    """Send the cross-reference payload to the AI and parse the JSON response.
-
-    Returns a list of dicts with keys ``caption`` and ``error``.
-    """
-    payload_json = json.dumps(payload, ensure_ascii=False, indent=2)
-    logger.info("check_references | entries=%d", len(payload))
-
-    response = _get_client().chat.completions.create(
-        model=_model(),
-        messages=[
-            {"role": "system", "content": _COMMON_PREAMBLE + system_prompt},
-            {"role": "user", "content": payload_json},
-        ],
-    )
-    raw = (response.choices[0].message.content or "").strip()
-    logger.info("check_references done (%d chars)", len(raw))
-
-    # Strip markdown code fences if the model wrapped the JSON.
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-
-    try:
-        result = json.loads(raw)
-        if isinstance(result, list):
-            return result
-    except json.JSONDecodeError:
-        logger.warning("check_references: could not parse JSON response; raw=%s", raw[:500])
-
-    return []
 
 
 _VALIDATE_RANGE_PROMPT = """Ты помощник по разбору пользовательского ввода диапазона проверки документа.
@@ -254,6 +220,21 @@ def _parse_validate_range_json(raw: str) -> dict | None:
     return None
 
 
+def _range_error(*, server_error: bool = True, range_message: str = "") -> dict:
+    """Return a standard error response for validate_range."""
+    result: dict[str, Any] = {
+        "valid": False,
+        "type": "",
+        "items": [],
+        "display": "",
+        "suggestion": "",
+        "server_error": server_error,
+    }
+    if range_message:
+        result["range_message"] = range_message
+    return result
+
+
 def validate_range(text: str, file_type: str) -> dict:
     """Ask the AI to parse and normalise a free-form range string.
 
@@ -276,69 +257,32 @@ def validate_range(text: str, file_type: str) -> dict:
         )
     except (APIConnectionError, APITimeoutError) as exc:
         logger.warning("validate_range API transport error: %s", exc)
-        return {
-            "valid": False,
-            "type": "",
-            "items": [],
-            "display": "",
-            "suggestion": "",
-            "server_error": True,
-        }
+        return _range_error()
     except APIStatusError as exc:
         sc = getattr(exc, "status_code", None)
         logger.warning("validate_range API status error: %s", exc)
-        # 400: distinguish wrong model id (OPENAI_VALIDATE_MODEL) from bad user range / params.
+        # 400: distinguish wrong model id (OPENAI_VALIDATE_MODEL) from bad range / params.
         if sc == 400:
             err = _openai_error_payload(exc)
-            code = err.get("code")
-            if code == "model_not_found":
+            if err.get("code") == "model_not_found":
                 msg = (err.get("message") or "").strip()
                 if len(msg) > 500:
                     msg = msg[:500] + "…"
                 logger.warning("validate_range: HTTP 400 model_not_found — check OPENAI_VALIDATE_MODEL / OPENAI_MODEL")
-                return {
-                    "valid": False,
-                    "type": "",
-                    "items": [],
-                    "display": "",
-                    "suggestion": "",
-                    "server_error": True,
-                    "range_message": (
+                return _range_error(
+                    range_message=(
                         "Неверный идентификатор модели для валидации диапазона (OPENAI_VALIDATE_MODEL). "
                         "Укажите в .env точное имя модели из LM Studio или оставьте OPENAI_VALIDATE_MODEL пустым — "
                         "будет использована OPENAI_MODEL. "
                         f"Ответ сервера: {msg}"
                     ),
-                }
-            logger.warning(
-                "validate_range: HTTP 400 from API — using format fallback (not server_error)",
-            )
-            return {
-                "valid": False,
-                "type": "",
-                "items": [],
-                "display": "",
-                "suggestion": "",
-                "server_error": False,
-            }
-        return {
-            "valid": False,
-            "type": "",
-            "items": [],
-            "display": "",
-            "suggestion": "",
-            "server_error": True,
-        }
+                )
+            logger.warning("validate_range: HTTP 400 from API — using format fallback (not server_error)")
+            return _range_error(server_error=False)
+        return _range_error()
     except Exception as exc:
         logger.warning("validate_range unexpected API error: %s", exc)
-        return {
-            "valid": False,
-            "type": "",
-            "items": [],
-            "display": "",
-            "suggestion": "",
-            "server_error": True,
-        }
+        return _range_error()
 
     raw = (response.choices[0].message.content or "").strip()
     logger.info("validate_range done: %s", raw[:300])
@@ -349,30 +293,6 @@ def validate_range(text: str, file_type: str) -> dict:
         return result
 
     logger.warning("validate_range: model output not a JSON object (format fallback)")
-    return {
-        "valid": False,
-        "type": "",
-        "items": [],
-        "display": "",
-        "suggestion": "",
-        "server_error": False,
-    }
+    return _range_error(server_error=False)
 
 
-def aggregate_errors(errors_text: str, system_prompt: str) -> str:
-    """Send all collected errors to the AI for final aggregation.
-
-    Returns the structured report as a plain string.
-    """
-    logger.info("aggregate_errors | input length=%d chars", len(errors_text))
-
-    response = _get_client().chat.completions.create(
-        model=_model(),
-        messages=[
-            {"role": "system", "content": _COMMON_PREAMBLE + system_prompt},
-            {"role": "user", "content": errors_text},
-        ],
-    )
-    result = response.choices[0].message.content or ""
-    logger.info("aggregate_errors done (%d chars)", len(result))
-    return result
