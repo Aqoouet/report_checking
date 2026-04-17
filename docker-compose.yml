@@ -1,4 +1,24 @@
 services:
+  # ------------------------------------------------------------------
+  # docling-service — DOCX/PDF → DoclingDocument JSON converter
+  #
+  # Set USE_DOCLING=true in backend's environment to activate.
+  # The service is defined here but only consulted when USE_DOCLING=true.
+  #
+  # Build context points to the sibling repo on the host.  Adjust
+  # DOCLING_SERVICE_PATH if you clone it elsewhere.
+  # ------------------------------------------------------------------
+  docling:
+    build:
+      context: ${DOCLING_SERVICE_PATH:-../docling-service}
+      dockerfile: Dockerfile
+      network: host
+    container_name: report-checker-docling
+    restart: unless-stopped
+    # No external ports needed — only the backend talks to this service.
+    # Docling models are cached inside the image during docker build, so
+    # no persistent volume is required for the models.
+
   backend:
     build:
       context: ./backend
@@ -23,12 +43,19 @@ services:
       - DOC_CHUNK_SIZE=${DOC_CHUNK_SIZE:-10000}
       - AI_CHUNK_MAX_TOKENS=${AI_CHUNK_MAX_TOKENS:-0}
       - PDF_PAGES_PER_CHUNK=${PDF_PAGES_PER_CHUNK:-1}
+      # Docling integration — set USE_DOCLING=true to route .docx files
+      # through the docling-service instead of the built-in OOXML parser.
+      - USE_DOCLING=${USE_DOCLING:-false}
+      - DOCLING_URL=${DOCLING_URL:-http://docling:8000}
+      - DOCLING_TIMEOUT=${DOCLING_TIMEOUT:-180}
     volumes:
       # Host report paths (e.g. path_mapping → /filer/users/rymax1e/...) must exist inside the container
       - /filer/users/rymax1e:/filer/users/rymax1e:ro
     extra_hosts:
       # Needed on Linux so host.docker.internal resolves to the host
       - "host.docker.internal:host-gateway"
+    depends_on:
+      - docling
 
   frontend:
     build:
