@@ -264,6 +264,20 @@ def _parse_docx_inner(doc_path: str, original_path: str, range_spec: dict | None
         return DocData(fmt="docx", file_path=original_path,
                        sections=sections, fig_table_dict=fig_table_dict, raw_docx=doc)
 
+    # --- Preliminary: build bm_to_label so REF fields in body text can be resolved ---
+    _paras_elems_pre = list(doc.element.body.iter(f"{{{_W}}}p"))
+    _elem_sec_pre = _build_elem_section_list(_paras_elems_pre, paras, _p2s)
+    _bm_to_label: dict[str, str] = {}
+    for _pe_idx, _pe in enumerate(_paras_elems_pre):
+        _cap_text = _para_caption_text(_pe, _elem_sec_pre[_pe_idx]).strip()
+        _cap_m = _CAPTION_RE.match(_cap_text)
+        if _cap_m:
+            _lbl = _cap_m.group(0).strip()
+            for _bm in _pe.iter(f"{{{_W}}}bookmarkStart"):
+                _bm_name = _bm.get(f"{{{_W}}}name", "")
+                if _bm_name:
+                    _bm_to_label[_bm_name] = _lbl
+
     # --- Pass 3: collect text for each leaf section ---
     sections: list[Section] = []
 
@@ -279,7 +293,7 @@ def _parse_docx_inner(doc_path: str, original_path: str, range_spec: dict | None
 
         text_parts = [h.title]
         for idx in range(h.para_idx + 1, end_idx):
-            t = paras[idx].text.strip()
+            t = _para_full_resolved_text(paras[idx]._p, _p2s.get(idx, h.number), _bm_to_label).strip()
             if t:
                 text_parts.append(t)
 
@@ -322,8 +336,15 @@ def _styleref_level(instr: str) -> int:
         ' STYLEREF "Заголовок 1" \\s ' → 1
         ' STYLEREF "Heading 2" \\s '   → 2
     """
-    m = re.search(r'(?:heading|заголовок)\s+(\d+)', instr, re.IGNORECASE)
-    return int(m.group(1)) if m else 1
+    # "Heading N" / "Заголовок N" (standard, incl. non-breaking space)
+    m = re.search(r'(?:heading|заголовок)[\s\xa0]+(\d+)', instr, re.IGNORECASE)
+    if m:
+        level = int(m.group(1))
+    else:
+        # Numeric style name: STYLEREF "N" (common in Russian Word templates)
+        m2 = re.search(r'STYLEREF\s+"(\d+)"', instr, re.IGNORECASE)
+        level = int(m2.group(1)) if m2 else 1
+    return level
 
 
 def _para_caption_text(para_e: Any, section_number: str) -> str:
@@ -380,6 +401,70 @@ def _para_caption_text(para_e: Any, section_number: str) -> str:
                 # Non-STYLEREF field result (e.g. SEQ counter) — keep as-is
                 parts.append(node.text or "")
             # STYLEREF result: skip the stale cached heading text
+
+    return "".join(parts)
+
+
+def _para_full_resolved_text(para_e: Any, section_number: str, bm_to_label: dict[str, str]) -> str:
+    """Resolve both STYLEREF (using section_number) and REF (using bm_to_label) fields.
+
+    Used when building section.text so that body paragraphs containing REF
+    field references to captions show the resolved label instead of stale
+    cached heading text.
+    """
+    parts: list[str] = []
+    in_field = False
+    in_field_result = False
+    is_styleref = False
+    is_ref = False
+    ref_label: str = ""
+    level = 1
+
+    for node in para_e.iter():
+        tag = node.tag
+        if tag == f"{{{_W}}}fldChar":
+            fld_type = node.get(f"{{{_W}}}fldCharType", "")
+            if fld_type == "begin":
+                in_field = True
+                in_field_result = False
+                is_styleref = False
+                is_ref = False
+                ref_label = ""
+                level = 1
+            elif fld_type == "separate":
+                in_field_result = True
+            elif fld_type == "end":
+                if is_styleref and section_number:
+                    num_parts = section_number.split(".")
+                    parts.append(".".join(num_parts[:level]))
+                elif is_ref and ref_label:
+                    parts.append(ref_label)
+                in_field = False
+                in_field_result = False
+                is_styleref = False
+                is_ref = False
+                ref_label = ""
+        elif tag == f"{{{_W}}}instrText":
+            instr = (node.text or "").strip()
+            if re.match(r"STYLEREF", instr, re.IGNORECASE):
+                is_styleref = True
+                level = _styleref_level(instr)
+            elif instr.upper().startswith("REF "):
+                instr_parts = instr.split()
+                if len(instr_parts) >= 2:
+                    bm = instr_parts[1]
+                    if bm in bm_to_label:
+                        is_ref = True
+                        ref_label = bm_to_label[bm]
+        elif tag == f"{{{_W}}}noBreakHyphen":
+            if not in_field or (in_field_result and not is_styleref and not is_ref):
+                parts.append("\u2011")
+        elif tag == f"{{{_W}}}t":
+            if not in_field:
+                parts.append(node.text or "")
+            elif in_field_result and not is_styleref and not is_ref:
+                parts.append(node.text or "")
+            # STYLEREF/REF result: skip stale cached text
 
     return "".join(parts)
 
