@@ -4,6 +4,11 @@ FROM ${PYTHON_IMAGE}
 
 WORKDIR /app
 
+# LibreOffice Writer (headless) — used to update STYLEREF/SEQ/REF fields before parsing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libreoffice-writer \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

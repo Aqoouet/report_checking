@@ -208,7 +208,16 @@ class _HeadingInfo:
 
 
 def _parse_docx(file_path: str, range_spec: dict | None) -> DocData:
-    doc = Document(file_path)
+    from field_updater import update_docx_fields, cleanup_updated_docx
+    updated_path = update_docx_fields(file_path)
+    try:
+        return _parse_docx_inner(updated_path, file_path, range_spec)
+    finally:
+        cleanup_updated_docx(file_path, updated_path)
+
+
+def _parse_docx_inner(doc_path: str, original_path: str, range_spec: dict | None) -> DocData:
+    doc = Document(doc_path)
     paras = doc.paragraphs
 
     # --- Pass 1: collect all headings ---
@@ -252,7 +261,7 @@ def _parse_docx(file_path: str, range_spec: dict | None) -> DocData:
         full_text = "\n".join(p.text.strip() for p in paras if p.text.strip())
         sections = [Section(number="", title="Документ", text=full_text, level=0)]
         fig_table_dict = _build_fig_table_dict_docx(doc, sections, para_to_section=None)
-        return DocData(fmt="docx", file_path=file_path,
+        return DocData(fmt="docx", file_path=original_path,
                        sections=sections, fig_table_dict=fig_table_dict, raw_docx=doc)
 
     # --- Pass 3: collect text for each leaf section ---
@@ -298,7 +307,7 @@ def _parse_docx(file_path: str, range_spec: dict | None) -> DocData:
                 if _section_in_range(e.section_number, items)
             ]
 
-    return DocData(fmt="docx", file_path=file_path,
+    return DocData(fmt="docx", file_path=original_path,
                    sections=sections, fig_table_dict=fig_table_dict, raw_docx=doc)
 
 
