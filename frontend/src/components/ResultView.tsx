@@ -1,4 +1,4 @@
-import { resultUrl } from "../api";
+import { resultMdUrl, resultUrl } from "../api";
 
 export type TerminalStage = "done" | "cancelled" | "error";
 
@@ -25,13 +25,22 @@ export default function ResultView({
           Проверено {totalCheckpoints} критери
           {totalCheckpoints === 1 ? "й" : "ев"}. Отчёт готов.
         </p>
-        <a
-          href={resultUrl(jobId)}
-          download="report_errors.txt"
-          className="btn btn--primary"
-        >
-          Скачать отчёт об ошибках
-        </a>
+        <div className="result-downloads">
+          <a
+            href={resultUrl(jobId)}
+            download="report_errors.txt"
+            className="btn btn--primary"
+          >
+            Скачать отчёт об ошибках
+          </a>
+          <a
+            href={resultMdUrl(jobId)}
+            download
+            className="btn btn--secondary"
+          >
+            Скачать Markdown (Docling)
+          </a>
+        </div>
         <button className="btn btn--secondary" onClick={onReset}>
           Проверить другой файл
         </button>
@@ -44,13 +53,22 @@ export default function ResultView({
       <div className="status-block status-block--cancelled">
         <div className="stopped-icon">⏹</div>
         <p className="done-text">Проверка остановлена. Частичный отчёт готов.</p>
-        <a
-          href={resultUrl(jobId)}
-          download="report_errors_partial.txt"
-          className="btn btn--primary"
-        >
-          Скачать частичный отчёт
-        </a>
+        <div className="result-downloads">
+          <a
+            href={resultUrl(jobId)}
+            download="report_errors_partial.txt"
+            className="btn btn--primary"
+          >
+            Скачать частичный отчёт
+          </a>
+          <a
+            href={resultMdUrl(jobId)}
+            download
+            className="btn btn--secondary"
+          >
+            Скачать Markdown (Docling)
+          </a>
+        </div>
         <button className="btn btn--secondary" onClick={onReset}>
           Проверить снова
         </button>

@@ -99,3 +99,7 @@ export async function cancelJob(jobId: string): Promise<void> {
 export function resultUrl(jobId: string): string {
   return `${BASE}/result/${jobId}`;
 }
+
+export function resultMdUrl(jobId: string): string {
+  return `${BASE}/result_md/${jobId}`;
+}

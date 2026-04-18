@@ -203,6 +203,19 @@ body {
   text-align: center;
 }
 
+.result-downloads {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+}
+
+.result-downloads .btn {
+  width: 100%;
+  justify-content: center;
+}
+
 .progress-label {
   font-size: 0.95rem;
   font-weight: 500;

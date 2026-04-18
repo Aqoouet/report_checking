@@ -51,6 +51,9 @@ class Job:
     cancelled: bool = False
     error: Optional[str] = None
     result_path: Optional[str] = None
+    # Markdown from Docling (same text used to build sections).
+    md_result_path: Optional[str] = None
+    source_doc_stem: str = ""
 
 
 _store: dict[str, Job] = {}

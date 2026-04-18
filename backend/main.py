@@ -39,6 +39,13 @@ DEFAULT_CHECK_PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "clari
 CHECK_PROMPT_MAX_BYTES = 256 * 1024
 
 
+def _safe_download_stem(raw: str, max_len: int = 80) -> str:
+    t = (raw or "").strip()
+    s = "".join(c if (c.isalnum() or c in "._-") else "_" for c in t)
+    s = "_".join(p for p in s.split("_") if p)
+    return (s or "report")[:max_len]
+
+
 def _normalize_check_prompt(raw: str) -> str | None:
     """Return stripped prompt or None to use the default file. Raises ValueError if too large."""
     s = raw.strip()
@@ -153,7 +160,15 @@ def process_document(
         job.status = JobStatus.PROCESSING
         job_store.update_job(job)
 
-        doc_data = parse_document(file_path, range_spec=range_spec)
+        doc_data, md_text = parse_document(file_path, range_spec=range_spec)
+        md_path = str(RESULT_DIR / f"{job_id}.md")
+        Path(md_path).write_text(md_text, encoding="utf-8")
+        job = job_store.get_job(job_id)
+        if job is None:
+            return
+        job.md_result_path = md_path
+        job.source_doc_stem = Path(file_path).stem
+        job_store.update_job(job)
 
         checkpoints = load_checkpoints()
         job.total_checkpoints = len(checkpoints)
@@ -360,5 +375,24 @@ async def result(job_id: str):
     return FileResponse(
         path=job.result_path,
         media_type="text/plain; charset=utf-8",
+        filename=filename,
+    )
+
+
+@app.get("/result_md/{job_id}")
+async def result_md(job_id: str):
+    job = job_store.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+    if job.status not in (JobStatus.DONE, JobStatus.CANCELLED):
+        raise HTTPException(status_code=400, detail="Результат ещё не готов")
+    if not job.md_result_path or not os.path.exists(job.md_result_path):
+        raise HTTPException(status_code=404, detail="Файл Markdown не найден")
+
+    stem = _safe_download_stem(job.source_doc_stem)
+    filename = f"{stem}_docling.md"
+    return FileResponse(
+        path=job.md_result_path,
+        media_type="text/markdown; charset=utf-8",
         filename=filename,
     )
