@@ -24,6 +24,19 @@ if _MAPPING_FILE.exists():
 _SORTED_KEYS: list[str] = sorted(_MAPPING, key=len, reverse=True)
 
 
+def _normalize_for_mapping_lookup(raw_path: str) -> str:
+    """Build ``X:\\rest`` so JSON keys like ``U:\\`` match ``U:/…``, ``U:\\…``, pasted quotes, etc."""
+    s = raw_path.strip().strip('"').strip("'")
+    if len(s) >= 2 and s[1] == ":":
+        body = s[2:]
+        if not body:
+            return s[:2] + "\\"
+        if body[0] in "/\\":
+            body = body[1:]
+        return s[:2] + "\\" + body.replace("/", "\\")
+    return s
+
+
 def map_path(raw_path: str) -> str:
     """Return the Linux path corresponding to *raw_path*.
 
@@ -38,11 +51,13 @@ def map_path(raw_path: str) -> str:
     if raw_path.startswith("/"):
         return raw_path
 
+    lookup = _normalize_for_mapping_lookup(raw_path)
+
     for win_prefix in _SORTED_KEYS:
-        if raw_path.lower().startswith(win_prefix.lower()):
+        if lookup.lower().startswith(win_prefix.lower()):
             linux_prefix: str = _MAPPING[win_prefix]
-            remainder = raw_path[len(win_prefix):]
+            remainder = lookup[len(win_prefix):]
             remainder = remainder.replace("\\", "/")
             return linux_prefix.rstrip("/") + "/" + remainder.lstrip("/")
 
-    return raw_path.replace("\\", "/")
+    return lookup.replace("\\", "/")

@@ -4,9 +4,10 @@ import type { StatusResponse } from "../api";
 interface Props {
   progress: StatusResponse | null;
   onStop: () => void;
+  isStopping?: boolean;
 }
 
-export default function ProcessingView({ progress, onStop }: Props) {
+export default function ProcessingView({ progress, onStop, isStopping = false }: Props) {
   const [prevResultOpen, setPrevResultOpen] = useState(false);
 
   const pct =
@@ -31,10 +32,17 @@ export default function ProcessingView({ progress, onStop }: Props) {
     <div className="status-block">
       {currentSubName ? (
         <div className="progress-sub-name">
-          Сейчас проверяется раздел {currentSubName}
+          Сейчас проверяется раздел «{currentSubName}»
         </div>
       ) : (
-        <div className="progress-label">Инициализация…</div>
+        <div className="processing-phase-convert">
+          <div className="progress-label">Конвертация в md формат…</div>
+          <p className="processing-docling-note">
+            Перед проверкой документ преобразуется в <strong>Markdown</strong> (сервис Docling),
+            затем по разделам выполняется анализ нейросетью. На больших файлах конвертация может
+            занять заметное время.
+          </p>
+        </div>
       )}
 
       {progress && progress.total_checkpoints > 1 && (
@@ -70,8 +78,22 @@ export default function ProcessingView({ progress, onStop }: Props) {
         <p className="processing-note">
           Нейросеть выполняет проверки по очереди. Не закрывайте вкладку.
         </p>
-        <button className="btn btn--danger" onClick={onStop} type="button">
-          Остановить
+        {isStopping && (
+          <div className="stop-pending" aria-live="polite">
+            <span className="stop-pending__spinner" aria-hidden />
+            <span>
+              Останавливаем… Дождитесь ответа модели на текущий фрагмент — это может занять
+              несколько секунд.
+            </span>
+          </div>
+        )}
+        <button
+          className="btn btn--danger"
+          onClick={onStop}
+          type="button"
+          disabled={isStopping}
+        >
+          {isStopping ? "Остановка…" : "Остановить"}
         </button>
       </div>
     </div>

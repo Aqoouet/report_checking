@@ -11,25 +11,35 @@ if TYPE_CHECKING:
     from doc_models import DocData
 
 
-def _build_summary(doc_data: "DocData") -> str:
+def _build_summary(doc_data: "DocData", *, is_partial: bool = False) -> str:
     lines = ["=" * 40, "СВОДКА ПРОВЕРКИ", "=" * 40]
+    if is_partial:
+        lines.append(
+            "Проверка прервана. В отчёте ниже — только разделы, обработанные до остановки.",
+        )
     sections = doc_data.sections
     if sections:
         first = sections[0].number or sections[0].title
         last = sections[-1].number or sections[-1].title
         if first == last:
-            lines.append(f"Проверены разделы: {first}")
+            lines.append(f"Диапазон выборки (документ): раздел {first}")
         else:
-            lines.append(f"Проверены разделы: {first} – {last}")
+            lines.append(f"Диапазон выборки (документ): {first} – {last}")
     else:
         lines.append("Разделы: не определены")
     lines += ["=" * 40, ""]
     return "\n".join(lines)
 
 
-def aggregate(all_errors: list[dict], result_path: str, doc_data: "DocData | None" = None) -> None:
+def aggregate(
+    all_errors: list[dict],
+    result_path: str,
+    doc_data: "DocData | None" = None,
+    *,
+    is_partial: bool = False,
+) -> None:
     """Write *all_errors* to *result_path* as a plain-text report."""
-    preamble = _build_summary(doc_data) if doc_data is not None else ""
+    preamble = _build_summary(doc_data, is_partial=is_partial) if doc_data is not None else ""
 
     if not all_errors:
         _write(result_path, preamble + "Ошибок не найдено. Документ соответствует проверенным критериям.")

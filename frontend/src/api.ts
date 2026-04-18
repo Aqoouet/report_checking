@@ -18,6 +18,18 @@ export interface StatusResponse {
   error: string | null;
 }
 
+export interface RuntimeInfo {
+  check_model: string;
+  context_tokens: number | null;
+  doc_chunk_tokens: number;
+}
+
+export async function fetchRuntimeInfo(): Promise<RuntimeInfo> {
+  const res = await fetch(`${BASE}/runtime_info`);
+  if (!res.ok) throw new Error(`runtime_info ${res.status}`);
+  return res.json() as Promise<RuntimeInfo>;
+}
+
 export interface ValidateRangeResponse {
   valid: boolean;
   type: "sections" | "";

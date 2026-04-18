@@ -4,7 +4,9 @@ import json
 import os
 import tempfile
 from pathlib import Path
+from urllib.parse import quote
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,6 +47,96 @@ def _normalize_check_prompt(raw: str) -> str | None:
     if len(s.encode("utf-8")) > CHECK_PROMPT_MAX_BYTES:
         raise ValueError("Промпт слишком длинный")
     return s
+
+
+_CONTEXT_FIELD_KEYS = (
+    "max_context_length",
+    "context_length",
+    "context_window",
+    "max_model_len",
+    "n_ctx",
+)
+
+
+def _openai_base_to_lm_root(openai_base: str) -> str:
+    """OPENAI_BASE_URL usually ends with /v1; LM Studio native API is on the server root."""
+    base = openai_base.rstrip("/")
+    if base.lower().endswith("/v1"):
+        return base[:-3] or base
+    return base
+
+
+def _context_from_model_entry(entry: dict) -> int | None:
+    for key in _CONTEXT_FIELD_KEYS:
+        v = entry.get(key)
+        if isinstance(v, int) and v > 0:
+            return v
+    return None
+
+
+def _model_id_matches_listing(eid: str, configured: str) -> bool:
+    if not configured:
+        return False
+    return eid == configured or configured in eid or eid in configured
+
+
+async def _resolve_context_tokens(
+    client: httpx.AsyncClient,
+    openai_base: str,
+    model_id: str,
+) -> int | None:
+    """Read context from LM Studio GET /api/v0/models (OpenAI GET /v1/models has no such fields)."""
+    if not model_id.strip():
+        return None
+    openai_base = openai_base.rstrip("/")
+    root = _openai_base_to_lm_root(openai_base)
+
+    def _from_entries(entries: list) -> int | None:
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            eid = str(entry.get("id") or entry.get("model") or "")
+            if not _model_id_matches_listing(eid, model_id):
+                continue
+            ctx = _context_from_model_entry(entry)
+            if ctx is not None:
+                return ctx
+        return None
+
+    try:
+        r = await client.get(f"{root}/api/v0/models")
+        if r.status_code == 200:
+            payload = r.json()
+            data = payload.get("data") if isinstance(payload, dict) else None
+            if isinstance(data, list):
+                found = _from_entries(data)
+                if found is not None:
+                    return found
+    except Exception:
+        pass
+
+    try:
+        r = await client.get(f"{root}/api/v0/models/{quote(model_id, safe='')}")
+        if r.status_code == 200:
+            payload = r.json()
+            if isinstance(payload, dict):
+                ctx = _context_from_model_entry(payload)
+                if ctx is not None:
+                    return ctx
+    except Exception:
+        pass
+
+    try:
+        r = await client.get(f"{openai_base}/models")
+        if r.status_code == 200:
+            payload = r.json()
+            data = payload.get("data") if isinstance(payload, dict) else None
+            if isinstance(data, list):
+                return _from_entries(data)
+    except Exception:
+        pass
+
+    return None
 
 
 def process_document(
@@ -89,8 +181,20 @@ def process_document(
 
             try:
                 errors = cp.run(doc_data, job_id=job_id, prompt_override=check_prompt)
-            except JobCancelledError:
+            except JobCancelledError as cancelled:
                 was_cancelled = True
+                for err in cancelled.partial_issues:
+                    all_errors.append({
+                        "checkpoint": cp.name,
+                        "location": err.get("location", ""),
+                        "error": err.get("error", ""),
+                    })
+                for loc in cancelled.ok_locations:
+                    all_errors.append({
+                        "checkpoint": cp.name,
+                        "location": loc,
+                        "error": "Ошибок не найдено (раздел проверен).",
+                    })
                 break
 
             for err in errors:
@@ -104,7 +208,12 @@ def process_document(
             job_store.update_job(job)
 
         result_path = str(RESULT_DIR / f"{job_id}_result.txt")
-        aggregator.aggregate(all_errors, result_path, doc_data=doc_data)
+        aggregator.aggregate(
+            all_errors,
+            result_path,
+            doc_data=doc_data,
+            is_partial=was_cancelled,
+        )
 
         job = job_store.get_job(job_id)
         if job is None:
@@ -141,6 +250,28 @@ async def cancel_job(job_id: str):
     job.cancelled = True
     job_store.update_job(job)
     return {"ok": True}
+
+
+@app.get("/runtime_info")
+async def runtime_info():
+    """Public hints for the UI: model id, context from LM Studio /api/v0/models when available."""
+    base = os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1").rstrip("/")
+    model_id = os.getenv("OPENAI_MODEL", "").strip()
+    context_tokens: int | None = None
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            context_tokens = await _resolve_context_tokens(client, base, model_id)
+    except Exception:
+        pass
+    try:
+        chunk = int(os.getenv("DOC_CHUNK_SIZE", "10000"))
+    except ValueError:
+        chunk = 10000
+    return {
+        "check_model": model_id or "—",
+        "context_tokens": context_tokens,
+        "doc_chunk_tokens": chunk,
+    }
 
 
 @app.get("/default_check_prompt")

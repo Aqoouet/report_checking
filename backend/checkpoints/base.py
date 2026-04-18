@@ -69,6 +69,7 @@ class PerSectionCheckpoint(BaseCheckpoint):
             else self.prompt_file.read_text(encoding="utf-8").strip()
         )
         errors: list[dict] = []
+        ok_locations: list[str] = []
         sections = doc_data.sections
         total = len(sections)
 
@@ -86,19 +87,25 @@ class PerSectionCheckpoint(BaseCheckpoint):
                     job_store.update_job(job)
 
             result = ai_client.check_text_chunk(section.text, prompt)
+            cleaned = (result or "").strip()
+            had_issue = bool(cleaned and not is_no_error(cleaned))
+            if had_issue:
+                errors.append({
+                    "location": location,
+                    "error": cleaned,
+                })
+            else:
+                ok_locations.append(location)
 
             if job_id:
                 job = job_store.get_job(job_id)
                 if job:
-                    job.previous_result = result.strip() if result else ""
+                    job.previous_result = cleaned
                     job_store.update_job(job)
                     if job.cancelled:
-                        raise JobCancelledError()
-
-            if result and not is_no_error(result):
-                errors.append({
-                    "location": location,
-                    "error": result.strip(),
-                })
+                        raise JobCancelledError(
+                            partial_issues=list(errors),
+                            ok_locations=list(ok_locations),
+                        )
 
         return errors

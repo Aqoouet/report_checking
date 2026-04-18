@@ -25,10 +25,20 @@ body {
 
 .page {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   padding: 24px;
+  gap: 14px;
+}
+
+.runtime-banner {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 520px;
+  line-height: 1.45;
 }
 
 .card {
@@ -51,6 +61,30 @@ body {
   font-size: 0.9rem;
   line-height: 1.5;
   margin-bottom: 28px;
+}
+
+.processing-phase-convert {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.processing-docling-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  text-align: center;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.processing-docling-note strong {
+  font-weight: 600;
+  color: var(--text);
 }
 
 .form { display: flex; flex-direction: column; gap: 20px; }
@@ -206,6 +240,43 @@ body {
   font-size: 0.83rem;
   color: var(--text-muted);
   line-height: 1.5;
+}
+
+.stop-pending {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font-size: 0.8rem;
+  color: var(--secondary);
+  line-height: 1.45;
+  padding: 10px 12px;
+  background: #f0f4ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  animation: stop-pending-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes stop-pending-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.82; }
+}
+
+.stop-pending__spinner {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 2px solid #93c5fd;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+.btn--danger:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
 
 .stopped-icon {

@@ -15,7 +15,20 @@ class JobStatus(str, Enum):
 
 
 class JobCancelledError(Exception):
-    """Raised by checkpoints when they detect job.cancelled == True."""
+    """Raised by checkpoints when they detect job.cancelled == True.
+
+    Carries checkpoint progress so a partial report can list finished sections.
+    """
+
+    def __init__(
+        self,
+        *,
+        partial_issues: list[dict] | None = None,
+        ok_locations: list[str] | None = None,
+    ):
+        super().__init__()
+        self.partial_issues = partial_issues or []
+        self.ok_locations = ok_locations or []
 
 
 @dataclass

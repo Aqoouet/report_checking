@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   cancelJob,
   fetchDefaultCheckPrompt,
+  fetchRuntimeInfo,
   pollStatus,
   startCheck,
   validateRange,
@@ -29,6 +30,8 @@ export default function App() {
   const [progress, setProgress] = useState<StatusResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [checkPrompt, setCheckPrompt] = useState("");
+  const [runtimeLine, setRuntimeLine] = useState("Загрузка параметров ИИ…");
+  const [isStopping, setIsStopping] = useState(false);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -40,6 +43,20 @@ export default function App() {
       })
       .catch(() => {
         /* backend default will apply if empty */
+      });
+    fetchRuntimeInfo()
+      .then((info) => {
+        if (cancelled) return;
+        const ctx =
+          info.context_tokens != null
+            ? `контекст ~${info.context_tokens.toLocaleString("ru-RU")} ток.`
+            : "контекст: нет данных от LM Studio";
+        setRuntimeLine(
+          `Модель: ${info.check_model} · ${ctx} · фрагмент раздела до ~${info.doc_chunk_tokens.toLocaleString("ru-RU")} ток.`,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setRuntimeLine("Не удалось получить сведения о модели ИИ.");
       });
     return () => {
       cancelled = true;
@@ -132,6 +149,7 @@ export default function App() {
         checkPrompt,
       );
       setJobId(job_id);
+      setIsStopping(false);
       setStage("processing");
       pollLoop(job_id);
     } catch (err: unknown) {
@@ -140,7 +158,7 @@ export default function App() {
     }
   };
 
-  const pollLoop = (id: string) => {
+  const pollLoop = (id: string, opts?: { onTerminal?: () => void }) => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(async () => {
       try {
@@ -149,6 +167,7 @@ export default function App() {
         if (s.status === "done" || s.status === "cancelled" || s.status === "error") {
           clearInterval(intervalRef.current!);
           intervalRef.current = null;
+          opts?.onTerminal?.();
           if (s.status === "error") {
             setErrorMsg(s.error ?? "Неизвестная ошибка");
           }
@@ -157,6 +176,7 @@ export default function App() {
       } catch {
         clearInterval(intervalRef.current!);
         intervalRef.current = null;
+        opts?.onTerminal?.();
         setErrorMsg("Потеряна связь с сервером");
         setStage("error");
       }
@@ -168,12 +188,13 @@ export default function App() {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+    setIsStopping(true);
     try {
       await cancelJob(jobId);
     } catch {
       // best effort
     }
-    pollLoop(jobId);
+    pollLoop(jobId, { onTerminal: () => setIsStopping(false) });
   };
 
   const reset = () => {
@@ -191,6 +212,7 @@ export default function App() {
     setJobId("");
     setProgress(null);
     setErrorMsg("");
+    setIsStopping(false);
   };
 
   const isFormStage = stage === "idle" || stage === "starting";
@@ -263,7 +285,7 @@ export default function App() {
             </button>
           </form>
         ) : stage === "processing" ? (
-          <ProcessingView progress={progress} onStop={handleStop} />
+          <ProcessingView progress={progress} onStop={handleStop} isStopping={isStopping} />
         ) : (
           <ResultView
             stage={stage as TerminalStage}
@@ -274,6 +296,9 @@ export default function App() {
           />
         )}
       </div>
+      <p className="runtime-banner" role="status">
+        {runtimeLine}
+      </p>
     </div>
   );
 }
