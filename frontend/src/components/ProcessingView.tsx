@@ -83,7 +83,7 @@ export default function ProcessingView({ progress, onStop, isStopping = false }:
             <span className="stop-pending__spinner" aria-hidden />
             <span>
               Останавливаем… Дождитесь ответа модели на текущий фрагмент — это может занять
-              несколько секунд.
+              некоторое время.
             </span>
           </div>
         )}
