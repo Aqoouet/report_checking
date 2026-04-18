@@ -29,27 +29,23 @@ export default function ProcessingView({ progress, onStop }: Props) {
 
   return (
     <div className="status-block">
-      <div className="progress-label">
-        {progress
-          ? progress.current_checkpoint_short_name ||
-            progress.current_checkpoint_name ||
-            "Инициализация…"
-          : "Инициализация…"}
-      </div>
-
-      {currentSubName && (
-        <div className="progress-sub-name">{currentSubName}</div>
+      {currentSubName ? (
+        <div className="progress-sub-name">
+          Сейчас проверяется раздел {currentSubName}
+        </div>
+      ) : (
+        <div className="progress-label">Инициализация…</div>
       )}
 
-      <div className="progress-label progress-label--sub">
-        {progress && progress.total_checkpoints > 0
-          ? `Критерий ${Math.min(progress.current_checkpoint + 1, progress.total_checkpoints)} из ${progress.total_checkpoints}${
-              progress.checkpoint_sub_location
-                ? ` · ${progress.checkpoint_sub_location}`
-                : ""
-            }`
-          : ""}
-      </div>
+      {progress && progress.total_checkpoints > 1 && (
+        <div className="progress-label progress-label--sub">
+          {`Критерий ${Math.min(progress.current_checkpoint + 1, progress.total_checkpoints)} из ${progress.total_checkpoints}${
+            progress.checkpoint_sub_location
+              ? ` · ${progress.checkpoint_sub_location}`
+              : ""
+          }`}
+        </div>
+      )}
 
       <div className="progress-bar">
         <div className="progress-fill" style={{ width: `${pct}%` }} />
@@ -62,7 +58,7 @@ export default function ProcessingView({ progress, onStop }: Props) {
             onClick={() => setPrevResultOpen((o) => !o)}
             type="button"
           >
-            {prevResultOpen ? "▲" : "▼"} Результат предыдущей проверки
+            {prevResultOpen ? "▲" : "▼"} Результат проверки предыдущего раздела
           </button>
           {prevResultOpen && (
             <div className="prev-result-body">{prevResult}</div>

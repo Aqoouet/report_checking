@@ -47,15 +47,24 @@ export async function validateRangeQuick(rangeText: string): Promise<ValidateRan
   return res.json();
 }
 
+export async function fetchDefaultCheckPrompt(): Promise<string> {
+  const res = await fetch(`${BASE}/default_check_prompt`);
+  if (!res.ok) throw new Error(`Ошибка загрузки промпта: ${res.status}`);
+  const data = (await res.json()) as { prompt?: string };
+  return data.prompt ?? "";
+}
+
 export async function startCheck(
   filePath: string,
   rangeSpec?: ValidateRangeResponse,
+  checkPrompt?: string,
 ): Promise<CheckResponse> {
   const form = new FormData();
   form.append("file_path", filePath);
   if (rangeSpec && rangeSpec.valid && rangeSpec.items.length > 0) {
     form.append("range_spec", JSON.stringify(rangeSpec));
   }
+  form.append("check_prompt", checkPrompt ?? "");
   const res = await fetch(`${BASE}/check`, { method: "POST", body: form });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));

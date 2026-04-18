@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   cancelJob,
+  fetchDefaultCheckPrompt,
   pollStatus,
   startCheck,
   validateRange,
@@ -27,8 +28,23 @@ export default function App() {
   const [jobId, setJobId] = useState("");
   const [progress, setProgress] = useState<StatusResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [checkPrompt, setCheckPrompt] = useState("");
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDefaultCheckPrompt()
+      .then((text) => {
+        if (!cancelled) setCheckPrompt(text);
+      })
+      .catch(() => {
+        /* backend default will apply if empty */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const canSubmit = filePath.trim() !== "" && stage !== "starting" && !isValidating;
   const canValidate = rangeInput.trim() !== "" && !isValidating && stage === "idle";
@@ -113,6 +129,7 @@ export default function App() {
       const { job_id } = await startCheck(
         filePath.trim(),
         rangeRes?.valid ? rangeRes : undefined,
+        checkPrompt,
       );
       setJobId(job_id);
       setStage("processing");
@@ -197,7 +214,7 @@ export default function App() {
                 id="filepath"
                 className="input"
                 type="text"
-                placeholder="C:\Users\name\report.docx или /home/name/report.docx"
+                placeholder="P:\…\отчёт.docx или /filer/wps/wp/…/отчёт.docx"
                 value={filePath}
                 onChange={(e) => setFilePath(e.target.value)}
                 required
@@ -205,7 +222,8 @@ export default function App() {
                 spellCheck={false}
               />
               <span className="hint">
-                Поддерживаются Windows- и Linux-пути. Принимаются только файлы .docx.
+                Укажите путь к файлу в проектной папке на диске <code>P:</code> или в{" "}
+                <code>/filer/wps/wp</code>. Принимаются только файлы .docx.
               </span>
             </div>
 
@@ -219,6 +237,18 @@ export default function App() {
               onChange={handleRangeChange}
               onValidate={handleValidate}
             />
+
+            <details className="prompt-disclosure">
+              <summary className="prompt-disclosure-summary">Промпт проверки</summary>
+              <textarea
+                className="prompt-textarea"
+                value={checkPrompt}
+                onChange={(e) => setCheckPrompt(e.target.value)}
+                rows={14}
+                spellCheck={false}
+                aria-label="Промпт проверки"
+              />
+            </details>
 
             <button
               type="submit"

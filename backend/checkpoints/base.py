@@ -36,7 +36,13 @@ class BaseCheckpoint(ABC):
         return fmt in self.supported_formats
 
     @abstractmethod
-    def run(self, doc_data: "DocData", *, job_id: str | None = None) -> list[dict]:
+    def run(
+        self,
+        doc_data: "DocData",
+        *,
+        job_id: str | None = None,
+        prompt_override: str | None = None,
+    ) -> list[dict]:
         """Run the checkpoint and return a list of error dicts (location, error)."""
 
 
@@ -45,12 +51,23 @@ class PerSectionCheckpoint(BaseCheckpoint):
 
     prompt_file: Path
 
-    def run(self, doc_data: "DocData", *, job_id: str | None = None) -> list[dict]:
+    def run(
+        self,
+        doc_data: "DocData",
+        *,
+        job_id: str | None = None,
+        prompt_override: str | None = None,
+    ) -> list[dict]:
         import ai_client
         import jobs as job_store
         from jobs import JobCancelledError
 
-        prompt = self.prompt_file.read_text(encoding="utf-8").strip()
+        override = (prompt_override or "").strip()
+        prompt = (
+            override
+            if override
+            else self.prompt_file.read_text(encoding="utf-8").strip()
+        )
         errors: list[dict] = []
         sections = doc_data.sections
         total = len(sections)

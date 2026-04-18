@@ -33,8 +33,26 @@ app.add_middleware(
 RESULT_DIR = Path(tempfile.gettempdir()) / "report_checker"
 RESULT_DIR.mkdir(parents=True, exist_ok=True)
 
+DEFAULT_CHECK_PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "clarity.txt"
+CHECK_PROMPT_MAX_BYTES = 256 * 1024
 
-def process_document(job_id: str, file_path: str, range_spec: dict | None) -> None:
+
+def _normalize_check_prompt(raw: str) -> str | None:
+    """Return stripped prompt or None to use the default file. Raises ValueError if too large."""
+    s = raw.strip()
+    if not s:
+        return None
+    if len(s.encode("utf-8")) > CHECK_PROMPT_MAX_BYTES:
+        raise ValueError("Промпт слишком длинный")
+    return s
+
+
+def process_document(
+    job_id: str,
+    file_path: str,
+    range_spec: dict | None,
+    check_prompt: str | None = None,
+) -> None:
     job = job_store.get_job(job_id)
     if not job:
         return
@@ -70,7 +88,7 @@ def process_document(job_id: str, file_path: str, range_spec: dict | None) -> No
             job_store.update_job(job)
 
             try:
-                errors = cp.run(doc_data, job_id=job_id)
+                errors = cp.run(doc_data, job_id=job_id, prompt_override=check_prompt)
             except JobCancelledError:
                 was_cancelled = True
                 break
@@ -125,11 +143,20 @@ async def cancel_job(job_id: str):
     return {"ok": True}
 
 
+@app.get("/default_check_prompt")
+async def default_check_prompt():
+    if not DEFAULT_CHECK_PROMPT_PATH.is_file():
+        raise HTTPException(status_code=500, detail="Файл промпта по умолчанию не найден")
+    text = DEFAULT_CHECK_PROMPT_PATH.read_text(encoding="utf-8")
+    return {"prompt": text}
+
+
 @app.post("/check")
 async def check(
     background_tasks: BackgroundTasks,
     file_path: str = Form(...),
     range_spec: str = Form(""),
+    check_prompt: str = Form(""),
 ):
     linux_path = map_path(file_path)
 
@@ -138,6 +165,11 @@ async def check(
 
     if not linux_path.lower().endswith(".docx"):
         raise HTTPException(status_code=400, detail="Поддерживаются только файлы .docx")
+
+    try:
+        normalized_prompt = _normalize_check_prompt(check_prompt)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     parsed_range: dict | None = None
     if range_spec.strip():
@@ -149,7 +181,13 @@ async def check(
             parsed_range = None
 
     job = job_store.create_job()
-    background_tasks.add_task(process_document, job.id, linux_path, parsed_range)
+    background_tasks.add_task(
+        process_document,
+        job.id,
+        linux_path,
+        parsed_range,
+        normalized_prompt,
+    )
     return {"job_id": job.id}
 
 
