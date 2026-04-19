@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 import tempfile
 import time
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote
@@ -26,8 +28,8 @@ from range_parser import parse_range_script
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 RESULT_DIR = Path(tempfile.gettempdir()) / "report_checker"
 RESULT_DIR.mkdir(parents=True, exist_ok=True)
@@ -58,11 +60,20 @@ def _cleanup_old_results() -> None:
             pass
 
 
+async def _periodic_cleanup() -> None:
+    while True:
+        await asyncio.sleep(3600)
+        _cleanup_old_results()
+        job_store.cleanup_old_jobs()
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):  # noqa: ARG001
     _cleanup_old_results()
     job_store.cleanup_old_jobs()
+    task = asyncio.create_task(_periodic_cleanup())
     yield
+    task.cancel()
 
 
 app = FastAPI(title="Report Checker", lifespan=lifespan)
@@ -78,7 +89,7 @@ app.add_middleware(
 def _validate_file_path(file_path: str) -> Path:
     """Validate and resolve a user-supplied file path.
 
-    Checks length, null bytes, path traversal, allowlist, existence, and extension.
+    Checks length, null bytes, symlinks, path traversal, allowlist, existence, and extension.
     Raises HTTPException on any violation.
     """
     if len(file_path) > MAX_PATH_LEN:
@@ -87,13 +98,20 @@ def _validate_file_path(file_path: str) -> Path:
         raise HTTPException(status_code=400, detail="Недопустимый путь к файлу")
 
     linux_path = map_path(file_path)
-    resolved = Path(linux_path).resolve()
+    p = Path(linux_path)
+
+    # Reject symlinks before resolving — prevents escaping the allowlist via a symlink
+    # inside an allowed directory pointing to a file outside it.
+    if p.is_symlink():
+        raise HTTPException(status_code=403, detail="Доступ к файлу запрещён")
+
+    resolved = p.resolve()
 
     allowed_prefixes = get_allowed_prefixes()
     if allowed_prefixes:
         resolved_str = str(resolved)
-        if not any(resolved_str.startswith(str(Path(p).resolve())) for p in allowed_prefixes):
-            logger.warning("Access denied for path: %s (resolved: %s)", file_path, resolved)
+        if not any(resolved_str.startswith(str(Path(pfx).resolve())) for pfx in allowed_prefixes):
+            logger.warning("Access denied for path (hash: %s)", resolved_str[:8])
             raise HTTPException(status_code=403, detail="Доступ к файлу запрещён")
 
     if not resolved.exists():
@@ -304,11 +322,12 @@ def process_document(
         job_store.update_job(job)
 
     except Exception as exc:
-        logger.error("process_document error for job %s: %s", job_id, exc, exc_info=True)
+        error_id = uuid.uuid4().hex[:8]
+        logger.error("process_document error [%s] for job %s: %s", error_id, job_id, exc, exc_info=True)
         job = job_store.get_job(job_id)
         if job:
             job.status = JobStatus.ERROR
-            job.error = "Внутренняя ошибка обработки. Проверьте логи сервера."
+            job.error = f"Внутренняя ошибка обработки [ID: {error_id}]."
             job_store.update_job(job)
 
 
@@ -400,11 +419,21 @@ async def check(
     parsed_range: dict | None = None
     if range_spec.strip():
         try:
-            parsed_range = json.loads(range_spec)
-            if not isinstance(parsed_range, dict) or not parsed_range.get("valid"):
-                parsed_range = None
+            candidate = json.loads(range_spec)
+            if (
+                isinstance(candidate, dict)
+                and candidate.get("valid")
+                and isinstance(candidate.get("items"), list)
+                and all(
+                    isinstance(item, dict)
+                    and isinstance(item.get("start"), str)
+                    and isinstance(item.get("end"), str)
+                    for item in candidate["items"]
+                )
+            ):
+                parsed_range = candidate
         except (json.JSONDecodeError, ValueError):
-            parsed_range = None
+            pass
 
     job = job_store.create_job()
     background_tasks.add_task(

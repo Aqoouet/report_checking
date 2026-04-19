@@ -13,7 +13,6 @@ from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 AI_CONNECT_TIMEOUT = float(os.getenv("AI_CONNECT_TIMEOUT", "15"))
 
@@ -75,7 +74,7 @@ def _get_client() -> OpenAI:
                     api_key=api_key,
                     base_url=os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1"),
                     timeout=_http_timeout(),
-                    max_retries=0,
+                    max_retries=2,
                 )
     return _client
 
@@ -238,7 +237,19 @@ def validate_range(text: str) -> dict:
 
     result = _parse_json(raw)
     if result is not None:
-        return result
+        if (
+            isinstance(result.get("valid"), bool)
+            and isinstance(result.get("items"), list)
+            and all(
+                isinstance(item, dict)
+                and isinstance(item.get("start"), str)
+                and isinstance(item.get("end"), str)
+                for item in result["items"]
+            )
+        ):
+            return result
+        logger.warning("validate_range: AI response failed schema validation: %s", raw[:200])
+        return _range_error(server_error=False)
 
     logger.warning("validate_range: model output is not JSON")
     return _range_error(server_error=False)

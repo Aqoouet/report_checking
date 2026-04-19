@@ -11,12 +11,14 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import stat
 import tempfile
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 _CHUNK = 1024 * 1024
+_MAX_MD_BYTES = 100 * 1024 * 1024  # 100 MB
 
 
 def _cache_dir() -> Path:
@@ -58,14 +60,24 @@ def get_or_convert_md(file_path: str, convert_fn) -> str:
     ver = _cache_version()
     cache_root = _cache_dir()
     cache_root.mkdir(parents=True, exist_ok=True)
+    # Restrict cache directory to owner only — prevent other local users from reading documents.
+    try:
+        cache_root.chmod(stat.S_IRWXU)
+    except OSError:
+        pass
     cache_file = cache_root / ver / f"{digest}.md"
 
     if cache_file.is_file():
-        logger.info("md_cache hit | %s → %s", path.name, cache_file)
+        logger.info("md_cache hit | %s", path.name)
         return cache_file.read_text(encoding="utf-8")
 
     logger.info("md_cache miss | %s | digest=%s…", path.name, digest[:16])
     md_text = convert_fn(file_path)
+
+    if len(md_text.encode("utf-8")) > _MAX_MD_BYTES:
+        raise ValueError(
+            f"Converted Markdown exceeds maximum allowed size ({_MAX_MD_BYTES // 1024 // 1024} MB)"
+        )
 
     tmp = cache_file.with_suffix(f".{os.getpid()}.tmp")
     try:
