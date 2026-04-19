@@ -226,6 +226,10 @@ export default function App() {
           и сформирует текстовый отчёт об ошибках.
         </p>
 
+        <p className="runtime-meta" role="status">
+          {runtimeLine}
+        </p>
+
         {isFormStage ? (
           <form onSubmit={handleSubmit} className="form">
             <div className="field">
@@ -296,9 +300,6 @@ export default function App() {
           />
         )}
       </div>
-      <p className="runtime-banner" role="status">
-        {runtimeLine}
-      </p>
     </div>
   );
 }
