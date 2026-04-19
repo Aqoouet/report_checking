@@ -144,6 +144,41 @@ body {
 
 .field { display: flex; flex-direction: column; gap: 6px; }
 
+.field--hint-on-hover {
+  position: relative;
+}
+.field--hint-on-hover:hover {
+  cursor: help;
+}
+.field--hint-on-hover::after {
+  content: attr(data-hint);
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  max-width: min(340px, 92vw);
+  width: max-content;
+  white-space: normal;
+  line-height: 1.45;
+  z-index: 30;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease, visibility 0.12s ease;
+}
+.field--hint-on-hover:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
 .label {
   font-size: 0.875rem;
   font-weight: 500;
@@ -158,17 +193,6 @@ body {
   transition: border-color .2s;
 }
 .input:focus { border-color: var(--primary); }
-
-.hint {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-.hint code {
-  background: #f3f4f6;
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-family: monospace;
-}
 
 .btn {
   display: inline-flex;
@@ -321,12 +345,6 @@ body {
 }
 
 /* ---- Range field ---- */
-.label-optional {
-  font-weight: 400;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-}
-
 .range-input-wrap {
   display: flex;
   align-items: center;

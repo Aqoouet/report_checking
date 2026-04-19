@@ -24,10 +24,12 @@ export default function RangeField({
   onValidate,
 }: Props) {
   return (
-    <div className="field">
+    <div
+      className="field field--hint-on-hover"
+      data-hint="Укажите разделы для проверки: 3.1 или 3.2–3.5. Оставьте поле пустым, чтобы проверить весь документ."
+    >
       <label className="label" htmlFor="range">
-        Диапазон проверки{" "}
-        <span className="label-optional">(необязательно)</span>
+        Диапазон проверки
       </label>
       <div className="range-input-wrap">
         <div className="range-field-inner">
@@ -77,11 +79,6 @@ export default function RangeField({
       {rangeState === "invalid" && rangeError && (
         <span className="range-error">{rangeError}</span>
       )}
-
-      <span className="hint">
-        Укажите разделы для проверки: 3.1 или 3.2–3.5.
-        Оставьте пустым для проверки всего документа.
-      </span>
     </div>
   );
 }

@@ -20,7 +20,10 @@ export default function PathField({
   onValidate,
 }: Props) {
   return (
-    <div className="field">
+    <div
+      className="field field--hint-on-hover"
+      data-hint="Укажите путь к файлу в проектной папке на диске P: или в /filer/wps/wp. Принимаются только файлы .docx."
+    >
       <label className="label" htmlFor="filepath">
         Путь к файлу
       </label>
@@ -39,7 +42,6 @@ export default function PathField({
             placeholder="P:\…\отчёт.docx или /filer/wps/wp/…/отчёт.docx"
             value={filePath}
             onChange={(e) => onChange(e.target.value)}
-            required
             autoComplete="off"
             spellCheck={false}
           />
@@ -69,10 +71,6 @@ export default function PathField({
       {pathState === "valid" && pathMessage && (
         <span className="path-ok-hint">{pathMessage}</span>
       )}
-      <span className="hint">
-        Укажите путь к файлу в проектной папке на диске <code>P:</code> или в{" "}
-        <code>/filer/wps/wp</code>. Принимаются только файлы .docx.
-      </span>
     </div>
   );
 }
