@@ -20,6 +20,7 @@ import httpx
 
 _DOCLING_URL = os.getenv("DOCLING_URL", "http://docling:5001").rstrip("/")
 _TIMEOUT = float(os.getenv("DOCLING_TIMEOUT", "300"))
+_MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE_MB", "100")) * 1024 * 1024
 
 _CONVERT_PARAMS = {
     "to_formats": "md",
@@ -52,6 +53,13 @@ def convert_file_to_md(file_path: str) -> str:
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
+
+    file_size = path.stat().st_size
+    if file_size > _MAX_FILE_SIZE:
+        raise ValueError(
+            f"File too large: {file_size / 1024 / 1024:.1f} MB "
+            f"(max {_MAX_FILE_SIZE // 1024 // 1024} MB, set MAX_FILE_SIZE_MB to override)"
+        )
 
     with path.open("rb") as fh:
         response = httpx.post(

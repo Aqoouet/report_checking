@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
+import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote
 
@@ -18,25 +21,87 @@ import jobs as job_store
 from jobs import JobCancelledError, JobStatus
 from checkpoints import load_checkpoints
 from doc_parser import parse_document
-from path_mapper import map_path
+from path_mapper import get_allowed_prefixes, map_path
 from range_parser import parse_range_script
 
 load_dotenv()
 
-app = FastAPI(title="Report Checker")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 RESULT_DIR = Path(tempfile.gettempdir()) / "report_checker"
 RESULT_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_CHECK_PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "clarity.txt"
 CHECK_PROMPT_MAX_BYTES = 256 * 1024
+
+RESULT_TTL_SECONDS = int(os.getenv("RESULT_TTL_HOURS", "24")) * 3600
+MAX_PATH_LEN = 1024
+MAX_RANGE_SPEC_LEN = 4096
+
+# Allowed CORS origins — comma-separated list in env (dev only; production uses same-origin nginx proxy).
+_CORS_ORIGINS = [
+    o.strip()
+    for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:80").split(",")
+    if o.strip()
+]
+
+
+def _cleanup_old_results() -> None:
+    now = time.time()
+    for f in RESULT_DIR.glob("*_result.txt"):
+        try:
+            if now - f.stat().st_mtime > RESULT_TTL_SECONDS:
+                f.unlink()
+                logger.info("Cleaned up old result file: %s", f.name)
+        except OSError:
+            pass
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):  # noqa: ARG001
+    _cleanup_old_results()
+    yield
+
+
+app = FastAPI(title="Report Checker", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_CORS_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
+
+
+def _validate_file_path(file_path: str) -> Path:
+    """Validate and resolve a user-supplied file path.
+
+    Checks length, null bytes, path traversal, allowlist, existence, and extension.
+    Raises HTTPException on any violation.
+    """
+    if len(file_path) > MAX_PATH_LEN:
+        raise HTTPException(status_code=400, detail="Путь к файлу слишком длинный")
+    if "\x00" in file_path:
+        raise HTTPException(status_code=400, detail="Недопустимый путь к файлу")
+
+    linux_path = map_path(file_path)
+    resolved = Path(linux_path).resolve()
+
+    allowed_prefixes = get_allowed_prefixes()
+    if allowed_prefixes:
+        resolved_str = str(resolved)
+        if not any(resolved_str.startswith(str(Path(p).resolve())) for p in allowed_prefixes):
+            logger.warning("Access denied for path: %s (resolved: %s)", file_path, resolved)
+            raise HTTPException(status_code=403, detail="Доступ к файлу запрещён")
+
+    if not resolved.exists():
+        raise HTTPException(status_code=400, detail="Файл не найден")
+
+    if resolved.suffix.lower() != ".docx":
+        raise HTTPException(status_code=400, detail="Поддерживаются только файлы .docx")
+
+    return resolved
 
 
 def _safe_download_stem(raw: str, max_len: int = 80) -> str:
@@ -238,10 +303,11 @@ def process_document(
         job_store.update_job(job)
 
     except Exception as exc:
+        logger.error("process_document error for job %s: %s", job_id, exc, exc_info=True)
         job = job_store.get_job(job_id)
         if job:
             job.status = JobStatus.ERROR
-            job.error = str(exc)
+            job.error = "Внутренняя ошибка обработки. Проверьте логи сервера."
             job_store.update_job(job)
 
 
@@ -337,13 +403,10 @@ async def check(
     range_spec: str = Form(""),
     check_prompt: str = Form(""),
 ):
-    linux_path = map_path(file_path)
+    if len(range_spec) > MAX_RANGE_SPEC_LEN:
+        raise HTTPException(status_code=400, detail="Диапазон слишком длинный")
 
-    if not Path(linux_path).exists():
-        raise HTTPException(status_code=400, detail=f"Файл не найден: {linux_path}")
-
-    if not linux_path.lower().endswith(".docx"):
-        raise HTTPException(status_code=400, detail="Поддерживаются только файлы .docx")
+    resolved = _validate_file_path(file_path)
 
     try:
         normalized_prompt = _normalize_check_prompt(check_prompt)
@@ -363,7 +426,7 @@ async def check(
     background_tasks.add_task(
         process_document,
         job.id,
-        linux_path,
+        str(resolved),
         parsed_range,
         normalized_prompt,
     )

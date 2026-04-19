@@ -79,3 +79,8 @@ def map_path(raw_path: str) -> str:
             return linux_prefix.rstrip("/") + "/" + remainder.lstrip("/")
 
     return lookup.replace("\\", "/")
+
+
+def get_allowed_prefixes() -> list[str]:
+    """Return all allowed Linux directory prefixes from the mapping."""
+    return list(_MAPPING.values())
