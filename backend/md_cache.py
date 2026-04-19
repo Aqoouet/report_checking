@@ -79,17 +79,15 @@ def get_or_convert_md(file_path: str, convert_fn) -> str:
             f"Converted Markdown exceeds maximum allowed size ({_MAX_MD_BYTES // 1024 // 1024} MB)"
         )
 
-    tmp = cache_file.with_suffix(f".{os.getpid()}.tmp")
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=cache_file.parent, suffix=".tmp")
+    tmp = Path(tmp_path)
     try:
-        tmp.parent.mkdir(parents=True, exist_ok=True)
-        tmp.write_text(md_text, encoding="utf-8")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(md_text)
         tmp.replace(cache_file)
     except OSError:
-        try:
-            if tmp.is_file():
-                tmp.unlink(missing_ok=True)
-        except OSError:
-            pass
+        tmp.unlink(missing_ok=True)
         raise
 
     logger.info("md_cache stored | %s", cache_file)

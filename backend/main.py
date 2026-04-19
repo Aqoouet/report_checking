@@ -40,6 +40,7 @@ CHECK_PROMPT_MAX_BYTES = 256 * 1024
 RESULT_TTL_SECONDS = int(os.getenv("RESULT_TTL_HOURS", "24")) * 3600
 MAX_PATH_LEN = 1024
 MAX_RANGE_SPEC_LEN = 4096
+ERROR_ID_LENGTH = 8
 
 # Allowed CORS origins — comma-separated list in env (dev only; production uses same-origin nginx proxy).
 _CORS_ORIGINS = [
@@ -56,8 +57,8 @@ def _cleanup_old_results() -> None:
             if now - f.stat().st_mtime > RESULT_TTL_SECONDS:
                 f.unlink()
                 logger.info("Cleaned up old result file: %s", f.name)
-        except OSError:
-            pass
+        except OSError as exc:
+            logger.warning("Failed to clean up result file %s: %s", f.name, exc)
 
 
 async def _periodic_cleanup() -> None:
@@ -203,8 +204,8 @@ async def _resolve_context_tokens(
                 found = _from_entries(data)
                 if found is not None:
                     return found
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("_resolve_context_tokens /api/v0/models list failed: %s", exc)
 
     try:
         r = await client.get(f"{root}/api/v0/models/{quote(model_id, safe='')}")
@@ -214,8 +215,8 @@ async def _resolve_context_tokens(
                 ctx = _context_from_model_entry(payload)
                 if ctx is not None:
                     return ctx
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("_resolve_context_tokens /api/v0/models/<id> failed: %s", exc)
 
     try:
         r = await client.get(f"{openai_base}/models")
@@ -224,10 +225,84 @@ async def _resolve_context_tokens(
             data = payload.get("data") if isinstance(payload, dict) else None
             if isinstance(data, list):
                 return _from_entries(data)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("_resolve_context_tokens /v1/models failed: %s", exc)
 
     return None
+
+
+def _store_md(job_id: str, file_path: str, md_text: str) -> None:
+    md_path = str(RESULT_DIR / f"{job_id}.md")
+    Path(md_path).write_text(md_text, encoding="utf-8")
+    job = job_store.get_job(job_id)
+    if job is None:
+        return
+    job.md_result_path = md_path
+    job.source_doc_stem = Path(file_path).stem
+    job_store.update_job(job)
+
+
+def _run_checkpoints(
+    job_id: str,
+    doc_data: object,
+    check_prompt: str | None,
+) -> tuple[list[dict], bool]:
+    checkpoints = load_checkpoints()
+    job = job_store.get_job(job_id)
+    if job is None:
+        return [], False
+    job.total_checkpoints = len(checkpoints)
+    job.current_checkpoint = 0
+    job_store.update_job(job)
+
+    all_errors: list[dict] = []
+    was_cancelled = False
+
+    for cp in checkpoints:
+        job = job_store.get_job(job_id)
+        if job is None:
+            break
+        if job.cancelled:
+            was_cancelled = True
+            break
+
+        job.current_checkpoint_name = cp.name
+        job.current_checkpoint_short_name = cp.short_name
+        job.checkpoint_sub_current = 0
+        job.checkpoint_sub_total = 0
+        job.checkpoint_sub_location = ""
+        job.checkpoint_sub_name = ""
+        job_store.update_job(job)
+
+        try:
+            errors = cp.run(doc_data, job_id=job_id, prompt_override=check_prompt)
+        except JobCancelledError as cancelled:
+            was_cancelled = True
+            for err in cancelled.partial_issues:
+                all_errors.append({
+                    "checkpoint": cp.name,
+                    "location": err.get("location", ""),
+                    "error": err.get("error", ""),
+                })
+            for loc in cancelled.ok_locations:
+                all_errors.append({
+                    "checkpoint": cp.name,
+                    "location": loc,
+                    "error": "Ошибок не найдено (раздел проверен).",
+                })
+            break
+
+        for err in errors:
+            all_errors.append({
+                "checkpoint": cp.name,
+                "location": err.get("location", ""),
+                "error": err.get("error", ""),
+            })
+
+        job.current_checkpoint += 1
+        job_store.update_job(job)
+
+    return all_errors, was_cancelled
 
 
 def process_document(
@@ -245,66 +320,9 @@ def process_document(
         job_store.update_job(job)
 
         doc_data, md_text = parse_document(file_path, range_spec=range_spec)
-        md_path = str(RESULT_DIR / f"{job_id}.md")
-        Path(md_path).write_text(md_text, encoding="utf-8")
-        job = job_store.get_job(job_id)
-        if job is None:
-            return
-        job.md_result_path = md_path
-        job.source_doc_stem = Path(file_path).stem
-        job_store.update_job(job)
+        _store_md(job_id, file_path, md_text)
 
-        checkpoints = load_checkpoints()
-        job.total_checkpoints = len(checkpoints)
-        job.current_checkpoint = 0
-        job_store.update_job(job)
-
-        all_errors: list[dict] = []
-        was_cancelled = False
-
-        for cp in checkpoints:
-            job = job_store.get_job(job_id)
-            if job is None:
-                break
-            if job.cancelled:
-                was_cancelled = True
-                break
-
-            job.current_checkpoint_name = cp.name
-            job.current_checkpoint_short_name = cp.short_name
-            job.checkpoint_sub_current = 0
-            job.checkpoint_sub_total = 0
-            job.checkpoint_sub_location = ""
-            job.checkpoint_sub_name = ""
-            job_store.update_job(job)
-
-            try:
-                errors = cp.run(doc_data, job_id=job_id, prompt_override=check_prompt)
-            except JobCancelledError as cancelled:
-                was_cancelled = True
-                for err in cancelled.partial_issues:
-                    all_errors.append({
-                        "checkpoint": cp.name,
-                        "location": err.get("location", ""),
-                        "error": err.get("error", ""),
-                    })
-                for loc in cancelled.ok_locations:
-                    all_errors.append({
-                        "checkpoint": cp.name,
-                        "location": loc,
-                        "error": "Ошибок не найдено (раздел проверен).",
-                    })
-                break
-
-            for err in errors:
-                all_errors.append({
-                    "checkpoint": cp.name,
-                    "location": err.get("location", ""),
-                    "error": err.get("error", ""),
-                })
-
-            job.current_checkpoint += 1
-            job_store.update_job(job)
+        all_errors, was_cancelled = _run_checkpoints(job_id, doc_data, check_prompt)
 
         result_path = str(RESULT_DIR / f"{job_id}_result.txt")
         aggregator.aggregate(
@@ -322,7 +340,7 @@ def process_document(
         job_store.update_job(job)
 
     except Exception as exc:
-        error_id = uuid.uuid4().hex[:8]
+        error_id = uuid.uuid4().hex[:ERROR_ID_LENGTH]
         logger.error("process_document error [%s] for job %s: %s", error_id, job_id, exc, exc_info=True)
         job = job_store.get_job(job_id)
         if job:
@@ -473,7 +491,7 @@ async def result(job_id: str):
         raise HTTPException(status_code=404, detail="Задача не найдена")
     if job.status not in (JobStatus.DONE, JobStatus.CANCELLED):
         raise HTTPException(status_code=400, detail="Результат ещё не готов")
-    if not job.result_path or not os.path.exists(job.result_path):
+    if not job.result_path:
         raise HTTPException(status_code=404, detail="Файл результата не найден")
 
     filename = (
@@ -481,11 +499,14 @@ async def result(job_id: str):
         if job.status == JobStatus.CANCELLED
         else "report_errors.txt"
     )
-    return FileResponse(
-        path=job.result_path,
-        media_type="text/plain; charset=utf-8",
-        filename=filename,
-    )
+    try:
+        return FileResponse(
+            path=job.result_path,
+            media_type="text/plain; charset=utf-8",
+            filename=filename,
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Файл результата не найден")
 
 
 @app.get("/result_md/{job_id}")
@@ -495,13 +516,16 @@ async def result_md(job_id: str):
         raise HTTPException(status_code=404, detail="Задача не найдена")
     if job.status not in (JobStatus.DONE, JobStatus.CANCELLED):
         raise HTTPException(status_code=400, detail="Результат ещё не готов")
-    if not job.md_result_path or not os.path.exists(job.md_result_path):
+    if not job.md_result_path:
         raise HTTPException(status_code=404, detail="Файл Markdown не найден")
 
     stem = _safe_download_stem(job.source_doc_stem)
     filename = f"{stem}_docling.md"
-    return FileResponse(
-        path=job.md_result_path,
-        media_type="text/markdown; charset=utf-8",
-        filename=filename,
-    )
+    try:
+        return FileResponse(
+            path=job.md_result_path,
+            media_type="text/markdown; charset=utf-8",
+            filename=filename,
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Файл Markdown не найден")
