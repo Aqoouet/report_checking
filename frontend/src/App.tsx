@@ -5,11 +5,13 @@ import {
   fetchRuntimeInfo,
   pollStatus,
   startCheck,
+  validatePath,
   validateRange,
   validateRangeQuick,
   type StatusResponse,
   type ValidateRangeResponse,
 } from "./api";
+import PathField, { type PathFieldState } from "./components/PathField";
 import RangeField, { type RangeState } from "./components/RangeField";
 import ProcessingView from "./components/ProcessingView";
 import ResultView, { type TerminalStage } from "./components/ResultView";
@@ -24,6 +26,9 @@ export default function App() {
   const [rangeResult, setRangeResult] = useState<ValidateRangeResponse | null>(null);
   const [rangeError, setRangeError] = useState("");
   const [isValidating, setIsValidating] = useState(false);
+  const [pathState, setPathState] = useState<PathFieldState>("empty");
+  const [pathMessage, setPathMessage] = useState("");
+  const [isValidatingPath, setIsValidatingPath] = useState(false);
 
   const [stage, setStage] = useState<Stage>("idle");
   const [jobId, setJobId] = useState("");
@@ -63,8 +68,12 @@ export default function App() {
     };
   }, []);
 
-  const canSubmit = filePath.trim() !== "" && stage !== "starting" && !isValidating;
-  const canValidate = rangeInput.trim() !== "" && !isValidating && stage === "idle";
+  const canSubmit =
+    filePath.trim() !== "" && stage !== "starting" && !isValidating && !isValidatingPath;
+  const canValidate =
+    rangeInput.trim() !== "" && !isValidating && !isValidatingPath && stage === "idle";
+  const canValidatePath =
+    filePath.trim() !== "" && !isValidatingPath && !isValidating && stage === "idle";
 
   const handleRangeChange = (value: string) => {
     setRangeInput(value);
@@ -72,6 +81,35 @@ export default function App() {
       setRangeState("empty");
       setRangeError("");
       setRangeResult(null);
+    }
+  };
+
+  const handleFilePathChange = (value: string) => {
+    setFilePath(value);
+    if (pathState !== "empty") {
+      setPathState("empty");
+      setPathMessage("");
+    }
+  };
+
+  const handleValidatePath = async () => {
+    if (!canValidatePath) return;
+    setIsValidatingPath(true);
+    setPathMessage("");
+    try {
+      const res = await validatePath(filePath.trim());
+      if (res.valid) {
+        setPathState("valid");
+        setPathMessage(res.message);
+      } else {
+        setPathState("invalid");
+        setPathMessage(res.message || "Путь недоступен");
+      }
+    } catch {
+      setPathState("invalid");
+      setPathMessage("Ошибка при проверке пути. Попробуйте ещё раз.");
+    } finally {
+      setIsValidatingPath(false);
     }
   };
 
@@ -203,6 +241,9 @@ export default function App() {
       intervalRef.current = null;
     }
     setFilePath("");
+    setPathState("empty");
+    setPathMessage("");
+    setIsValidatingPath(false);
     setRangeInput("");
     setRangeState("empty");
     setRangeResult(null);
@@ -226,32 +267,17 @@ export default function App() {
           и сформирует текстовый отчёт об ошибках.
         </p>
 
-        <p className="runtime-meta" role="status">
-          {runtimeLine}
-        </p>
-
         {isFormStage ? (
           <form onSubmit={handleSubmit} className="form">
-            <div className="field">
-              <label className="label" htmlFor="filepath">
-                Путь к файлу
-              </label>
-              <input
-                id="filepath"
-                className="input"
-                type="text"
-                placeholder="P:\…\отчёт.docx или /filer/wps/wp/…/отчёт.docx"
-                value={filePath}
-                onChange={(e) => setFilePath(e.target.value)}
-                required
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <span className="hint">
-                Укажите путь к файлу в проектной папке на диске <code>P:</code> или в{" "}
-                <code>/filer/wps/wp</code>. Принимаются только файлы .docx.
-              </span>
-            </div>
+            <PathField
+              filePath={filePath}
+              pathState={pathState}
+              pathMessage={pathMessage}
+              isValidating={isValidatingPath}
+              canValidate={canValidatePath}
+              onChange={handleFilePathChange}
+              onValidate={handleValidatePath}
+            />
 
             <RangeField
               rangeInput={rangeInput}
@@ -274,6 +300,13 @@ export default function App() {
                 spellCheck={false}
                 aria-label="Промпт проверки"
               />
+            </details>
+
+            <details className="prompt-disclosure">
+              <summary className="prompt-disclosure-summary">Информация о модели</summary>
+              <p className="model-info-body" role="status">
+                {runtimeLine}
+              </p>
             </details>
 
             <button

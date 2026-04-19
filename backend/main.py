@@ -245,6 +245,39 @@ def process_document(
             job_store.update_job(job)
 
 
+@app.post("/validate_path")
+async def validate_path_endpoint(file_path: str = Form(...)):
+    """Check that *file_path* maps to an existing .docx on the server (same rules as /check)."""
+    raw = (file_path or "").strip()
+    if not raw:
+        return {"valid": False, "message": "Укажите путь к файлу", "mapped_path": ""}
+    linux_path = map_path(raw)
+    p = Path(linux_path)
+    if not p.exists():
+        return {
+            "valid": False,
+            "message": f"Файл не найден: {linux_path}",
+            "mapped_path": linux_path,
+        }
+    if not p.is_file():
+        return {
+            "valid": False,
+            "message": f"Указанный путь не является файлом: {linux_path}",
+            "mapped_path": linux_path,
+        }
+    if not linux_path.lower().endswith(".docx"):
+        return {
+            "valid": False,
+            "message": "Поддерживаются только файлы .docx",
+            "mapped_path": linux_path,
+        }
+    return {
+        "valid": True,
+        "message": f"Файл доступен: {linux_path}",
+        "mapped_path": linux_path,
+    }
+
+
 @app.post("/validate_range_quick")
 async def validate_range_quick(range_text: str = Form(...)):
     return parse_range_script(range_text.strip())

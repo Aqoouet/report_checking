@@ -30,6 +30,23 @@ export async function fetchRuntimeInfo(): Promise<RuntimeInfo> {
   return res.json() as Promise<RuntimeInfo>;
 }
 
+export interface ValidatePathResponse {
+  valid: boolean;
+  message: string;
+  mapped_path: string;
+}
+
+export async function validatePath(filePath: string): Promise<ValidatePathResponse> {
+  const form = new FormData();
+  form.append("file_path", filePath);
+  const res = await fetch(`${BASE}/validate_path`, { method: "POST", body: form });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail ?? `Ошибка проверки пути: ${res.status}`);
+  }
+  return res.json() as Promise<ValidatePathResponse>;
+}
+
 export interface ValidateRangeResponse {
   valid: boolean;
   type: "sections" | "";
