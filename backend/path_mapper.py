@@ -5,13 +5,16 @@ once at import time.  Each key is a Windows path prefix (e.g.
 ``C:\\Users\\name\\``) and the corresponding value is the Linux prefix to
 replace it with.
 
-If the supplied path already starts with ``/`` it is returned as-is.
+If the supplied path already starts with ``/`` it is returned as-is
+(after optional normalization of GNOME/Nautilus paste prefixes and
+``file://`` URLs).
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 _MAPPING_FILE = Path(__file__).parent / "path_mapping.json"
 
@@ -22,6 +25,20 @@ if _MAPPING_FILE.exists():
         _MAPPING = json.load(_f)
 
 _SORTED_KEYS: list[str] = sorted(_MAPPING, key=len, reverse=True)
+
+_NAUTILUS_CLIPBOARD = "x-special/nautilus-clipboard copy "
+
+
+def _normalize_pasted_path(raw_path: str) -> str:
+    """Убрать префикс вставки Nautilus и ``file://`` URL (GNOME копирует путь с обёрткой)."""
+    s = raw_path.strip().strip('"').strip("'")
+    if s.lower().startswith(_NAUTILUS_CLIPBOARD.lower()):
+        s = s[len(_NAUTILUS_CLIPBOARD) :].strip()
+    if s.lower().startswith("file://"):
+        u = urlparse(s)
+        path = unquote(u.path or "")
+        return path if path else s
+    return s
 
 
 def _normalize_for_mapping_lookup(raw_path: str) -> str:
@@ -40,13 +57,14 @@ def _normalize_for_mapping_lookup(raw_path: str) -> str:
 def map_path(raw_path: str) -> str:
     """Return the Linux path corresponding to *raw_path*.
 
+    - Strips ``x-special/nautilus-clipboard copy `` and resolves ``file://`` URLs.
     - If *raw_path* starts with ``/`` it is returned unchanged.
     - Otherwise the longest matching Windows prefix from the mapping is
       substituted with the corresponding Linux prefix.
     - If no prefix matches the path is returned as-is (caller should
       validate the resulting path exists).
     """
-    raw_path = raw_path.strip()
+    raw_path = _normalize_pasted_path(raw_path).strip()
 
     if raw_path.startswith("/"):
         return raw_path
