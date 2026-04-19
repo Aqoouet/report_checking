@@ -61,6 +61,7 @@ def _cleanup_old_results() -> None:
 @asynccontextmanager
 async def lifespan(application: FastAPI):  # noqa: ARG001
     _cleanup_old_results()
+    job_store.cleanup_old_jobs()
     yield
 
 
@@ -317,31 +318,11 @@ async def validate_path_endpoint(file_path: str = Form(...)):
     raw = (file_path or "").strip()
     if not raw:
         return {"valid": False, "message": "Укажите путь к файлу", "mapped_path": ""}
-    linux_path = map_path(raw)
-    p = Path(linux_path)
-    if not p.exists():
-        return {
-            "valid": False,
-            "message": f"Файл не найден: {linux_path}",
-            "mapped_path": linux_path,
-        }
-    if not p.is_file():
-        return {
-            "valid": False,
-            "message": f"Указанный путь не является файлом: {linux_path}",
-            "mapped_path": linux_path,
-        }
-    if not linux_path.lower().endswith(".docx"):
-        return {
-            "valid": False,
-            "message": "Поддерживаются только файлы .docx",
-            "mapped_path": linux_path,
-        }
-    return {
-        "valid": True,
-        "message": f"Файл доступен: {linux_path}",
-        "mapped_path": linux_path,
-    }
+    try:
+        resolved = _validate_file_path(raw)
+        return {"valid": True, "message": "Файл доступен", "mapped_path": str(resolved)}
+    except HTTPException as exc:
+        return {"valid": False, "message": exc.detail, "mapped_path": ""}
 
 
 @app.post("/validate_range_quick")
@@ -353,7 +334,10 @@ async def validate_range_quick(range_text: str = Form(...)):
 async def validate_range(range_text: str = Form(...)):
     if not range_text.strip():
         return {"valid": True, "type": "sections", "items": [], "display": "", "suggestion": ""}
-    return ai_client.validate_range(range_text.strip())
+    result = ai_client.validate_range(range_text.strip())
+    if not result.get("valid") and result.get("server_error"):
+        logger.warning("AI range validation failed: %s", result.get("range_message", "unknown error"))
+    return result
 
 
 @app.post("/cancel/{job_id}")

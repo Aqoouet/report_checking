@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from threading import Lock
 from typing import Any
 
 import httpx
@@ -56,17 +57,26 @@ def _http_timeout() -> httpx.Timeout | None:
 
 
 _client: OpenAI | None = None
+_client_lock = Lock()
 
 
 def _get_client() -> OpenAI:
     global _client
     if _client is None:
-        _client = OpenAI(
-            api_key=os.getenv("OPENAI_API_KEY", "lm-studio"),
-            base_url=os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1"),
-            timeout=_http_timeout(),
-            max_retries=0,
-        )
+        with _client_lock:
+            if _client is None:
+                api_key = os.getenv("OPENAI_API_KEY", "").strip()
+                if not api_key:
+                    raise ValueError(
+                        "OPENAI_API_KEY not set. Set it to 'lm-studio' for local LM Studio "
+                        "or your OpenAI API key for remote endpoints."
+                    )
+                _client = OpenAI(
+                    api_key=api_key,
+                    base_url=os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1"),
+                    timeout=_http_timeout(),
+                    max_retries=0,
+                )
     return _client
 
 

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import time
+import uuid
 from dataclasses import dataclass, field
 from enum import Enum
+from threading import Lock
 from typing import Optional
-import uuid
 
 
 class JobStatus(str, Enum):
@@ -39,35 +41,45 @@ class Job:
     total_checkpoints: int = 0
     current_checkpoint_name: str = ""
     current_checkpoint_short_name: str = ""
-    # Progress inside the current checkpoint (section / figure / table index).
     checkpoint_sub_current: int = 0
     checkpoint_sub_total: int = 0
     checkpoint_sub_location: str = ""
-    # Name of the current sub-item (section title or figure/table label).
     checkpoint_sub_name: str = ""
-    # AI response for the previously completed sub-item.
     previous_result: str = ""
-    # Cancellation flag — set to True by POST /cancel/{job_id}.
     cancelled: bool = False
     error: Optional[str] = None
     result_path: Optional[str] = None
-    # Markdown from Docling (same text used to build sections).
     md_result_path: Optional[str] = None
     source_doc_stem: str = ""
+    created_at: float = field(default_factory=time.time)
 
 
 _store: dict[str, Job] = {}
+_store_lock = Lock()
+
+JOB_TTL_SECONDS = 86400  # 24 hours
 
 
 def create_job() -> Job:
     job = Job()
-    _store[job.id] = job
+    with _store_lock:
+        _store[job.id] = job
     return job
 
 
 def get_job(job_id: str) -> Optional[Job]:
-    return _store.get(job_id)
+    with _store_lock:
+        return _store.get(job_id)
 
 
 def update_job(job: Job) -> None:
-    _store[job.id] = job
+    with _store_lock:
+        _store[job.id] = job
+
+
+def cleanup_old_jobs() -> None:
+    now = time.time()
+    with _store_lock:
+        expired = [jid for jid, job in _store.items() if now - job.created_at > JOB_TTL_SECONDS]
+        for jid in expired:
+            del _store[jid]
