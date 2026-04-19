@@ -38,8 +38,11 @@ services:
       - DOC_CHUNK_SIZE=${DOC_CHUNK_SIZE:-10000}
       - DOCLING_URL=${DOCLING_URL:-http://docling:5001}
       - DOCLING_TIMEOUT=${DOCLING_TIMEOUT:-300}
+      # Кеш MD по SHA-256 исходного .docx (см. backend/md_cache.py). Именованный volume переживает перезапуск контейнера.
+      - MD_CACHE_DIR=${MD_CACHE_DIR:-/var/lib/report-checker/md_cache}
     volumes:
       - /filer/users/rymax1e:/filer/users/rymax1e:ro
+      - report_checker_md_cache:/var/lib/report-checker/md_cache
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -58,3 +61,6 @@ services:
       - "${APP_PORT:-5173}:80"
     depends_on:
       - backend
+
+volumes:
+  report_checker_md_cache:

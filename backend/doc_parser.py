@@ -31,10 +31,11 @@ def parse_document(file_path: str, range_spec: dict | None = None) -> tuple[DocD
         raise ValueError(f"Неподдерживаемый формат: {ext}. Ожидается .docx")
 
     from docling_client import convert_file_to_md
+    from md_cache import get_or_convert_md
     from md_parser import parse_sections
     from token_chunker import chunk_sections
 
-    md_text = convert_file_to_md(file_path)
+    md_text = get_or_convert_md(file_path, convert_file_to_md)
     sections = parse_sections(md_text, range_spec=range_spec)
     sections = chunk_sections(sections)
 
