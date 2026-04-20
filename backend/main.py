@@ -7,15 +7,18 @@ import os
 import tempfile
 import time
 import uuid
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
+from threading import Lock
 from urllib.parse import quote
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, Form, HTTPException
+from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, ValidationError, field_validator
 
 import ai_client
 import aggregator
@@ -37,10 +40,17 @@ RESULT_DIR.mkdir(parents=True, exist_ok=True)
 DEFAULT_CHECK_PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "clarity.txt"
 CHECK_PROMPT_MAX_BYTES = 256 * 1024
 
-RESULT_TTL_SECONDS = int(os.getenv("RESULT_TTL_HOURS", "24")) * 3600
+try:
+    RESULT_TTL_SECONDS = int(os.getenv("RESULT_TTL_HOURS", "24")) * 3600
+except ValueError:
+    RESULT_TTL_SECONDS = 24 * 3600
 MAX_PATH_LEN = 1024
 MAX_RANGE_SPEC_LEN = 4096
 ERROR_ID_LENGTH = 8
+try:
+    _RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_CHECK_PER_MINUTE", "10"))
+except ValueError:
+    _RATE_LIMIT_PER_MINUTE = 10
 
 # Allowed CORS origins — comma-separated list in env (dev only; production uses same-origin nginx proxy).
 _CORS_ORIGINS = [
@@ -48,6 +58,51 @@ _CORS_ORIGINS = [
     for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:80").split(",")
     if o.strip()
 ]
+
+_rate_store: dict[str, list[float]] = defaultdict(list)
+_rate_lock = Lock()
+
+
+def _is_rate_limited(client_ip: str) -> bool:
+    now = time.time()
+    with _rate_lock:
+        times = [t for t in _rate_store.get(client_ip, []) if now - t < 60]
+        if len(times) >= _RATE_LIMIT_PER_MINUTE:
+            _rate_store[client_ip] = times
+            return True
+        times.append(now)
+        _rate_store[client_ip] = times
+        return False
+
+
+def _cleanup_rate_store() -> None:
+    now = time.time()
+    with _rate_lock:
+        stale = [ip for ip, ts in _rate_store.items() if not ts or now - ts[-1] > 60]
+        for ip in stale:
+            del _rate_store[ip]
+
+
+# Pydantic models for strict range_spec validation
+class _RangeItem(BaseModel):
+    start: str
+    end: str
+
+    @field_validator("start", "end")
+    @classmethod
+    def _validate_section(cls, v: str) -> str:
+        import re
+        if not re.match(r"^\d+(?:\.\d+)*$", v):
+            raise ValueError(f"Неверный номер раздела: {v!r}")
+        if len(v) > 50:
+            raise ValueError("Номер раздела слишком длинный")
+        return v
+
+
+class _RangeSpec(BaseModel):
+    valid: bool
+    type: str
+    items: list[_RangeItem]
 
 
 def _cleanup_old_results() -> None:
@@ -63,9 +118,15 @@ def _cleanup_old_results() -> None:
 
 async def _periodic_cleanup() -> None:
     while True:
-        await asyncio.sleep(3600)
-        _cleanup_old_results()
-        job_store.cleanup_old_jobs()
+        try:
+            await asyncio.sleep(3600)
+            _cleanup_old_results()
+            job_store.cleanup_old_jobs()
+            _cleanup_rate_store()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.error("_periodic_cleanup error: %s", exc)
 
 
 @asynccontextmanager
@@ -75,6 +136,10 @@ async def lifespan(application: FastAPI):  # noqa: ARG001
     task = asyncio.create_task(_periodic_cleanup())
     yield
     task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(title="Report Checker", lifespan=lifespan)
@@ -85,6 +150,15 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
+
+
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 
 def _validate_file_path(file_path: str) -> Path:
@@ -101,15 +175,16 @@ def _validate_file_path(file_path: str) -> Path:
     linux_path = map_path(file_path)
     p = Path(linux_path)
 
-    # Reject symlinks before resolving — prevents escaping the allowlist via a symlink
-    # inside an allowed directory pointing to a file outside it.
+    # Resolve first, then check for symlinks — reduces TOCTOU window.
+    # The allowlist check on the resolved path is the primary defense against symlink escape.
+    resolved = p.resolve()
     if p.is_symlink():
         raise HTTPException(status_code=403, detail="Доступ к файлу запрещён")
 
-    resolved = p.resolve()
-
     allowed_prefixes = get_allowed_prefixes()
-    if allowed_prefixes:
+    if not allowed_prefixes:
+        logger.warning("No path allowlist configured (path_mapping.json missing or empty) — all paths are accessible")
+    else:
         resolved_str = str(resolved)
         if not any(resolved_str.startswith(str(Path(pfx).resolve())) for pfx in allowed_prefixes):
             logger.warning("Access denied for path (hash: %s)", resolved_str[:8])
@@ -334,6 +409,7 @@ def process_document(
 
         job = job_store.get_job(job_id)
         if job is None:
+            logger.warning("Job %s not found when storing result", job_id)
             return
         job.result_path = result_path
         job.status = JobStatus.CANCELLED if was_cancelled else JobStatus.DONE
@@ -419,11 +495,16 @@ async def default_check_prompt():
 
 @app.post("/check")
 async def check(
+    request: Request,
     background_tasks: BackgroundTasks,
     file_path: str = Form(...),
     range_spec: str = Form(""),
     check_prompt: str = Form(""),
 ):
+    client_ip = (request.client.host if request.client else "unknown")
+    if _is_rate_limited(client_ip):
+        raise HTTPException(status_code=429, detail="Слишком много запросов. Подождите минуту.")
+
     if len(range_spec) > MAX_RANGE_SPEC_LEN:
         raise HTTPException(status_code=400, detail="Диапазон слишком длинный")
 
@@ -438,19 +519,10 @@ async def check(
     if range_spec.strip():
         try:
             candidate = json.loads(range_spec)
-            if (
-                isinstance(candidate, dict)
-                and candidate.get("valid")
-                and isinstance(candidate.get("items"), list)
-                and all(
-                    isinstance(item, dict)
-                    and isinstance(item.get("start"), str)
-                    and isinstance(item.get("end"), str)
-                    for item in candidate["items"]
-                )
-            ):
+            if isinstance(candidate, dict) and candidate.get("valid"):
+                _RangeSpec.model_validate(candidate)
                 parsed_range = candidate
-        except (json.JSONDecodeError, ValueError):
+        except (json.JSONDecodeError, ValueError, ValidationError):
             pass
 
     job = job_store.create_job()

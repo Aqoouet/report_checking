@@ -62,12 +62,13 @@ def convert_file_to_md(file_path: str) -> str:
         )
 
     with path.open("rb") as fh:
-        response = httpx.post(
-            f"{_DOCLING_URL}/v1/convert/file",
-            data=_CONVERT_PARAMS,
-            files={"files": (path.name, fh, _content_type(path.suffix))},
-            timeout=_TIMEOUT,
-        )
+        with httpx.Client() as client:
+            response = client.post(
+                f"{_DOCLING_URL}/v1/convert/file",
+                data=_CONVERT_PARAMS,
+                files={"files": (path.name, fh, _content_type(path.suffix))},
+                timeout=_TIMEOUT,
+            )
     response.raise_for_status()
 
     body = response.json()

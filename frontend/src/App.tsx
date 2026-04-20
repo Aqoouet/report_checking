@@ -215,6 +215,7 @@ export default function App() {
         clearInterval(intervalRef.current!);
         intervalRef.current = null;
         opts?.onTerminal?.();
+        setIsStopping(false);
         setErrorMsg("Потеряна связь с сервером");
         setStage("error");
       }

@@ -82,4 +82,13 @@ def cleanup_old_jobs() -> None:
     with _store_lock:
         expired = [jid for jid, job in _store.items() if now - job.created_at > JOB_TTL_SECONDS]
         for jid in expired:
+            job = _store[jid]
+            for attr in ("result_path", "md_result_path"):
+                p = getattr(job, attr, None)
+                if p:
+                    from pathlib import Path as _Path
+                    try:
+                        _Path(p).unlink(missing_ok=True)
+                    except OSError:
+                        pass
             del _store[jid]

@@ -80,6 +80,16 @@ def get_or_convert_md(file_path: str, convert_fn) -> str:
         )
 
     cache_file.parent.mkdir(parents=True, exist_ok=True)
+
+    import shutil
+    md_bytes = len(md_text.encode("utf-8"))
+    free = shutil.disk_usage(cache_file.parent).free
+    if md_bytes > free:
+        raise OSError(
+            f"Not enough disk space to cache Markdown "
+            f"(need {md_bytes // 1024} KB, free {free // 1024} KB)"
+        )
+
     fd, tmp_path = tempfile.mkstemp(dir=cache_file.parent, suffix=".tmp")
     tmp = Path(tmp_path)
     try:

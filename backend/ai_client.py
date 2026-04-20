@@ -61,21 +61,20 @@ _client_lock = Lock()
 
 def _get_client() -> OpenAI:
     global _client
-    if _client is None:
-        with _client_lock:
-            if _client is None:
-                api_key = os.getenv("OPENAI_API_KEY", "").strip()
-                if not api_key:
-                    raise ValueError(
-                        "OPENAI_API_KEY not set. Set it to 'lm-studio' for local LM Studio "
-                        "or your OpenAI API key for remote endpoints."
-                    )
-                _client = OpenAI(
-                    api_key=api_key,
-                    base_url=os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1"),
-                    timeout=_http_timeout(),
-                    max_retries=2,
+    with _client_lock:
+        if _client is None:
+            api_key = os.getenv("OPENAI_API_KEY", "").strip()
+            if not api_key:
+                raise ValueError(
+                    "OPENAI_API_KEY not set. Set it to 'lm-studio' for local LM Studio "
+                    "or your OpenAI API key for remote endpoints."
                 )
+            _client = OpenAI(
+                api_key=api_key,
+                base_url=os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1"),
+                timeout=_http_timeout(),
+                max_retries=2,
+            )
     return _client
 
 
@@ -218,12 +217,15 @@ def validate_range(text: str) -> dict:
         if sc == 400:
             err = _openai_error_payload(exc)
             if err.get("code") == "model_not_found":
-                msg = (err.get("message") or "").strip()[:500]
+                raw_msg = (err.get("message") or "").strip()[:100]
+                # Redact anything that looks like a key or token
+                _SENSITIVE = ("api_key", "token", "secret", "password", "bearer")
+                msg = raw_msg if not any(k in raw_msg.lower() for k in _SENSITIVE) else ""
                 return _range_error(
                     range_message=(
                         "Неверный идентификатор модели (OPENAI_VALIDATE_MODEL). "
-                        "Укажите точное имя модели из LM Studio или оставьте поле пустым. "
-                        f"Ответ сервера: {msg}"
+                        "Укажите точное имя модели из LM Studio или оставьте поле пустым."
+                        + (f" Ответ сервера: {msg}" if msg else "")
                     ),
                 )
             return _range_error(server_error=False)

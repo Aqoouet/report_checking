@@ -44,7 +44,7 @@ def _normalize_pasted_path(raw_path: str) -> str:
 def _normalize_for_mapping_lookup(raw_path: str) -> str:
     """Build ``X:\\rest`` so JSON keys like ``U:\\`` match ``U:/…``, ``U:\\…``, pasted quotes, etc."""
     s = raw_path.strip().strip('"').strip("'")
-    if len(s) >= 2 and s[1] == ":":
+    if len(s) >= 2 and s[1] == ":" and s[0].isalpha():
         body = s[2:]
         if not body:
             return s[:2] + "\\"
