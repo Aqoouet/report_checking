@@ -175,11 +175,17 @@ def _validate_file_path(file_path: str) -> Path:
     linux_path = map_path(file_path)
     p = Path(linux_path)
 
-    # Resolve first, then check for symlinks — reduces TOCTOU window.
-    # The allowlist check on the resolved path is the primary defense against symlink escape.
-    resolved = p.resolve()
-    if p.is_symlink():
-        raise HTTPException(status_code=403, detail="Доступ к файлу запрещён")
+    try:
+        # Resolve first, then check for symlinks — reduces TOCTOU window.
+        # The allowlist check on the resolved path is the primary defense against symlink escape.
+        resolved = p.resolve()
+        if p.is_symlink():
+            raise HTTPException(status_code=403, detail="Доступ к файлу запрещён")
+    except HTTPException:
+        raise
+    except OSError as e:
+        logger.warning("OS error resolving path: %s", e)
+        raise HTTPException(status_code=403, detail="Нет доступа к файлу или каталогу")
 
     allowed_prefixes = get_allowed_prefixes()
     if not allowed_prefixes:
@@ -190,10 +196,17 @@ def _validate_file_path(file_path: str) -> Path:
             logger.warning("Access denied for path (hash: %s)", resolved_str[:8])
             raise HTTPException(status_code=403, detail="Доступ к файлу запрещён")
 
-    if not resolved.exists():
+    try:
+        exists = resolved.exists()
+        suffix = resolved.suffix.lower()
+    except OSError as e:
+        logger.warning("OS error checking path: %s", e)
+        raise HTTPException(status_code=403, detail="Нет доступа к файлу или каталогу")
+
+    if not exists:
         raise HTTPException(status_code=400, detail="Файл не найден")
 
-    if resolved.suffix.lower() != ".docx":
+    if suffix != ".docx":
         raise HTTPException(status_code=400, detail="Поддерживаются только файлы .docx")
 
     return resolved
