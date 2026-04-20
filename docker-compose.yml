@@ -20,6 +20,9 @@ services:
       args:
         PYTHON_IMAGE: ${DOCKER_PYTHON_IMAGE:-python:3.12-slim}
     container_name: report-checker-backend
+    # Access to mounted filer paths may require host owner uid/gid.
+    # Default 0:0 avoids Permission denied on restrictive network shares.
+    user: "${BACKEND_UID:-0}:${BACKEND_GID:-0}"
     restart: unless-stopped
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-lm-studio}
@@ -41,7 +44,9 @@ services:
       # Кеш MD по SHA-256 исходного .docx (см. backend/md_cache.py). Именованный volume переживает перезапуск контейнера.
       - MD_CACHE_DIR=${MD_CACHE_DIR:-/var/lib/report-checker/md_cache}
     volumes:
-      - /filer/users/rymax1e:/filer/users/rymax1e:ro
+      # Host path roots used by backend/path_mapping.json (U:\ and P:\ drives).
+      - ${HOST_STORAGE_U:-/filer/users/rymax1e}:/filer/users/rymax1e:ro
+      - ${HOST_STORAGE_P:-/filer/wps/wp}:/filer/wps/wp:ro
       - report_checker_md_cache:/var/lib/report-checker/md_cache
     extra_hosts:
       - "host.docker.internal:host-gateway"

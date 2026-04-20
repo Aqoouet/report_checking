@@ -18,6 +18,10 @@ nano .env
 - `OPENAI_MODEL` — имя доступной модели qwen coder (узнать: `docker exec lmstudio lms ps`)
 - `SYSTEM_PROMPT` — системный промпт для проверки отчётов
 - `APP_PORT` — порт, на котором будет висеть UI (default: 5173)
+- `HOST_STORAGE_U` и `HOST_STORAGE_P` — host-пути, которые backend монтирует как
+  `/filer/users/rymax1e` и `/filer/wps/wp` соответственно (для `U:\` и `P:\` из `backend/path_mapping.json`)
+- `BACKEND_UID` и `BACKEND_GID` — uid/gid пользователя в backend-контейнере.
+  Для закрытых сетевых шар используйте `0:0`, иначе получите `Permission denied` при валидации пути.
 
 ## 3. Скачать и загрузить модель (если ещё не сделано)
 
