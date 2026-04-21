@@ -37,6 +37,7 @@ export default function App() {
   const [checkPrompt, setCheckPrompt] = useState("");
   const [runtimeLine, setRuntimeLine] = useState("Загрузка параметров ИИ…");
   const [isStopping, setIsStopping] = useState(false);
+  const [serviceHelpOpen, setServiceHelpOpen] = useState(false);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -258,11 +259,30 @@ export default function App() {
   return (
     <div className="page">
       <div className="card">
-        <h1 className="title">Проверка отчёта</h1>
-        <p className="subtitle">
-          Сервис анализирует текст отчёта и формирует файл с замечаниями по стилю
-          и формулировкам.
-        </p>
+        <div className="label-row title-row">
+          <h1 className="title">Проверка отчёта</h1>
+          <button
+            type="button"
+            className="help-btn"
+            onClick={() => setServiceHelpOpen((v) => !v)}
+            aria-label="Справка по сервису"
+            aria-expanded={serviceHelpOpen}
+          >
+            ?
+          </button>
+        </div>
+        {serviceHelpOpen && (
+          <div className="help-popup help-popup--service">
+            <p className="help-popup__intro">
+              Сервис анализирует текст отчёта и формирует файл с замечаниями по стилю и формулировкам.
+            </p>
+            <ul className="help-popup__list">
+              <li><strong>Проверяется:</strong> текст разделов — стиль, формулировки, научный язык.</li>
+              <li><strong>Не проверяется:</strong> рисунки, таблицы, формулы и другое нетекстовое содержимое.</li>
+              <li><strong>Остаётся на нормоконтроле:</strong> оформление (шрифты, отступы, стили абзацев) — параметры, видимые только в Word.</li>
+            </ul>
+          </div>
+        )}
 
         {isFormStage ? (
           <form onSubmit={handleSubmit} className="form">
