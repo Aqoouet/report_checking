@@ -15,13 +15,14 @@ nano .env
 ```
 
 Что заполнить:
-- `OPENAI_MODEL` — имя доступной модели qwen coder (узнать: `docker exec lmstudio lms ps`)
-- `SYSTEM_PROMPT` — системный промпт для проверки отчётов
-- `APP_PORT` — порт, на котором будет висеть UI (default: 5173)
+- `OPENAI_MODEL` — модель для основных проверок.
+- `OPENAI_VALIDATE_MODEL` — модель для валидации диапазона (`/validate_range`).
+- `OPENAI_BASE_URL` — URL OpenAI-совместимого API (для LM Studio обычно `http://host.docker.internal:1234/v1`).
+- `APP_PORT` — порт UI (по умолчанию `5173`).
 - `HOST_STORAGE_U` и `HOST_STORAGE_P` — host-пути, которые backend монтирует как
   `/filer/users/rymax1e` и `/filer/wps/wp` соответственно (для `U:\` и `P:\` из `backend/path_mapping.json`)
 - `BACKEND_UID` и `BACKEND_GID` — uid/gid пользователя в backend-контейнере.
-  Для закрытых сетевых шар используйте `0:0`, иначе получите `Permission denied` при валидации пути.
+  Для закрытых сетевых шар оставьте `0:0`, иначе получите `Permission denied` при валидации пути.
 
 ## 3. Скачать и загрузить модель (если ещё не сделано)
 
@@ -29,8 +30,8 @@ nano .env
 # Что уже есть на диске
 docker exec lmstudio lms ls
 
-# Загрузить qwen coder (имя должно совпасть со строкой в lms ls, например)
-docker exec lmstudio lms load qwen3-coder-30b-a3b-instruct -y
+# Загрузить модель (имя должно совпасть со строкой в lms ls)
+docker exec lmstudio lms load qwen3.6-35b-a3b -y
 
 # Убедиться, что модель в памяти и скопировать id в OPENAI_MODEL
 docker exec lmstudio lms ps
@@ -61,18 +62,46 @@ docker compose logs -f backend
 
 ---
 
+## Важно: поддерживаемый формат
+
+Сейчас backend принимает только `.docx`.
+Если передать другой формат, API вернет ошибку валидации пути.
+
+---
+
+## Диагностика ошибки «Нет доступа к файлу или каталогу»
+
+1. Проверьте, что путь файла попадает в маппинг `backend/path_mapping.json`.
+2. Убедитесь, что соответствующий host-каталог смонтирован (`HOST_STORAGE_U` / `HOST_STORAGE_P`).
+3. Для сетевых шар с жесткими ACL используйте `BACKEND_UID=0`, `BACKEND_GID=0`.
+4. После изменения `.env` пересоздайте контейнеры:
+
+```bash
+docker compose down
+docker compose up -d --build
+```
+
+---
+
 ## Полезные команды
 
 ```bash
 # Посмотреть логи
 docker compose logs -f backend
 docker compose logs -f frontend
+docker compose logs -f docling
 
 # Перезапустить после изменений в коде
 docker compose up --build -d
 
 # Остановить
 docker compose down
+
+# Проверить пользователя backend-контейнера (для прав доступа)
+docker exec report-checker-backend id
+
+# Проверить, что mount'ы видны внутри backend
+docker inspect report-checker-backend --format '{{range .Mounts}}{{println .Source "->" .Destination "ro=" .RW}}{{end}}'
 
 # Проверить что модель отвечает
 curl http://localhost:1234/v1/models

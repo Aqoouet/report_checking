@@ -1,1 +1,0 @@
-chown -R "$USER":"$USER" /filer/users/rymax1e/MRO/report_checking
