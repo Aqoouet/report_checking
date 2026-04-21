@@ -48,6 +48,17 @@ export default function PathField({
           {isValidating && (
             <span className="range-spinner" title="Проверка пути…">⟳</span>
           )}
+          {!isValidating && pathState === "empty" && filePath !== "" && (
+            <button
+              type="button"
+              className="range-clear-btn"
+              onClick={() => onChange("")}
+              title="Очистить поле"
+              aria-label="Очистить поле пути"
+            >
+              ×
+            </button>
+          )}
           {!isValidating && pathState === "valid" && (
             <span className="range-badge range-badge--ok">✓</span>
           )}

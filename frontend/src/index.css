@@ -380,6 +380,27 @@ body {
   font-size: 0.85rem;
   font-weight: 700;
 }
+
+.range-clear-btn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--text-muted);
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, background .15s;
+}
+.range-clear-btn:hover {
+  color: var(--text);
+  background: #e5e7eb;
+}
 .range-badge--ok { color: var(--green); }
 .range-badge--err { color: var(--red); }
 
