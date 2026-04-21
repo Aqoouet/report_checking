@@ -52,6 +52,17 @@ export default function RangeField({
           {isValidating && (
             <span className="range-spinner" title="Валидация…">⟳</span>
           )}
+          {!isValidating && rangeState === "empty" && rangeInput !== "" && (
+            <button
+              type="button"
+              className="range-clear-btn"
+              onClick={() => onChange("")}
+              title="Очистить поле"
+              aria-label="Очистить поле диапазона"
+            >
+              ×
+            </button>
+          )}
           {!isValidating && rangeState === "valid" && (
             <span className="range-badge range-badge--ok">✓</span>
           )}
