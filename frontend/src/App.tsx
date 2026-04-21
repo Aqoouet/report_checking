@@ -52,12 +52,8 @@ export default function App() {
     fetchRuntimeInfo()
       .then((info) => {
         if (cancelled) return;
-        const ctx =
-          info.context_tokens != null
-            ? `контекст ~${info.context_tokens.toLocaleString("ru-RU")} ток.`
-            : "контекст: нет данных от LM Studio";
         setRuntimeLine(
-          `Модель: ${info.check_model} · ${ctx} · фрагмент раздела до ~${info.doc_chunk_tokens.toLocaleString("ru-RU")} ток.`,
+          `Модель: ${info.check_model} · фрагмент раздела до ~${info.doc_chunk_tokens.toLocaleString("ru-RU")} ток.`,
         );
       })
       .catch(() => {
