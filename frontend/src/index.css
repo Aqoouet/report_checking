@@ -144,39 +144,72 @@ body {
 
 .field { display: flex; flex-direction: column; gap: 6px; }
 
-.field--hint-on-hover {
-  position: relative;
+.label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-.field--hint-on-hover:hover {
-  cursor: help;
+
+.help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: #f3f4f6;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background .15s, color .15s, border-color .15s;
 }
-.field--hint-on-hover::after {
-  content: attr(data-hint);
-  position: absolute;
-  left: 0;
-  top: 100%;
-  margin-top: 4px;
-  padding: 10px 12px;
-  font-size: 0.8rem;
-  font-weight: 400;
-  color: var(--text);
+.help-btn:hover {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.help-popup {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: var(--shadow);
-  max-width: min(340px, 92vw);
-  width: max-content;
-  white-space: normal;
-  line-height: 1.45;
-  z-index: 30;
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.12s ease, visibility 0.12s ease;
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text);
 }
-.field--hint-on-hover:hover::after {
-  opacity: 1;
-  visibility: visible;
+.help-popup__intro {
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+.help-popup__table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.help-popup__table td {
+  padding: 2px 4px;
+  vertical-align: top;
+}
+.help-popup__table td:first-child {
+  padding-left: 0;
+}
+.help-popup__arrow {
+  color: var(--text-muted);
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+.help-popup code {
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: 0.78rem;
+  background: #f3f4f6;
+  padding: 1px 4px;
+  border-radius: 4px;
+  word-break: break-all;
 }
 
 .label {

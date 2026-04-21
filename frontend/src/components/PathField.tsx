@@ -1,4 +1,11 @@
+import { useState } from "react";
+
 export type PathFieldState = "empty" | "valid" | "invalid";
+
+const PATH_EXAMPLES: { windows: string; linux: string }[] = [
+  { windows: "P:\\", linux: "/filer/wps/wp/" },
+  { windows: "\\\\e0-filer03\\allcreatex\\createx\\", linux: "/filer/users/" },
+];
 
 interface Props {
   filePath: string;
@@ -19,14 +26,40 @@ export default function PathField({
   onChange,
   onValidate,
 }: Props) {
+  const [helpOpen, setHelpOpen] = useState(false);
+
   return (
-    <div
-      className="field field--hint-on-hover"
-      data-hint="Укажите путь к файлу в проектной папке на диске P: или в /filer/wps/wp. Принимаются только файлы .docx."
-    >
-      <label className="label" htmlFor="filepath">
-        Путь к файлу
-      </label>
+    <div className="field">
+      <div className="label-row">
+        <label className="label" htmlFor="filepath">
+          Путь к файлу
+        </label>
+        <button
+          type="button"
+          className="help-btn"
+          onClick={() => setHelpOpen((v) => !v)}
+          aria-label="Справка по формату пути"
+          aria-expanded={helpOpen}
+        >
+          ?
+        </button>
+      </div>
+      {helpOpen && (
+        <div className="help-popup">
+          <p className="help-popup__intro">Принимаются файлы <code>.docx</code>. Поддерживаемые префиксы путей:</p>
+          <table className="help-popup__table">
+            <tbody>
+              {PATH_EXAMPLES.map(({ windows, linux }) => (
+                <tr key={windows}>
+                  <td><code>{windows}…\отчёт.docx</code></td>
+                  <td className="help-popup__arrow">→</td>
+                  <td><code>{linux}…/отчёт.docx</code></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div className="range-input-wrap">
         <div className="range-field-inner">
           <input

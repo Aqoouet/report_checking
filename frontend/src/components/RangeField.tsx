@@ -1,6 +1,13 @@
+import { useState } from "react";
 import type { ValidateRangeResponse } from "../api";
 
 export type RangeState = "empty" | "validating" | "valid" | "invalid";
+
+const RANGE_EXAMPLES = [
+  { input: "3.1", desc: "только раздел 3.1" },
+  { input: "3.2–3.5", desc: "разделы 3.2, 3.3, 3.4 и 3.5" },
+  { input: "(пусто)", desc: "проверить весь документ" },
+];
 
 interface Props {
   rangeInput: string;
@@ -23,14 +30,40 @@ export default function RangeField({
   onChange,
   onValidate,
 }: Props) {
+  const [helpOpen, setHelpOpen] = useState(false);
+
   return (
-    <div
-      className="field field--hint-on-hover"
-      data-hint="Укажите разделы для проверки: 3.1 или 3.2–3.5. Оставьте поле пустым, чтобы проверить весь документ."
-    >
-      <label className="label" htmlFor="range">
-        Диапазон проверки
-      </label>
+    <div className="field">
+      <div className="label-row">
+        <label className="label" htmlFor="range">
+          Диапазон проверки
+        </label>
+        <button
+          type="button"
+          className="help-btn"
+          onClick={() => setHelpOpen((v) => !v)}
+          aria-label="Справка по формату диапазона"
+          aria-expanded={helpOpen}
+        >
+          ?
+        </button>
+      </div>
+      {helpOpen && (
+        <div className="help-popup">
+          <p className="help-popup__intro">Укажите подразделы для проверки:</p>
+          <table className="help-popup__table">
+            <tbody>
+              {RANGE_EXAMPLES.map(({ input, desc }) => (
+                <tr key={input}>
+                  <td><code>{input}</code></td>
+                  <td className="help-popup__arrow">—</td>
+                  <td>{desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div className="range-input-wrap">
         <div className="range-field-inner">
           <input
