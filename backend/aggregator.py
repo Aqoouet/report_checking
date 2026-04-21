@@ -31,18 +31,27 @@ def _build_summary(doc_data: "DocData", *, is_partial: bool = False) -> str:
     return "\n".join(lines)
 
 
+def _build_prompt_block(check_prompt: str | None) -> str:
+    if not check_prompt:
+        return ""
+    lines = ["=" * 40, "ПРОМПТ ПРОВЕРКИ", "=" * 40, check_prompt.strip(), "=" * 40, ""]
+    return "\n".join(lines)
+
+
 def aggregate(
     all_errors: list[dict],
     result_path: str,
     doc_data: "DocData | None" = None,
     *,
     is_partial: bool = False,
+    check_prompt: str | None = None,
 ) -> None:
     """Write *all_errors* to *result_path* as a plain-text report."""
     preamble = _build_summary(doc_data, is_partial=is_partial) if doc_data is not None else ""
+    prompt_block = _build_prompt_block(check_prompt)
 
     if not all_errors:
-        _write(result_path, preamble + "Ошибок не найдено. Документ соответствует проверенным критериям.")
+        _write(result_path, preamble + prompt_block + "Ошибок не найдено. Документ соответствует проверенным критериям.")
         return
 
     lines = ["=" * 40, "ДЕТАЛИ ПРОВЕРКИ", "=" * 40, ""]
@@ -51,7 +60,7 @@ def aggregate(
         lines.append(item["error"])
         lines += ["", "---", ""]
 
-    _write(result_path, preamble + "\n".join(lines))
+    _write(result_path, preamble + prompt_block + "\n".join(lines))
 
 
 def _write(path: str, text: str) -> None:

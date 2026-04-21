@@ -7,6 +7,7 @@ import os
 import tempfile
 import time
 import uuid
+from datetime import datetime
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -412,12 +413,20 @@ def process_document(
 
         all_errors, was_cancelled = _run_checkpoints(job_id, doc_data, check_prompt)
 
+        resolved_prompt = check_prompt
+        if resolved_prompt is None and DEFAULT_CHECK_PROMPT_PATH.is_file():
+            try:
+                resolved_prompt = DEFAULT_CHECK_PROMPT_PATH.read_text(encoding="utf-8").strip() or None
+            except OSError:
+                pass
+
         result_path = str(RESULT_DIR / f"{job_id}_result.txt")
         aggregator.aggregate(
             all_errors,
             result_path,
             doc_data=doc_data,
             is_partial=was_cancelled,
+            check_prompt=resolved_prompt,
         )
 
         job = job_store.get_job(job_id)
@@ -579,11 +588,10 @@ async def result(job_id: str):
     if not job.result_path:
         raise HTTPException(status_code=404, detail="Файл результата не найден")
 
-    filename = (
-        "report_errors_partial.txt"
-        if job.status == JobStatus.CANCELLED
-        else "report_errors.txt"
-    )
+    stem = _safe_download_stem(job.source_doc_stem)
+    ts = datetime.fromtimestamp(job.created_at).strftime("%Y%m%d_%H%M%S")
+    suffix = "_partial" if job.status == JobStatus.CANCELLED else ""
+    filename = f"{stem}_{ts}_errors{suffix}.txt"
     try:
         return FileResponse(
             path=job.result_path,
