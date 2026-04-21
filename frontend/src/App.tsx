@@ -325,7 +325,6 @@ export default function App() {
             stage={stage as TerminalStage}
             jobId={jobId}
             errorMsg={errorMsg}
-            totalCheckpoints={progress?.total_checkpoints ?? 0}
             onReset={reset}
           />
         )}

@@ -6,7 +6,6 @@ interface Props {
   stage: TerminalStage;
   jobId: string;
   errorMsg: string;
-  totalCheckpoints: number;
   onReset: () => void;
 }
 
@@ -14,17 +13,13 @@ export default function ResultView({
   stage,
   jobId,
   errorMsg,
-  totalCheckpoints,
   onReset,
 }: Props) {
   if (stage === "done") {
     return (
       <div className="status-block status-block--done">
         <div className="done-icon">✓</div>
-        <p className="done-text">
-          Проверено {totalCheckpoints} критери
-          {totalCheckpoints === 1 ? "й" : "ев"}. Отчёт готов.
-        </p>
+        <p className="done-text">Отчёт готов.</p>
         <div className="result-downloads">
           <a
             href={resultUrl(jobId)}
