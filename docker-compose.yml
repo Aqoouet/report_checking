@@ -53,6 +53,16 @@ services:
     depends_on:
       - docling
 
+  redis:
+    image: redis:7-alpine
+    container_name: report-checker-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   frontend:
     build:
       context: ./frontend
