@@ -44,6 +44,20 @@ _READ_TIMEOUT = _read_timeout()
 _CHUNK_MAX_TOKENS = _chunk_max_tokens()
 
 
+def _default_temperature() -> float | None:
+    raw = os.getenv("AI_TEMPERATURE", "").strip().lower()
+    if not raw or raw in ("none", "auto"):
+        return None
+    try:
+        v = float(raw)
+    except ValueError:
+        return None
+    return v if 0.0 <= v <= 2.0 else None
+
+
+_DEFAULT_TEMPERATURE = _default_temperature()
+
+
 def _http_timeout() -> httpx.Timeout | None:
     if _READ_TIMEOUT is None:
         return None
@@ -106,9 +120,13 @@ def _openai_error_payload(exc: APIStatusError) -> dict[str, Any]:
     return {}
 
 
-def check_text_chunk(text: str, system_prompt: str) -> str:
+def check_text_chunk(text: str, system_prompt: str, temperature: float | None = None) -> str:
     """Send a text chunk to the AI and return the model response."""
-    logger.info("check_text_chunk | model=%s | chars=%d", _model(), len(text))
+    effective_temp = temperature if temperature is not None else _DEFAULT_TEMPERATURE
+    logger.info(
+        "check_text_chunk | model=%s | chars=%d | temperature=%s",
+        _model(), len(text), effective_temp,
+    )
 
     kwargs: dict[str, Any] = {
         "model": _model(),
@@ -119,6 +137,8 @@ def check_text_chunk(text: str, system_prompt: str) -> str:
     }
     if _CHUNK_MAX_TOKENS is not None:
         kwargs["max_tokens"] = _CHUNK_MAX_TOKENS
+    if effective_temp is not None:
+        kwargs["temperature"] = effective_temp
 
     response = _get_client().chat.completions.create(**kwargs)
     result = response.choices[0].message.content or ""

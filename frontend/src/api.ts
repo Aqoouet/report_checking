@@ -87,6 +87,7 @@ export async function startCheck(
   filePath: string,
   rangeSpec?: ValidateRangeResponse,
   checkPrompt?: string,
+  temperature?: number,
 ): Promise<CheckResponse> {
   const form = new FormData();
   form.append("file_path", filePath);
@@ -94,6 +95,9 @@ export async function startCheck(
     form.append("range_spec", JSON.stringify(rangeSpec));
   }
   form.append("check_prompt", checkPrompt ?? "");
+  if (temperature !== undefined) {
+    form.append("temperature", String(temperature));
+  }
   const res = await fetch(`${BASE}/check`, { method: "POST", body: form });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));

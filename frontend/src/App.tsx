@@ -35,6 +35,7 @@ export default function App() {
   const [progress, setProgress] = useState<StatusResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [checkPrompt, setCheckPrompt] = useState("");
+  const [temperatureInput, setTemperatureInput] = useState("");
   const [runtimeLine, setRuntimeLine] = useState("Загрузка параметров ИИ…");
   const [isStopping, setIsStopping] = useState(false);
   const [serviceHelpOpen, setServiceHelpOpen] = useState(false);
@@ -177,11 +178,13 @@ export default function App() {
   const _runCheck = async (rangeRes: ValidateRangeResponse | null) => {
     setStage("starting");
     setErrorMsg("");
+    const parsedTemp = temperatureInput.trim() !== "" ? parseFloat(temperatureInput.trim()) : undefined;
     try {
       const { job_id } = await startCheck(
         filePath.trim(),
         rangeRes?.valid ? rangeRes : undefined,
         checkPrompt,
+        parsedTemp,
       );
       setJobId(job_id);
       setIsStopping(false);
@@ -324,6 +327,23 @@ export default function App() {
               <p className="model-info-body" role="status">
                 {runtimeLine}
               </p>
+              <div className="temperature-row">
+                <label htmlFor="temperature-input" className="temperature-label">
+                  Temperature
+                </label>
+                <input
+                  id="temperature-input"
+                  type="number"
+                  className="temperature-input"
+                  value={temperatureInput}
+                  onChange={(e) => setTemperatureInput(e.target.value)}
+                  placeholder="авто"
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  aria-label="Температура модели (пусто = авто)"
+                />
+              </div>
             </details>
 
             <button

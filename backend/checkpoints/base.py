@@ -42,6 +42,7 @@ class BaseCheckpoint(ABC):
         *,
         job_id: str | None = None,
         prompt_override: str | None = None,
+        temperature: float | None = None,
     ) -> list[dict]:
         """Run the checkpoint and return a list of error dicts (location, error)."""
 
@@ -57,6 +58,7 @@ class PerSectionCheckpoint(BaseCheckpoint):
         *,
         job_id: str | None = None,
         prompt_override: str | None = None,
+        temperature: float | None = None,
     ) -> list[dict]:
         import ai_client
         import jobs as job_store
@@ -86,7 +88,7 @@ class PerSectionCheckpoint(BaseCheckpoint):
                     job.checkpoint_sub_name = sub_name
                     job_store.update_job(job)
 
-            result = ai_client.check_text_chunk(section.text, prompt)
+            result = ai_client.check_text_chunk(section.text, prompt, temperature=temperature)
             cleaned = (result or "").strip()
             had_issue = bool(cleaned and not is_no_error(cleaned))
             if had_issue:

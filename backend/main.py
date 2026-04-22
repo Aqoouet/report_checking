@@ -335,6 +335,7 @@ def _run_checkpoints(
     job_id: str,
     doc_data: object,
     check_prompt: str | None,
+    temperature: float | None = None,
 ) -> tuple[list[dict], bool]:
     checkpoints = load_checkpoints()
     job = job_store.get_job(job_id)
@@ -364,7 +365,7 @@ def _run_checkpoints(
         job_store.update_job(job)
 
         try:
-            errors = cp.run(doc_data, job_id=job_id, prompt_override=check_prompt)
+            errors = cp.run(doc_data, job_id=job_id, prompt_override=check_prompt, temperature=temperature)
         except JobCancelledError as cancelled:
             was_cancelled = True
             for err in cancelled.partial_issues:
@@ -399,6 +400,7 @@ def process_document(
     file_path: str,
     range_spec: dict | None,
     check_prompt: str | None = None,
+    temperature: float | None = None,
 ) -> None:
     job = job_store.get_job(job_id)
     if not job:
@@ -411,7 +413,7 @@ def process_document(
         doc_data, md_text = parse_document(file_path, range_spec=range_spec)
         _store_md(job_id, file_path, md_text)
 
-        all_errors, was_cancelled = _run_checkpoints(job_id, doc_data, check_prompt)
+        all_errors, was_cancelled = _run_checkpoints(job_id, doc_data, check_prompt, temperature)
 
         resolved_prompt = check_prompt
         if resolved_prompt is None and DEFAULT_CHECK_PROMPT_PATH.is_file():
@@ -522,6 +524,7 @@ async def check(
     file_path: str = Form(...),
     range_spec: str = Form(""),
     check_prompt: str = Form(""),
+    temperature: str = Form(""),
 ):
     client_ip = (request.client.host if request.client else "unknown")
     if _is_rate_limited(client_ip):
@@ -536,6 +539,16 @@ async def check(
         normalized_prompt = _normalize_check_prompt(check_prompt)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    parsed_temperature: float | None = None
+    if temperature.strip():
+        try:
+            t = float(temperature.strip())
+            if not (0.0 <= t <= 2.0):
+                raise HTTPException(status_code=400, detail="Температура должна быть от 0 до 2")
+            parsed_temperature = t
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Неверное значение температуры") from exc
 
     parsed_range: dict | None = None
     if range_spec.strip():
@@ -554,6 +567,7 @@ async def check(
         str(resolved),
         parsed_range,
         normalized_prompt,
+        parsed_temperature,
     )
     return {"job_id": job.id}
 
