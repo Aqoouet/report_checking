@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ class PipelineConfig:
     subchapters_range: str = ""
     chunk_size_tokens: int = 10000
     temperature: float | None = None
+    model: str = ""
 
 
 _current_config: PipelineConfig | None = None
@@ -39,6 +41,7 @@ def parse_config_payload(payload: dict[str, Any]) -> PipelineConfig:
                 if payload.get("temperature") not in (None, "", "null")
                 else None
             ),
+            model=str(payload.get("model", "")).strip(),
         )
     except KeyError as exc:
         raise ValueError(f"Missing required field: {exc.args[0]}") from exc
@@ -121,6 +124,8 @@ def validate_and_set(
     patched = dict(data)
     patched["input_docx_path"] = resolved_docx
     patched["output_dir"] = resolved_output
+    if not patched.get("model"):
+        patched["model"] = os.getenv("OPENAI_MODEL", "").strip()
     try:
         config = parse_config_payload(patched)
     except ValueError as exc:

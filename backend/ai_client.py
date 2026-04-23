@@ -281,12 +281,13 @@ async def call_async(
     text: str,
     prompt: str,
     server_url: str,
-    model: str = "local-model",
+    model: str = "",
     temperature: float | None = None,
     timeout: float = 300.0,
 ) -> str:
+    effective_model = model or _model()
     body: dict[str, Any] = {
-        "model": model,
+        "model": effective_model,
         "messages": [
             {"role": "system", "content": prompt},
             {"role": "user", "content": text},

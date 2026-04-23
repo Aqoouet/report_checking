@@ -56,6 +56,7 @@ async def _parallel_check(
                     section.text,
                     config.check_prompt,
                     url,
+                    model=config.model,
                     temperature=config.temperature,
                 )
             log.info(f"✓ [{url}] {label}")
@@ -103,6 +104,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
         update_job(job)
 
         log.info(f"Start: {config.input_docx_path}")
+        log.info(f"Model: {config.model or '(from env)'}")
 
         # CONVERT
         range_spec = None
@@ -158,6 +160,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
                 check_text,
                 config.validation_prompt,
                 servers[0]["url"],
+                model=config.model,
                 temperature=config.temperature,
             )
             validated_path = str(artifact_dir / "validated_result.txt")
@@ -177,6 +180,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
                 source_text,
                 config.summary_prompt,
                 servers[0]["url"],
+                model=config.model,
                 temperature=config.temperature,
             )
             summary_path = str(artifact_dir / "summary.txt")
