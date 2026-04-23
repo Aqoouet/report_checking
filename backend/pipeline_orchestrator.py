@@ -87,19 +87,21 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     stem = Path(config.input_docx_path).stem
     artifact_dir = Path(config.output_dir) / f"{stem}_{ts}"
-    artifact_dir.mkdir(parents=True, exist_ok=True)
 
-    log_path = str(artifact_dir / "run.log")
-    log = ArtifactLogger(log_path)
-
-    job.artifact_dir = str(artifact_dir)
-    job.log_path = log_path
-    job.phase = "convert"
-    job.status = JobStatus.PROCESSING
-    job.current_checkpoint_name = "Конвертация"
-    update_job(job)
-
+    log: ArtifactLogger | None = None
     try:
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+
+        log_path = str(artifact_dir / "run.log")
+        log = ArtifactLogger(log_path)
+
+        job.artifact_dir = str(artifact_dir)
+        job.log_path = log_path
+        job.phase = "convert"
+        job.status = JobStatus.PROCESSING
+        job.current_checkpoint_name = "Конвертация"
+        update_job(job)
+
         log.info(f"Start: {config.input_docx_path}")
 
         # CONVERT
@@ -190,9 +192,11 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
 
     except Exception as exc:
         logger.error("Pipeline error for job %s: %s", job.id, exc, exc_info=True)
-        log.error(f"Pipeline error: {exc}")
+        if log:
+            log.error(f"Pipeline error: {exc}")
         job.status = JobStatus.ERROR
         job.error = str(exc)
         update_job(job)
     finally:
-        log.close()
+        if log:
+            log.close()
