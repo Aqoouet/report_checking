@@ -459,6 +459,7 @@ async def get_jobs():
             "finished_at": j.finished_at,
             "error": j.error,
             "artifact_dir": j.artifact_dir,
+            "failed_sections_count": j.failed_sections_count,
         })
     return result
 

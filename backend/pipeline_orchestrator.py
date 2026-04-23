@@ -86,7 +86,10 @@ async def _parallel_check(
     job.checkpoint_sub_total = len(sections)
     update_job(job)
     await asyncio.gather(*[check_one(i, s) for i, s in enumerate(sections)])
-    return [r for r in results if r is not None]
+    completed = [r for r in results if r is not None]
+    job.failed_sections_count = sum(1 for _, resp in completed if resp.startswith("[ОШИБКА"))
+    update_job(job)
+    return completed
 
 
 def _write_check_result(section_results: list[tuple[str, str]], path: str) -> None:
