@@ -62,12 +62,12 @@ async def _parallel_check(
             f"{getattr(section, 'number', '')} {getattr(section, 'title', '')}".strip()
             or f"Раздел {i + 1}"
         )
-        fresh = get_job(job.id)
-        if fresh and fresh.cancelled:
-            return
         try:
-            log.info(f"→ [{url}] {label}")
             async with sem:
+                fresh = get_job(job.id)
+                if fresh and fresh.cancelled:
+                    return
+                log.info(f"→ [{url}] {label}")
                 response = await call_async(
                     section.text,
                     config.check_prompt,
@@ -77,15 +77,27 @@ async def _parallel_check(
                 )
             log.info(f"✓ [{url}] {label}")
             results[i] = (label, response)
+        except asyncio.CancelledError:
+            return
         except Exception as exc:
             log.error(f"✗ [{url}] {label}: {exc}")
             results[i] = (label, f"[ОШИБКА при проверке: {exc}]")
         job.checkpoint_sub_current = sum(1 for r in results if r is not None)
         update_job(job)
 
+    async def _cancel_watcher(tasks: list[asyncio.Task]) -> None:
+        while not all(t.done() for t in tasks):
+            await asyncio.sleep(1)
+            fresh = get_job(job.id)
+            if fresh and fresh.cancelled:
+                for t in tasks:
+                    t.cancel()
+                return
+
     job.checkpoint_sub_total = len(sections)
     update_job(job)
-    await asyncio.gather(*[check_one(i, s) for i, s in enumerate(sections)])
+    section_tasks = [asyncio.create_task(check_one(i, s)) for i, s in enumerate(sections)]
+    await asyncio.gather(_cancel_watcher(section_tasks), *section_tasks, return_exceptions=True)
     completed = [r for r in results if r is not None]
     job.failed_sections_count = sum(1 for _, resp in completed if resp.startswith("[ОШИБКА"))
     update_job(job)
