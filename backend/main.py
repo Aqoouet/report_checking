@@ -116,28 +116,35 @@ def _validate_output_dir(path: str) -> Path:
 
 
 async def _pipeline_worker() -> None:
-    q = job_store._get_queue()
     while True:
         try:
-            job_id = await q.get()
+            job_id = await job_store.get_next_job_id()
             job = job_store.get_job(job_id)
             if job is None:
-                q.task_done()
+                job_store.complete_active_job()
+                job_store.task_done()
                 continue
             cfg = config_store.get_config()
             if cfg is None:
                 job.status = JobStatus.ERROR
                 job.error = "Конфигурация не задана"
                 job_store.update_job(job)
-                q.task_done()
+                job_store.complete_active_job()
+                job_store.task_done()
                 continue
             servers = _get_worker_servers()
             try:
                 await pipeline_orchestrator.run(job, cfg, servers)
             except Exception as exc:
                 logger.error("_pipeline_worker unhandled error for job %s: %s", job_id, exc, exc_info=True)
+                failed_job = job_store.get_job(job_id)
+                if failed_job is not None and failed_job.status not in (JobStatus.DONE, JobStatus.CANCELLED):
+                    failed_job.status = JobStatus.ERROR
+                    failed_job.error = str(exc)
+                    job_store.update_job(failed_job)
             finally:
-                q.task_done()
+                job_store.complete_active_job()
+                job_store.task_done()
         except asyncio.CancelledError:
             raise
         except Exception as exc:
