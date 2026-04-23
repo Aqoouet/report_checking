@@ -39,7 +39,7 @@ function JobRow({ job }: { job: JobSummary }) {
     let active = true;
     const poll = () =>
       fetchLog(job.id)
-        .then((t) => { if (active) setLogText(t); })
+        .then((t: string) => { if (active) setLogText(t); })
         .catch(() => {});
     poll();
     const id = setInterval(poll, 2000);

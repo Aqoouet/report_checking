@@ -129,6 +129,13 @@ export function resultLogUrl(jobId: string): string {
   return `${BASE}/result_log/${jobId}`;
 }
 
+export async function fetchLog(jobId: string): Promise<string> {
+  const res = await fetch(`${BASE}/result_log/${jobId}`);
+  if (!res.ok) return "";
+  const data = (await res.json()) as { log?: string };
+  return data.log ?? "";
+}
+
 export interface PipelineConfigData {
   input_docx_path: string;
   output_dir: string;

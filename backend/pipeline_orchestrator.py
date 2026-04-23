@@ -50,6 +50,7 @@ async def _parallel_check(
             or f"Раздел {i + 1}"
         )
         try:
+            log.info(f"→ [{url}] {label}")
             async with sem:
                 response = await call_async(
                     section.text,
@@ -57,10 +58,10 @@ async def _parallel_check(
                     url,
                     temperature=config.temperature,
                 )
-            log.info(f"Checked: {label}")
+            log.info(f"✓ [{url}] {label}")
             results[i] = (label, response)
         except Exception as exc:
-            log.error(f"Error on {label}: {exc}")
+            log.error(f"✗ [{url}] {label}: {exc}")
             results[i] = (label, f"[ОШИБКА при проверке: {exc}]")
         job.checkpoint_sub_current = sum(1 for r in results if r is not None)
         update_job(job)
@@ -127,6 +128,12 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
         job.checkpoint_sub_current = 0
         update_job(job)
         log.info(f"Split: {len(sections)} sections")
+        for idx, sec in enumerate(sections):
+            sec_label = (
+                f"{getattr(sec, 'number', '')} {getattr(sec, 'title', '')}".strip()
+                or f"Раздел {idx + 1}"
+            )
+            log.info(f"  [{idx + 1}/{len(sections)}] {sec_label}")
 
         section_results = await _parallel_check(sections, config, servers, job, log)
 
