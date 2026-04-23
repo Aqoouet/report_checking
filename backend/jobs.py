@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -77,7 +78,8 @@ def create_job() -> Job:
 
 def get_job(job_id: str) -> Optional[Job]:
     with _store_lock:
-        return _store.get(job_id)
+        job = _store.get(job_id)
+        return copy.copy(job) if job is not None else None
 
 
 def update_job(job: Job) -> None:
