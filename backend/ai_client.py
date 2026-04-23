@@ -283,7 +283,7 @@ async def call_async(
     server_url: str,
     model: str = "",
     temperature: float | None = None,
-    timeout: float = 300.0,
+    timeout: float = 1800.0,
 ) -> str:
     effective_model = model or _model()
     body: dict[str, Any] = {
