@@ -21,11 +21,12 @@ _MAX_TOKENS = int(os.getenv("DOC_CHUNK_SIZE", "10000"))
 _enc = tiktoken.get_encoding("cl100k_base")
 
 
-def chunk_sections(sections: list[Section]) -> list[Section]:
-    """Return sections split into at most *DOC_CHUNK_SIZE* tokens each."""
+def chunk_sections(sections: list[Section], max_tokens: int | None = None) -> list[Section]:
+    """Return sections split into at most *max_tokens* tokens each (default: DOC_CHUNK_SIZE env)."""
+    limit = max_tokens if max_tokens is not None else _MAX_TOKENS
     result: list[Section] = []
     for sec in sections:
-        result.extend(_chunk_one(sec))
+        result.extend(_chunk_one(sec, limit))
     return result
 
 
@@ -35,9 +36,9 @@ def count_tokens(text: str) -> int:
 
 # ---------------------------------------------------------------------------
 
-def _chunk_one(sec: Section) -> list[Section]:
+def _chunk_one(sec: Section, max_tokens: int) -> list[Section]:
     tokens = _enc.encode(sec.text)
-    if len(tokens) <= _MAX_TOKENS:
+    if len(tokens) <= max_tokens:
         return [sec]
 
     lines = sec.text.split("\n")
@@ -48,7 +49,7 @@ def _chunk_one(sec: Section) -> list[Section]:
 
     for line in lines:
         line_tokens = len(_enc.encode(line + "\n"))
-        if current_tokens + line_tokens > _MAX_TOKENS and current_lines:
+        if current_tokens + line_tokens > max_tokens and current_lines:
             chunks.append(_make_chunk(sec, "\n".join(current_lines), part))
             part += 1
             current_lines = []

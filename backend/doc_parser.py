@@ -12,7 +12,7 @@ from pathlib import Path
 from doc_models import DocData, Section  # noqa: F401
 
 
-def parse_document(file_path: str, range_spec: dict | None = None) -> tuple[DocData, str]:
+def parse_document(file_path: str, range_spec: dict | None = None, chunk_size_tokens: int | None = None) -> tuple[DocData, str]:
     """Parse *file_path* (.docx) into a :class:`DocData` and return raw Markdown from Docling.
 
     Parameters
@@ -37,6 +37,6 @@ def parse_document(file_path: str, range_spec: dict | None = None) -> tuple[DocD
 
     md_text = get_or_convert_md(file_path, convert_file_to_md)
     sections = parse_sections(md_text, range_spec=range_spec)
-    sections = chunk_sections(sections)
+    sections = chunk_sections(sections, max_tokens=chunk_size_tokens)
 
     return DocData(fmt="docx", file_path=file_path, sections=sections), md_text

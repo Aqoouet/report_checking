@@ -188,9 +188,16 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
             if parsed.get("valid") and parsed.get("items"):
                 range_spec = parsed
 
+        import functools
         loop = asyncio.get_event_loop()
         doc_data, md_text = await loop.run_in_executor(
-            None, parse_document, config.input_docx_path, range_spec
+            None,
+            functools.partial(
+                parse_document,
+                config.input_docx_path,
+                range_spec,
+                config.chunk_size_tokens,
+            ),
         )
 
         converted_path = str(artifact_dir / "converted.md")
@@ -239,6 +246,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
                 servers[0]["url"],
                 model=config.model,
                 temperature=config.temperature,
+                max_chunk_tokens=config.chunk_size_tokens,
                 log=log,
             )
             validated_path = str(artifact_dir / "validated_result.txt")
@@ -261,6 +269,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
                 servers[0]["url"],
                 model=config.model,
                 temperature=config.temperature,
+                max_chunk_tokens=config.chunk_size_tokens,
                 log=log,
             )
             summary_path = str(artifact_dir / "summary.txt")
