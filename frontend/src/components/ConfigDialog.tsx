@@ -258,6 +258,16 @@ export default function ConfigDialog({ onClose }: Props) {
     fileInputRef.current?.click();
   };
 
+  const handleDownloadYaml = () => {
+    const blob = new Blob([yaml], { type: "text/yaml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "config.yaml";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -317,6 +327,9 @@ export default function ConfigDialog({ onClose }: Props) {
                 <span className="cfg-editor-label">config.yaml</span>
                 <button type="button" className="btn btn--sm btn--outline" onClick={handleLoadFile}>
                   <span>📂</span> Загрузить файл
+                </button>
+                <button type="button" className="btn btn--sm btn--outline" onClick={handleDownloadYaml}>
+                  <span>💾</span> Сохранить файл
                 </button>
                 <input
                   ref={fileInputRef}

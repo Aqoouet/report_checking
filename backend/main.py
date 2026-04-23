@@ -106,9 +106,10 @@ def _get_worker_servers() -> list[dict]:
 
 def _validate_output_dir(path: str) -> Path:
     p = Path(path).resolve()
-    if _OUTPUT_BASE_DIR_STR:
-        base = Path(_OUTPUT_BASE_DIR_STR).resolve()
-        if not str(p).startswith(str(base)):
+    allowed_prefixes = get_allowed_prefixes()
+    if allowed_prefixes:
+        resolved_str = str(p)
+        if not any(resolved_str.startswith(str(Path(pfx).resolve())) for pfx in allowed_prefixes):
             raise HTTPException(status_code=400, detail="Путь output_dir вне разрешённой директории")
     p.mkdir(parents=True, exist_ok=True)
     return p
