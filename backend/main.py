@@ -502,6 +502,8 @@ async def validate_range_quick(range_text: str = Form(...)):
 async def validate_range(range_text: str = Form(...)):
     if not range_text.strip():
         return {"valid": True, "type": "sections", "items": [], "display": "", "suggestion": ""}
+    if len(range_text) > MAX_RANGE_SPEC_LEN:
+        return {"valid": False, "range_message": "Текст диапазона слишком длинный", "server_error": False}
     result = ai_client.validate_range(range_text.strip())
     if not result.get("valid") and result.get("server_error"):
         logger.warning("AI range validation failed: %s", result.get("range_message", "unknown error"))
