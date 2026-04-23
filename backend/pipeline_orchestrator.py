@@ -125,6 +125,7 @@ async def _call_in_chunks(
     temperature: float | None,
     max_chunk_tokens: int = 8000,
     log: "ArtifactLogger | None" = None,
+    job_id: str | None = None,
 ) -> str:
     from token_chunker import count_tokens
 
@@ -154,6 +155,8 @@ async def _call_in_chunks(
 
     results: list[str] = []
     for i, chunk in enumerate(chunks, 1):
+        if job_id:
+            _ensure_not_cancelled(job_id, log)
         if log:
             log.info(f"  Chunk {i}/{len(chunks)}")
         results.append(await call_async(chunk, prompt, server_url, model=model, temperature=temperature))
@@ -251,6 +254,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
                 temperature=config.temperature,
                 max_chunk_tokens=config.chunk_size_tokens,
                 log=log,
+                job_id=job.id,
             )
             validated_path = str(artifact_dir / "validated_result.txt")
             Path(validated_path).write_text(validated_text, encoding="utf-8")
@@ -274,6 +278,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
                 temperature=config.temperature,
                 max_chunk_tokens=config.chunk_size_tokens,
                 log=log,
+                job_id=job.id,
             )
             summary_path = str(artifact_dir / "summary.txt")
             write_summary(summary_text, summary_path)
