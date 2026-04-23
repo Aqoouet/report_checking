@@ -1,0 +1,191 @@
+from __future__ import annotations
+
+import asyncio
+import logging
+from datetime import datetime
+from pathlib import Path
+
+from jobs import Job, JobStatus, update_job
+from config_store import PipelineConfig
+from doc_parser import parse_document
+from range_parser import parse_range_script
+from ai_client import call_async
+from aggregator import write_summary
+
+logger = logging.getLogger(__name__)
+
+
+class ArtifactLogger:
+    def __init__(self, path: str) -> None:
+        self._f = open(path, "w", encoding="utf-8", buffering=1)
+
+    def info(self, msg: str) -> None:
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self._f.write(f"[{ts}] INFO  {msg}\n")
+
+    def error(self, msg: str) -> None:
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self._f.write(f"[{ts}] ERROR {msg}\n")
+
+    def close(self) -> None:
+        self._f.close()
+
+
+async def _parallel_check(
+    sections: list,
+    config: PipelineConfig,
+    servers: list[dict],
+    job: Job,
+    log: ArtifactLogger,
+) -> list[tuple[str, str]]:
+    sems = {s["url"]: asyncio.Semaphore(s.get("concurrency", 3)) for s in servers}
+    results: list[tuple[str, str] | None] = [None] * len(sections)
+
+    async def check_one(i: int, section) -> None:
+        server = servers[i % len(servers)]
+        url = server["url"]
+        sem = sems[url]
+        label = (
+            f"{getattr(section, 'number', '')} {getattr(section, 'title', '')}".strip()
+            or f"Раздел {i + 1}"
+        )
+        try:
+            async with sem:
+                response = await call_async(
+                    section.text,
+                    config.check_prompt,
+                    url,
+                    temperature=config.temperature,
+                )
+            log.info(f"Checked: {label}")
+            results[i] = (label, response)
+        except Exception as exc:
+            log.error(f"Error on {label}: {exc}")
+            results[i] = (label, f"[ОШИБКА при проверке: {exc}]")
+        job.checkpoint_sub_current = sum(1 for r in results if r is not None)
+        update_job(job)
+
+    job.checkpoint_sub_total = len(sections)
+    update_job(job)
+    await asyncio.gather(*[check_one(i, s) for i, s in enumerate(sections)])
+    return [r for r in results if r is not None]
+
+
+def _write_check_result(section_results: list[tuple[str, str]], path: str) -> None:
+    lines: list[str] = []
+    for label, response in section_results:
+        lines.append("=" * 40)
+        lines.append(f"РАЗДЕЛ: {label}")
+        lines.append("=" * 40)
+        lines.append(response.strip())
+        lines.append("")
+    Path(path).write_text("\n".join(lines), encoding="utf-8")
+
+
+async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stem = Path(config.input_docx_path).stem
+    artifact_dir = Path(config.output_dir) / f"{stem}_{ts}"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+
+    log_path = str(artifact_dir / "run.log")
+    log = ArtifactLogger(log_path)
+
+    job.artifact_dir = str(artifact_dir)
+    job.log_path = log_path
+    job.phase = "convert"
+    job.status = JobStatus.PROCESSING
+    job.current_checkpoint_name = "Конвертация"
+    update_job(job)
+
+    try:
+        log.info(f"Start: {config.input_docx_path}")
+
+        # CONVERT
+        range_spec = None
+        if config.subchapters_range.strip():
+            parsed = parse_range_script(config.subchapters_range)
+            if parsed.get("valid") and parsed.get("items"):
+                range_spec = parsed
+
+        loop = asyncio.get_event_loop()
+        doc_data, md_text = await loop.run_in_executor(
+            None, parse_document, config.input_docx_path, range_spec
+        )
+
+        converted_path = str(artifact_dir / "converted.md")
+        Path(converted_path).write_text(md_text, encoding="utf-8")
+        job.md_result_path = converted_path
+        job.source_doc_stem = stem
+        log.info("Convert done")
+
+        # CHECK
+        job.phase = "check"
+        job.current_checkpoint_name = "Проверка"
+        sections = doc_data.sections
+        job.checkpoint_sub_total = len(sections)
+        job.checkpoint_sub_current = 0
+        update_job(job)
+        log.info(f"Split: {len(sections)} sections")
+
+        section_results = await _parallel_check(sections, config, servers, job, log)
+
+        check_result_path = str(artifact_dir / "check_result.txt")
+        _write_check_result(section_results, check_result_path)
+        job.result_path = check_result_path
+        update_job(job)
+        log.info("Check done")
+
+        # VALIDATE (optional)
+        if config.validation_prompt.strip():
+            job.phase = "validate"
+            job.current_checkpoint_name = "Валидация"
+            job.checkpoint_sub_current = 0
+            job.checkpoint_sub_total = 0
+            update_job(job)
+
+            check_text = Path(check_result_path).read_text(encoding="utf-8")
+            validated_text = await call_async(
+                check_text,
+                config.validation_prompt,
+                servers[0]["url"],
+                temperature=config.temperature,
+            )
+            validated_path = str(artifact_dir / "validated_result.txt")
+            Path(validated_path).write_text(validated_text, encoding="utf-8")
+            job.result_path = validated_path
+            update_job(job)
+            log.info("Validate done")
+
+        # SUMMARY (optional)
+        if config.summary_prompt.strip():
+            job.phase = "summary"
+            job.current_checkpoint_name = "Резюме"
+            update_job(job)
+
+            source_text = Path(job.result_path).read_text(encoding="utf-8")
+            summary_text = await call_async(
+                source_text,
+                config.summary_prompt,
+                servers[0]["url"],
+                temperature=config.temperature,
+            )
+            summary_path = str(artifact_dir / "summary.txt")
+            write_summary(summary_text, summary_path)
+            log.info("Summary done")
+
+        # DONE
+        job.phase = "done"
+        job.status = JobStatus.DONE
+        job.current_checkpoint_name = "Готово"
+        update_job(job)
+        log.info("Pipeline complete")
+
+    except Exception as exc:
+        logger.error("Pipeline error for job %s: %s", job.id, exc, exc_info=True)
+        log.error(f"Pipeline error: {exc}")
+        job.status = JobStatus.ERROR
+        job.error = str(exc)
+        update_job(job)
+    finally:
+        log.close()

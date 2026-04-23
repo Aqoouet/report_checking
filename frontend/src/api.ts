@@ -124,3 +124,67 @@ export function resultUrl(jobId: string): string {
 export function resultMdUrl(jobId: string): string {
   return `${BASE}/result_md/${jobId}`;
 }
+
+export function resultLogUrl(jobId: string): string {
+  return `${BASE}/result_log/${jobId}`;
+}
+
+export interface PipelineConfigData {
+  input_docx_path: string;
+  output_dir: string;
+  check_prompt: string;
+  validation_prompt: string;
+  summary_prompt: string;
+  subchapters_range: string;
+  chunk_size_tokens: number;
+  temperature: number | null;
+}
+
+export interface JobSummary {
+  id: string;
+  status: "pending" | "processing" | "done" | "error" | "cancelled";
+  phase: string;
+  docx_name: string;
+  current_checkpoint_name: string;
+  checkpoint_sub_current: number;
+  checkpoint_sub_total: number;
+  queue_position: number;
+  submitted_at: number;
+  error: string | null;
+  artifact_dir: string;
+}
+
+export async function getConfig(): Promise<PipelineConfigData | null> {
+  const res = await fetch(`${BASE}/config`);
+  if (!res.ok) throw new Error(`config ${res.status}`);
+  const data = (await res.json()) as Record<string, unknown>;
+  if (!data || Object.keys(data).length === 0) return null;
+  return data as unknown as PipelineConfigData;
+}
+
+export async function postConfig(data: Partial<PipelineConfigData>): Promise<void> {
+  const res = await fetch(`${BASE}/config`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({})) as { detail?: string };
+    throw new Error(d.detail ?? `Ошибка сохранения конфигурации: ${res.status}`);
+  }
+}
+
+export async function startCheckNew(): Promise<{ job_id: string; queue_position: number }> {
+  const res = await fetch(`${BASE}/check`, { method: "POST" });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({})) as { detail?: string };
+    throw new Error(d.detail ?? `Ошибка запуска проверки: ${res.status}`);
+  }
+  return res.json() as Promise<{ job_id: string; queue_position: number }>;
+}
+
+export async function fetchJobs(): Promise<JobSummary[]> {
+  const res = await fetch(`${BASE}/jobs`);
+  if (!res.ok) throw new Error(`jobs ${res.status}`);
+  return res.json() as Promise<JobSummary[]>;
+}

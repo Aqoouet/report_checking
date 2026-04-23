@@ -66,3 +66,7 @@ def aggregate(
 def _write(path: str, text: str) -> None:
     with open(path, "w", encoding="utf-8") as f:
         f.write(text)
+
+
+def write_summary(summary_text: str, path: str) -> None:
+    _write(path, summary_text)

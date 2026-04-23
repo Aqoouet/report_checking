@@ -43,25 +43,18 @@ services:
       - DOCLING_TIMEOUT=${DOCLING_TIMEOUT:-300}
       # Кеш MD по SHA-256 исходного .docx (см. backend/md_cache.py). Именованный volume переживает перезапуск контейнера.
       - MD_CACHE_DIR=${MD_CACHE_DIR:-/var/lib/report-checker/md_cache}
+      - OUTPUT_BASE_DIR=${OUTPUT_BASE_DIR:-/output}
+      - WORKER_SERVERS=${WORKER_SERVERS:-}
     volumes:
       # Host path roots used by backend/path_mapping.json (U:\ and P:\ drives).
       - ${HOST_STORAGE_U:-/filer/users/rymax1e}:/filer/users/rymax1e:ro
       - ${HOST_STORAGE_P:-/filer/wps/wp}:/filer/wps/wp:ro
       - report_checker_md_cache:/var/lib/report-checker/md_cache
+      - report_checker_output:/output
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       - docling
-
-  redis:
-    image: redis:7-alpine
-    container_name: report-checker-redis
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
 
   frontend:
     build:
@@ -79,3 +72,4 @@ services:
 
 volumes:
   report_checker_md_cache:
+  report_checker_output:

@@ -16,16 +16,17 @@ from urllib.parse import quote
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ValidationError, field_validator
 
 import ai_client
 import aggregator
+import config_store
 import jobs as job_store
-from jobs import JobCancelledError, JobStatus
-from checkpoints import load_checkpoints
+import pipeline_orchestrator
+from jobs import JobStatus, enqueue_job, list_jobs
 from doc_parser import parse_document
 from path_mapper import get_allowed_prefixes, map_path
 from range_parser import parse_range_script
@@ -53,11 +54,17 @@ try:
 except ValueError:
     _RATE_LIMIT_PER_MINUTE = 10
 
-# Allowed CORS origins — comma-separated list in env (dev only; production uses same-origin nginx proxy).
 _CORS_ORIGINS = [
     o.strip()
     for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:80").split(",")
     if o.strip()
+]
+
+_OUTPUT_BASE_DIR_STR = os.getenv("OUTPUT_BASE_DIR", "").strip()
+
+_DEFAULT_SERVERS = [
+    {"url": "http://10.99.66.97:1234", "concurrency": 3},
+    {"url": "http://10.99.66.212:1234", "concurrency": 3},
 ]
 
 _rate_store: dict[str, list[float]] = defaultdict(list)
@@ -84,7 +91,58 @@ def _cleanup_rate_store() -> None:
             del _rate_store[ip]
 
 
-# Pydantic models for strict range_spec validation
+def _get_worker_servers() -> list[dict]:
+    raw = os.getenv("WORKER_SERVERS", "").strip()
+    if not raw:
+        return _DEFAULT_SERVERS
+    try:
+        servers = json.loads(raw)
+        if isinstance(servers, list) and servers:
+            return servers
+    except Exception:
+        logger.warning("WORKER_SERVERS env var is not valid JSON, using defaults")
+    return _DEFAULT_SERVERS
+
+
+def _validate_output_dir(path: str) -> Path:
+    p = Path(path).resolve()
+    if _OUTPUT_BASE_DIR_STR:
+        base = Path(_OUTPUT_BASE_DIR_STR).resolve()
+        if not str(p).startswith(str(base)):
+            raise HTTPException(status_code=400, detail="Путь output_dir вне разрешённой директории")
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+async def _pipeline_worker() -> None:
+    q = job_store._get_queue()
+    while True:
+        try:
+            job_id = await q.get()
+            job = job_store.get_job(job_id)
+            if job is None:
+                q.task_done()
+                continue
+            cfg = config_store.get_config()
+            if cfg is None:
+                job.status = JobStatus.ERROR
+                job.error = "Конфигурация не задана"
+                job_store.update_job(job)
+                q.task_done()
+                continue
+            servers = _get_worker_servers()
+            try:
+                await pipeline_orchestrator.run(job, cfg, servers)
+            except Exception as exc:
+                logger.error("_pipeline_worker unhandled error for job %s: %s", job_id, exc, exc_info=True)
+            finally:
+                q.task_done()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.error("_pipeline_worker loop error: %s", exc)
+
+
 class _RangeItem(BaseModel):
     start: str
     end: str
@@ -134,13 +192,16 @@ async def _periodic_cleanup() -> None:
 async def lifespan(application: FastAPI):  # noqa: ARG001
     _cleanup_old_results()
     job_store.cleanup_old_jobs()
-    task = asyncio.create_task(_periodic_cleanup())
+    cleanup_task = asyncio.create_task(_periodic_cleanup())
+    worker_task = asyncio.create_task(_pipeline_worker())
     yield
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    worker_task.cancel()
+    cleanup_task.cancel()
+    for t in (worker_task, cleanup_task):
+        try:
+            await t
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(title="Report Checker", lifespan=lifespan)
@@ -163,11 +224,6 @@ async def _security_headers(request: Request, call_next):
 
 
 def _validate_file_path(file_path: str) -> Path:
-    """Validate and resolve a user-supplied file path.
-
-    Checks length, null bytes, symlinks, path traversal, allowlist, existence, and extension.
-    Raises HTTPException on any violation.
-    """
     if len(file_path) > MAX_PATH_LEN:
         raise HTTPException(status_code=400, detail="Путь к файлу слишком длинный")
     if "\x00" in file_path:
@@ -177,8 +233,6 @@ def _validate_file_path(file_path: str) -> Path:
     p = Path(linux_path)
 
     try:
-        # Resolve first, then check for symlinks — reduces TOCTOU window.
-        # The allowlist check on the resolved path is the primary defense against symlink escape.
         resolved = p.resolve()
         if p.is_symlink():
             raise HTTPException(status_code=403, detail="Доступ к файлу запрещён")
@@ -220,16 +274,6 @@ def _safe_download_stem(raw: str, max_len: int = 80) -> str:
     return (s or "report")[:max_len]
 
 
-def _normalize_check_prompt(raw: str) -> str | None:
-    """Return stripped prompt or None to use the default file. Raises ValueError if too large."""
-    s = raw.strip()
-    if not s:
-        return None
-    if len(s.encode("utf-8")) > CHECK_PROMPT_MAX_BYTES:
-        raise ValueError("Промпт слишком длинный")
-    return s
-
-
 _CONTEXT_FIELD_KEYS = (
     "max_context_length",
     "context_length",
@@ -240,7 +284,6 @@ _CONTEXT_FIELD_KEYS = (
 
 
 def _openai_base_to_lm_root(openai_base: str) -> str:
-    """OPENAI_BASE_URL usually ends with /v1; LM Studio native API is on the server root."""
     base = openai_base.rstrip("/")
     if base.lower().endswith("/v1"):
         return base[:-3] or base
@@ -266,7 +309,6 @@ async def _resolve_context_tokens(
     openai_base: str,
     model_id: str,
 ) -> int | None:
-    """Read context from LM Studio GET /api/v0/models (OpenAI GET /v1/models has no such fields)."""
     if not model_id.strip():
         return None
     openai_base = openai_base.rstrip("/")
@@ -320,138 +362,115 @@ async def _resolve_context_tokens(
     return None
 
 
-def _store_md(job_id: str, file_path: str, md_text: str) -> None:
-    md_path = str(RESULT_DIR / f"{job_id}.md")
-    Path(md_path).write_text(md_text, encoding="utf-8")
-    job = job_store.get_job(job_id)
-    if job is None:
-        return
-    job.md_result_path = md_path
-    job.source_doc_stem = Path(file_path).stem
-    job_store.update_job(job)
+# ── Config endpoints ──────────────────────────────────────────────────────────
 
+@app.post("/config")
+async def set_config(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Неверный JSON")
 
-def _run_checkpoints(
-    job_id: str,
-    doc_data: object,
-    check_prompt: str | None,
-    temperature: float | None = None,
-) -> tuple[list[dict], bool]:
-    checkpoints = load_checkpoints()
-    job = job_store.get_job(job_id)
-    if job is None:
-        return [], False
-    job.total_checkpoints = len(checkpoints)
-    job.current_checkpoint = 0
-    job_store.update_job(job)
+    raw_docx = (data.get("input_docx_path") or "").strip()
+    raw_output = (data.get("output_dir") or "").strip()
 
-    all_errors: list[dict] = []
-    was_cancelled = False
-
-    for cp in checkpoints:
-        job = job_store.get_job(job_id)
-        if job is None:
-            break
-        if job.cancelled:
-            was_cancelled = True
-            break
-
-        job.current_checkpoint_name = cp.name
-        job.current_checkpoint_short_name = cp.short_name
-        job.checkpoint_sub_current = 0
-        job.checkpoint_sub_total = 0
-        job.checkpoint_sub_location = ""
-        job.checkpoint_sub_name = ""
-        job_store.update_job(job)
-
-        try:
-            errors = cp.run(doc_data, job_id=job_id, prompt_override=check_prompt, temperature=temperature)
-        except JobCancelledError as cancelled:
-            was_cancelled = True
-            for err in cancelled.partial_issues:
-                all_errors.append({
-                    "checkpoint": cp.name,
-                    "location": err.get("location", ""),
-                    "error": err.get("error", ""),
-                })
-            for loc in cancelled.ok_locations:
-                all_errors.append({
-                    "checkpoint": cp.name,
-                    "location": loc,
-                    "error": "Ошибок не найдено (раздел проверен).",
-                })
-            break
-
-        for err in errors:
-            all_errors.append({
-                "checkpoint": cp.name,
-                "location": err.get("location", ""),
-                "error": err.get("error", ""),
-            })
-
-        job.current_checkpoint += 1
-        job_store.update_job(job)
-
-    return all_errors, was_cancelled
-
-
-def process_document(
-    job_id: str,
-    file_path: str,
-    range_spec: dict | None,
-    check_prompt: str | None = None,
-    temperature: float | None = None,
-) -> None:
-    job = job_store.get_job(job_id)
-    if not job:
-        return
+    if not raw_docx:
+        raise HTTPException(status_code=400, detail="input_docx_path обязателен")
+    if not raw_output:
+        raise HTTPException(status_code=400, detail="output_dir обязателен")
 
     try:
-        job.status = JobStatus.PROCESSING
-        job_store.update_job(job)
+        resolved_docx = str(_validate_file_path(raw_docx))
+    except HTTPException:
+        raise
 
-        doc_data, md_text = parse_document(file_path, range_spec=range_spec)
-        _store_md(job_id, file_path, md_text)
+    try:
+        resolved_output = str(_validate_output_dir(raw_output))
+    except HTTPException:
+        raise
 
-        all_errors, was_cancelled = _run_checkpoints(job_id, doc_data, check_prompt, temperature)
+    errors = config_store.validate_and_set(data, resolved_docx, resolved_output)
+    if errors:
+        raise HTTPException(status_code=400, detail="; ".join(errors))
 
-        resolved_prompt = check_prompt
-        if resolved_prompt is None and DEFAULT_CHECK_PROMPT_PATH.is_file():
-            try:
-                resolved_prompt = DEFAULT_CHECK_PROMPT_PATH.read_text(encoding="utf-8").strip() or None
-            except OSError:
-                pass
+    return {"ok": True}
 
-        result_path = str(RESULT_DIR / f"{job_id}_result.txt")
-        aggregator.aggregate(
-            all_errors,
-            result_path,
-            doc_data=doc_data,
-            is_partial=was_cancelled,
-            check_prompt=resolved_prompt,
-        )
 
-        job = job_store.get_job(job_id)
-        if job is None:
-            logger.warning("Job %s not found when storing result", job_id)
-            return
-        job.result_path = result_path
-        job.status = JobStatus.CANCELLED if was_cancelled else JobStatus.DONE
-        job_store.update_job(job)
+@app.get("/config")
+async def get_config():
+    cfg = config_store.to_dict()
+    if cfg is None:
+        return {}
+    return cfg
 
-    except Exception as exc:
-        error_id = uuid.uuid4().hex[:ERROR_ID_LENGTH]
-        logger.error("process_document error [%s] for job %s: %s", error_id, job_id, exc, exc_info=True)
-        job = job_store.get_job(job_id)
-        if job:
-            job.status = JobStatus.ERROR
-            job.error = f"Внутренняя ошибка обработки [ID: {error_id}]."
-            job_store.update_job(job)
 
+# ── Check endpoint ────────────────────────────────────────────────────────────
+
+@app.post("/check")
+async def check(request: Request):
+    client_ip = (request.client.host if request.client else "unknown")
+    if _is_rate_limited(client_ip):
+        raise HTTPException(status_code=429, detail="Слишком много запросов. Подождите минуту.")
+
+    cfg = config_store.get_config()
+    if cfg is None:
+        raise HTTPException(status_code=400, detail="Сначала сохраните конфигурацию через /config")
+
+    job = job_store.create_job()
+    job.submitted_at = time.time()
+    job.docx_name = Path(cfg.input_docx_path).name
+    job_store.update_job(job)
+
+    queue_size = await enqueue_job(job.id)
+    job.queue_position = queue_size
+    job_store.update_job(job)
+
+    return {"job_id": job.id, "queue_position": queue_size}
+
+
+# ── Jobs list ─────────────────────────────────────────────────────────────────
+
+@app.get("/jobs")
+async def get_jobs():
+    jobs = list_jobs()
+    result = []
+    for j in jobs:
+        result.append({
+            "id": j.id,
+            "status": j.status,
+            "phase": j.phase,
+            "docx_name": j.docx_name,
+            "current_checkpoint_name": j.current_checkpoint_name,
+            "checkpoint_sub_current": j.checkpoint_sub_current,
+            "checkpoint_sub_total": j.checkpoint_sub_total,
+            "queue_position": j.queue_position,
+            "submitted_at": j.submitted_at or j.created_at,
+            "error": j.error,
+            "artifact_dir": j.artifact_dir,
+        })
+    return result
+
+
+# ── Result log endpoint ───────────────────────────────────────────────────────
+
+@app.get("/result_log/{job_id}")
+async def result_log(job_id: str):
+    job = job_store.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+    if not job.log_path:
+        raise HTTPException(status_code=404, detail="Лог не найден")
+    try:
+        text = Path(job.log_path).read_text(encoding="utf-8")
+        return {"log": text}
+    except OSError:
+        raise HTTPException(status_code=404, detail="Лог не найден")
+
+
+# ── Existing endpoints (unchanged) ────────────────────────────────────────────
 
 @app.post("/validate_path")
 async def validate_path_endpoint(file_path: str = Form(...)):
-    """Check that *file_path* maps to an existing .docx on the server (same rules as /check)."""
     raw = (file_path or "").strip()
     if not raw:
         return {"valid": False, "message": "Укажите путь к файлу", "mapped_path": ""}
@@ -489,7 +508,6 @@ async def cancel_job(job_id: str):
 
 @app.get("/runtime_info")
 async def runtime_info():
-    """Public hints for the UI: model id, context from LM Studio /api/v0/models when available."""
     base = os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1").rstrip("/")
     model_id = os.getenv("OPENAI_MODEL", "").strip()
     context_tokens: int | None = None
@@ -517,61 +535,6 @@ async def default_check_prompt():
     return {"prompt": text}
 
 
-@app.post("/check")
-async def check(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    file_path: str = Form(...),
-    range_spec: str = Form(""),
-    check_prompt: str = Form(""),
-    temperature: str = Form(""),
-):
-    client_ip = (request.client.host if request.client else "unknown")
-    if _is_rate_limited(client_ip):
-        raise HTTPException(status_code=429, detail="Слишком много запросов. Подождите минуту.")
-
-    if len(range_spec) > MAX_RANGE_SPEC_LEN:
-        raise HTTPException(status_code=400, detail="Диапазон слишком длинный")
-
-    resolved = _validate_file_path(file_path)
-
-    try:
-        normalized_prompt = _normalize_check_prompt(check_prompt)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    parsed_temperature: float | None = None
-    if temperature.strip():
-        try:
-            t = float(temperature.strip())
-            if not (0.0 <= t <= 2.0):
-                raise HTTPException(status_code=400, detail="Температура должна быть от 0 до 2")
-            parsed_temperature = t
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail="Неверное значение температуры") from exc
-
-    parsed_range: dict | None = None
-    if range_spec.strip():
-        try:
-            candidate = json.loads(range_spec)
-            if isinstance(candidate, dict) and candidate.get("valid"):
-                _RangeSpec.model_validate(candidate)
-                parsed_range = candidate
-        except (json.JSONDecodeError, ValueError, ValidationError):
-            pass
-
-    job = job_store.create_job()
-    background_tasks.add_task(
-        process_document,
-        job.id,
-        str(resolved),
-        parsed_range,
-        normalized_prompt,
-        parsed_temperature,
-    )
-    return {"job_id": job.id}
-
-
 @app.get("/status/{job_id}")
 async def status(job_id: str):
     job = job_store.get_job(job_id)
@@ -589,6 +552,7 @@ async def status(job_id: str):
         "checkpoint_sub_name": job.checkpoint_sub_name,
         "previous_result": job.previous_result,
         "error": job.error,
+        "phase": job.phase,
     }
 
 
@@ -605,7 +569,7 @@ async def result(job_id: str):
     stem = _safe_download_stem(job.source_doc_stem)
     ts = datetime.fromtimestamp(job.created_at).strftime("%Y%m%d_%H%M%S")
     suffix = "_partial" if job.status == JobStatus.CANCELLED else ""
-    filename = f"{stem}_{ts}_errors{suffix}.txt"
+    filename = f"{stem}_{ts}_result{suffix}.txt"
     try:
         return FileResponse(
             path=job.result_path,

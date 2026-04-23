@@ -275,3 +275,26 @@ def validate_range(text: str) -> dict:
 
     logger.warning("validate_range: model output is not JSON")
     return _range_error(server_error=False)
+
+
+async def call_async(
+    text: str,
+    prompt: str,
+    server_url: str,
+    model: str = "local-model",
+    temperature: float | None = None,
+    timeout: float = 300.0,
+) -> str:
+    body: dict[str, Any] = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": text},
+        ],
+    }
+    if temperature is not None:
+        body["temperature"] = temperature
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        r = await client.post(f"{server_url}/v1/chat/completions", json=body)
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]["content"]
