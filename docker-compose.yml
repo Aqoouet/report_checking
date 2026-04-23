@@ -47,8 +47,9 @@ services:
       - WORKER_SERVERS=${WORKER_SERVERS:-}
     volumes:
       # Host path roots used by backend/path_mapping.json (U:\ and P:\ drives).
-      - ${HOST_STORAGE_U:-/filer/users/rymax1e}:/filer/users/rymax1e:ro
-      - ${HOST_STORAGE_P:-/filer/wps/wp}:/filer/wps/wp:ro
+      # Keep these mounts writable: backend creates artifact folders/logs in output_dir.
+      - ${HOST_STORAGE_U:-/filer/users/rymax1e}:/filer/users/rymax1e
+      - ${HOST_STORAGE_P:-/filer/wps/wp}:/filer/wps/wp
       - report_checker_md_cache:/var/lib/report-checker/md_cache
       - report_checker_output:/output
     extra_hosts:

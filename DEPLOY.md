@@ -73,8 +73,9 @@ docker compose logs -f backend
 
 1. Проверьте, что путь файла попадает в маппинг `backend/path_mapping.json`.
 2. Убедитесь, что соответствующий host-каталог смонтирован (`HOST_STORAGE_U` / `HOST_STORAGE_P`).
-3. Для сетевых шар с жесткими ACL используйте `BACKEND_UID=0`, `BACKEND_GID=0`.
-4. После изменения `.env` пересоздайте контейнеры:
+3. Убедитесь, что mount backend не read-only (`docker inspect ... RW=true`).
+4. Для сетевых шар с жесткими ACL используйте `BACKEND_UID=0`, `BACKEND_GID=0`.
+5. После изменения `.env`/`docker-compose.yml` пересоздайте контейнеры:
 
 ```bash
 docker compose down
@@ -101,7 +102,7 @@ docker compose down
 docker exec report-checker-backend id
 
 # Проверить, что mount'ы видны внутри backend
-docker inspect report-checker-backend --format '{{range .Mounts}}{{println .Source "->" .Destination "ro=" .RW}}{{end}}'
+docker inspect report-checker-backend --format '{{range .Mounts}}{{println .Source "->" .Destination "RW=" .RW}}{{end}}'
 
 # Проверить что модель отвечает
 curl http://localhost:1234/v1/models
