@@ -93,8 +93,6 @@ def update_job(job: Job) -> None:
 _pipeline_queue: asyncio.Queue[str] = asyncio.Queue()
 
 
-def _get_queue() -> asyncio.Queue[str]:
-    return _pipeline_queue
 _active_job_id: Optional[str] = None
 _waiting: list[str] = []
 _queue_lock = Lock()
