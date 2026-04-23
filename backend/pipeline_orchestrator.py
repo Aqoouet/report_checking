@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from jobs import Job, JobStatus, update_job
+from jobs import Job, JobStatus, get_job, update_job
 from config_store import PipelineConfig
 from doc_parser import parse_document
 from range_parser import parse_range_script
@@ -13,6 +13,18 @@ from ai_client import call_async
 from aggregator import write_summary
 
 logger = logging.getLogger(__name__)
+
+
+class PipelineCancelledError(Exception):
+    pass
+
+
+def _ensure_not_cancelled(job_id: str, log: "ArtifactLogger | None" = None) -> None:
+    fresh = get_job(job_id)
+    if fresh and fresh.cancelled:
+        if log:
+            log.info("Cancelled by user")
+        raise PipelineCancelledError()
 
 
 class ArtifactLogger:
@@ -49,6 +61,9 @@ async def _parallel_check(
             f"{getattr(section, 'number', '')} {getattr(section, 'title', '')}".strip()
             or f"Раздел {i + 1}"
         )
+        fresh = get_job(job.id)
+        if fresh and fresh.cancelled:
+            return
         try:
             log.info(f"→ [{url}] {label}")
             async with sem:
@@ -105,6 +120,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
 
         log.info(f"Start: {config.input_docx_path}")
         log.info(f"Model: {config.model or '(from env)'}")
+        _ensure_not_cancelled(job.id, log)
 
         # CONVERT
         range_spec = None
@@ -123,6 +139,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
         job.md_result_path = converted_path
         job.source_doc_stem = stem
         log.info("Convert done")
+        _ensure_not_cancelled(job.id, log)
 
         # CHECK
         job.phase = "check"
@@ -146,6 +163,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
         job.result_path = check_result_path
         update_job(job)
         log.info("Check done")
+        _ensure_not_cancelled(job.id, log)
 
         # VALIDATE (optional)
         if config.validation_prompt.strip():
@@ -168,6 +186,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
             job.result_path = validated_path
             update_job(job)
             log.info("Validate done")
+        _ensure_not_cancelled(job.id, log)
 
         # SUMMARY (optional)
         if config.summary_prompt.strip():
@@ -194,6 +213,13 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
         update_job(job)
         log.info("Pipeline complete")
 
+    except PipelineCancelledError:
+        job.phase = "cancelled"
+        job.status = JobStatus.CANCELLED
+        job.current_checkpoint_name = "Отменено"
+        update_job(job)
+        if log:
+            log.info("Job cancelled — pipeline stopped")
     except Exception as exc:
         logger.error("Pipeline error for job %s: %s", job.id, exc, exc_info=True)
         if log:
