@@ -18,15 +18,15 @@ const PARAM_DOCS: ParamDoc[] = [
     key: "input_docx_path",
     title: "input_docx_path",
     type: "string",
-    desc: "Абсолютный путь к исходному файлу отчёта в формате .docx. Используйте двойные обратные слэши на Windows.",
-    example: 'input_docx_path: "C:\\\\Users\\\\user\\\\report.docx"',
+    desc: "Абсолютный путь к исходному файлу отчёта в формате .docx. Вставляйте путь как есть — Windows-пути с обратными слэшами и Linux-пути со слэшами принимаются без изменений.",
+    example: "input_docx_path: C:\\Users\\user\\report.docx",
   },
   {
     key: "output_dir",
     title: "output_dir",
     type: "string",
-    desc: "Папка, куда будут сохранены результаты проверки. Создаётся автоматически, если не существует.",
-    example: 'output_dir: "C:\\\\Users\\\\user\\\\results"',
+    desc: "Папка, куда будут сохранены результаты проверки. Создаётся автоматически, если не существует. Вставляйте путь как есть.",
+    example: "input_docx_path: C:\\Users\\user\\results",
   },
   {
     key: "subchapters_range",
@@ -83,9 +83,18 @@ const DEFAULT_SCALARS: Pick<PipelineConfigData, "input_docx_path" | "output_dir"
 function serializeToYaml(cfg: PipelineConfigData): string {
   const lines: string[] = [];
 
+  const pathFields: Array<[keyof PipelineConfigData, string]> = [
+    ["input_docx_path", "Путь к исходному файлу отчёта (.docx) — вставьте как есть"],
+    ["output_dir", "Папка для сохранения результатов — вставьте как есть"],
+  ];
+
+  for (const [key, comment] of pathFields) {
+    lines.push(`# ${comment}`);
+    lines.push(`${key}: ${String(cfg[key] ?? "")}`);
+    lines.push("");
+  }
+
   const scalarFields: Array<[keyof PipelineConfigData, string]> = [
-    ["input_docx_path", "Путь к исходному файлу отчёта (.docx)"],
-    ["output_dir", "Папка для сохранения результатов"],
     ["subchapters_range", 'Диапазон подразделов (пусто = все, пример: "1-3, 5")'],
     ["chunk_size_tokens", "Размер чанка в токенах"],
     ["temperature", "Температура модели (null = по умолчанию)"],
