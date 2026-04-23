@@ -40,6 +40,8 @@ RESULT_DIR = Path(tempfile.gettempdir()) / "report_checker"
 RESULT_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_CHECK_PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "clarity.txt"
+DEFAULT_VALIDATION_PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "validation.txt"
+DEFAULT_SUMMARY_PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "summary.txt"
 CHECK_PROMPT_MAX_BYTES = 256 * 1024
 
 try:
@@ -454,6 +456,7 @@ async def get_jobs():
             "checkpoint_sub_total": j.checkpoint_sub_total,
             "queue_position": j.queue_position,
             "submitted_at": j.submitted_at or j.created_at,
+            "finished_at": j.finished_at,
             "error": j.error,
             "artifact_dir": j.artifact_dir,
         })
@@ -512,6 +515,13 @@ async def cancel_job(job_id: str):
         raise HTTPException(status_code=404, detail="Задача не найдена")
     job.cancelled = True
     job_store.update_job(job)
+    if job.log_path:
+        try:
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            with open(job.log_path, "a", encoding="utf-8") as _lf:
+                _lf.write(f"[{ts}] INFO  Cancel requested by user\n")
+        except OSError:
+            pass
     return {"ok": True}
 
 
@@ -542,6 +552,21 @@ async def default_check_prompt():
         raise HTTPException(status_code=500, detail="Файл промпта по умолчанию не найден")
     text = DEFAULT_CHECK_PROMPT_PATH.read_text(encoding="utf-8")
     return {"prompt": text}
+
+
+def _read_prompt_file(path: Path) -> str:
+    if path.is_file():
+        return path.read_text(encoding="utf-8")
+    return ""
+
+
+@app.get("/default_prompts")
+async def default_prompts():
+    return {
+        "check_prompt": _read_prompt_file(DEFAULT_CHECK_PROMPT_PATH),
+        "validation_prompt": _read_prompt_file(DEFAULT_VALIDATION_PROMPT_PATH),
+        "summary_prompt": _read_prompt_file(DEFAULT_SUMMARY_PROMPT_PATH),
+    }
 
 
 @app.get("/status/{job_id}")

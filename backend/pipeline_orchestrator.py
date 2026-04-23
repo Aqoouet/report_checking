@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -99,6 +100,64 @@ def _write_check_result(section_results: list[tuple[str, str]], path: str) -> No
     Path(path).write_text("\n".join(lines), encoding="utf-8")
 
 
+def _split_check_result_blocks(text: str) -> list[str]:
+    sep = "=" * 40
+    blocks: list[str] = []
+    current: list[str] = []
+    for line in text.splitlines(keepends=True):
+        if line.strip() == sep and current:
+            blocks.append("".join(current))
+            current = []
+        current.append(line)
+    if current:
+        blocks.append("".join(current))
+    return [b for b in blocks if b.strip()]
+
+
+async def _call_in_chunks(
+    text: str,
+    prompt: str,
+    server_url: str,
+    model: str | None,
+    temperature: float | None,
+    max_chunk_tokens: int = 8000,
+    log: "ArtifactLogger | None" = None,
+) -> str:
+    from token_chunker import count_tokens
+
+    if count_tokens(text) <= max_chunk_tokens:
+        return await call_async(text, prompt, server_url, model=model, temperature=temperature)
+
+    blocks = _split_check_result_blocks(text)
+    if not blocks:
+        return await call_async(text, prompt, server_url, model=model, temperature=temperature)
+
+    chunks: list[str] = []
+    current_parts: list[str] = []
+    current_tokens = 0
+    for block in blocks:
+        bt = count_tokens(block)
+        if current_tokens + bt > max_chunk_tokens and current_parts:
+            chunks.append("".join(current_parts))
+            current_parts = []
+            current_tokens = 0
+        current_parts.append(block)
+        current_tokens += bt
+    if current_parts:
+        chunks.append("".join(current_parts))
+
+    if log:
+        log.info(f"  Text too large, split into {len(chunks)} chunks")
+
+    results: list[str] = []
+    for i, chunk in enumerate(chunks, 1):
+        if log:
+            log.info(f"  Chunk {i}/{len(chunks)}")
+        results.append(await call_async(chunk, prompt, server_url, model=model, temperature=temperature))
+
+    return "\n\n".join(results)
+
+
 async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     stem = Path(config.input_docx_path).stem
@@ -174,12 +233,13 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
             update_job(job)
 
             check_text = Path(check_result_path).read_text(encoding="utf-8")
-            validated_text = await call_async(
+            validated_text = await _call_in_chunks(
                 check_text,
                 config.validation_prompt,
                 servers[0]["url"],
                 model=config.model,
                 temperature=config.temperature,
+                log=log,
             )
             validated_path = str(artifact_dir / "validated_result.txt")
             Path(validated_path).write_text(validated_text, encoding="utf-8")
@@ -195,12 +255,13 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
             update_job(job)
 
             source_text = Path(job.result_path).read_text(encoding="utf-8")
-            summary_text = await call_async(
+            summary_text = await _call_in_chunks(
                 source_text,
                 config.summary_prompt,
                 servers[0]["url"],
                 model=config.model,
                 temperature=config.temperature,
+                log=log,
             )
             summary_path = str(artifact_dir / "summary.txt")
             write_summary(summary_text, summary_path)
@@ -209,6 +270,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
         # DONE
         job.phase = "done"
         job.status = JobStatus.DONE
+        job.finished_at = time.time()
         job.current_checkpoint_name = "Готово"
         update_job(job)
         log.info("Pipeline complete")
@@ -216,6 +278,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
     except PipelineCancelledError:
         job.phase = "cancelled"
         job.status = JobStatus.CANCELLED
+        job.finished_at = time.time()
         job.current_checkpoint_name = "Отменено"
         update_job(job)
         if log:
@@ -225,6 +288,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
         if log:
             log.error(f"Pipeline error: {exc}")
         job.status = JobStatus.ERROR
+        job.finished_at = time.time()
         job.error = str(exc)
         update_job(job)
     finally:

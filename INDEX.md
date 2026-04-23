@@ -17,16 +17,18 @@ This index maps every file currently in the repository and explains its purpose.
 - `backend/Dockerfile` — Backend image build and `uvicorn` runtime command.
 - `backend/aggregator.py` — Builds final text report from checkpoint findings.
 - `backend/ai_client.py` — OpenAI-compatible client wrapper for LLM checks and range validation.
+- `backend/config_store.py` — In-memory pipeline config schema, parsing, and validation helpers.
 - `backend/doc_models.py` — Dataclasses for parsed document structure (`DocData`, `Section`).
 - `backend/doc_parser.py` — Unified DOCX parsing pipeline entrypoint returning `DocData` + Markdown.
 - `backend/docling_client.py` — HTTP client for Docling conversion (`.docx` -> Markdown).
-- `backend/jobs.py` — In-memory job store/state machine and cancellation primitives.
-- `backend/main.py` — FastAPI app, endpoints, validation, orchestration, and background processing.
+- `backend/jobs.py` — In-memory job queue/state model for pending/processing/done/error/cancelled tasks.
+- `backend/main.py` — FastAPI app with `/config`, `/check`, `/jobs`, `/result_log`, queue worker loop, and path/output validation.
 - `backend/md_cache.py` — SHA256-based Markdown cache for converted DOCX files.
 - `backend/md_parser.py` — Splits Markdown into logical sections and applies range filtering.
 - `backend/mypy.ini` — Type-checker configuration for backend Python code.
 - `backend/path_mapper.py` — Maps Windows-style user paths to allowed Linux paths.
 - `backend/path_mapping.json` — Mapping table/allowlist used by `path_mapper.py`.
+- `backend/pipeline_orchestrator.py` — Multi-phase job pipeline (`convert/check/validate/summary`) with parallel worker-server checks and artifact logging.
 - `backend/range_parser.py` — Regex-based quick parser for section range input.
 - `backend/requirements-dev.txt` — Development dependencies (extends runtime requirements).
 - `backend/requirements.txt` — Runtime Python dependencies.
@@ -41,7 +43,6 @@ This index maps every file currently in the repository and explains its purpose.
 ### Backend Prompts
 
 - `backend/prompts/clarity.txt` — System prompt for clarity/scientific style evaluation.
-- `backend/prompts/units.txt` — Placeholder file for units-related checkpoint prompt (currently empty).
 
 ## Frontend
 
@@ -65,17 +66,19 @@ This index maps every file currently in the repository and explains its purpose.
 
 ### Frontend Source
 
-- `frontend/src/App.tsx` — Main UI flow: input, validation, run, polling, and result states.
-- `frontend/src/api.ts` — Typed API client for backend endpoints.
-- `frontend/src/index.css` — Global styles for forms, progress UI, and result states.
+- `frontend/src/App.tsx` — Main UI shell with "Настройки" dialog, "Проверить" action, and jobs section.
+- `frontend/src/api.ts` — Typed API client for config, queue/jobs, logs, run, cancel, and download endpoints.
+- `frontend/src/index.css` — Global styles for modal config editor, queue rows, status badges, and log panel.
 - `frontend/src/main.tsx` — React app bootstrap and root render.
 
 ### Frontend Components
 
-- `frontend/src/components/PathField.tsx` — File-path input with server-side path validation UI.
-- `frontend/src/components/ProcessingView.tsx` — Progress/cancel view while checks are running.
-- `frontend/src/components/RangeField.tsx` — Range input with validation status and feedback.
-- `frontend/src/components/ResultView.tsx` — Final success/cancel/error screen and download links.
+- `frontend/src/components/ConfigDialog.tsx` — YAML configuration editor with parameter docs and load/save file actions.
+- `frontend/src/components/JobQueueList.tsx` — Polling queue view with phase/progress, cancel action, and live log toggle.
+- `frontend/src/components/PathField.tsx` — Legacy path field component (kept in source).
+- `frontend/src/components/ProcessingView.tsx` — Legacy processing state component (kept in source).
+- `frontend/src/components/RangeField.tsx` — Legacy range field component (kept in source).
+- `frontend/src/components/ResultView.tsx` — Legacy result state component (kept in source).
 
 ## Test Data
 

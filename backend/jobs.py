@@ -61,6 +61,7 @@ class Job:
     artifact_dir: Optional[str] = None
     log_path: Optional[str] = None
     submitted_at: float = field(default_factory=time.time)
+    finished_at: Optional[float] = None
     # Config frozen at job creation so worker uses original settings even if
     # the user changes config while the job is queued (bug #4).
     config_snapshot: Optional[object] = field(default=None, repr=False)

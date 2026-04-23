@@ -32,10 +32,15 @@ function JobRow({ job }: { job: JobSummary }) {
   const [logOpen, setLogOpen] = useState(false);
   const [logText, setLogText] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [pendingCancel, setPendingCancel] = useState(false);
   const logRef = useRef<HTMLPreElement>(null);
 
   useEffect(() => {
-    if (!isProcessing) return;
+    if (isTerminal) setPendingCancel(false);
+  }, [isTerminal]);
+
+  useEffect(() => {
+    if (!isProcessing && !pendingCancel) return;
     let active = true;
     const poll = () =>
       fetchLog(job.id)
@@ -44,7 +49,7 @@ function JobRow({ job }: { job: JobSummary }) {
     poll();
     const id = setInterval(poll, 2000);
     return () => { active = false; clearInterval(id); };
-  }, [job.id, isProcessing]);
+  }, [job.id, isProcessing, pendingCancel]);
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -52,7 +57,11 @@ function JobRow({ job }: { job: JobSummary }) {
 
   const handleCancel = async () => {
     setCancelling(true);
-    try { await cancelJob(job.id); } catch { } finally { setCancelling(false); }
+    try {
+      await cancelJob(job.id);
+      setPendingCancel(true);
+    } catch { }
+    finally { setCancelling(false); }
   };
 
   return (
@@ -88,17 +97,17 @@ function JobRow({ job }: { job: JobSummary }) {
       )}
 
       <div className="job-actions">
-        {isProcessing && (
+        {(isProcessing || pendingCancel) && (
           <button
             type="button"
             className="btn btn--sm btn--danger"
             onClick={handleCancel}
-            disabled={cancelling}
+            disabled={cancelling || pendingCancel}
           >
-            {cancelling ? "Останавливаем…" : "Отменить"}
+            {cancelling ? "Останавливаем…" : pendingCancel ? "Отменяется…" : "Отменить"}
           </button>
         )}
-        {isProcessing && (
+        {(isProcessing || pendingCancel) && (
           <button
             type="button"
             className="btn btn--sm btn--outline"
@@ -126,7 +135,7 @@ function JobRow({ job }: { job: JobSummary }) {
         )}
       </div>
 
-      {isProcessing && logOpen && (
+      {(isProcessing || pendingCancel) && logOpen && (
         <pre ref={logRef} className="job-log-panel">
           {logText || "Лог пока пуст…"}
         </pre>
@@ -135,16 +144,19 @@ function JobRow({ job }: { job: JobSummary }) {
   );
 }
 
+const HIDE_AFTER_MS = 15 * 60 * 1000;
+
 export default function JobQueueList() {
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [fetchError, setFetchError] = useState("");
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     let active = true;
 
     const poll = () => {
       fetchJobs()
-        .then((list) => { if (active) setJobs(list); })
+        .then((list) => { if (active) { setJobs(list); setNow(Date.now()); } })
         .catch(() => { if (active) setFetchError("Не удалось получить список задач"); });
     };
 
@@ -154,11 +166,19 @@ export default function JobQueueList() {
   }, []);
 
   if (fetchError) return <div className="jobs-error">{fetchError}</div>;
-  if (jobs.length === 0) return <div className="jobs-empty">Нет задач</div>;
+
+  const TERMINAL: JobSummary["status"][] = ["done", "error", "cancelled"];
+  const visible = jobs.filter((j) => {
+    if (!TERMINAL.includes(j.status)) return true;
+    if (j.finished_at === null) return true;
+    return now - j.finished_at * 1000 < HIDE_AFTER_MS;
+  });
+
+  if (visible.length === 0) return <div className="jobs-empty">Нет задач</div>;
 
   return (
     <div className="job-list">
-      {jobs.map((j) => <JobRow key={j.id} job={j} />)}
+      {visible.map((j) => <JobRow key={j.id} job={j} />)}
     </div>
   );
 }

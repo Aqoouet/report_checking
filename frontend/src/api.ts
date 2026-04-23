@@ -83,6 +83,18 @@ export async function fetchDefaultCheckPrompt(): Promise<string> {
   return data.prompt ?? "";
 }
 
+export interface DefaultPrompts {
+  check_prompt: string;
+  validation_prompt: string;
+  summary_prompt: string;
+}
+
+export async function fetchDefaultPrompts(): Promise<DefaultPrompts> {
+  const res = await fetch(`${BASE}/default_prompts`);
+  if (!res.ok) throw new Error(`Ошибка загрузки промптов: ${res.status}`);
+  return res.json() as Promise<DefaultPrompts>;
+}
+
 export async function startCheck(
   filePath: string,
   rangeSpec?: ValidateRangeResponse,
@@ -157,6 +169,7 @@ export interface JobSummary {
   checkpoint_sub_total: number;
   queue_position: number;
   submitted_at: number;
+  finished_at: number | null;
   error: string | null;
   artifact_dir: string;
 }

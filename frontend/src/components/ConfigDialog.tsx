@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getConfig, postConfig, type PipelineConfigData } from "../api";
+import { fetchDefaultPrompts, getConfig, postConfig, type PipelineConfigData } from "../api";
 
 interface Props {
   onClose: () => void;
@@ -72,36 +72,13 @@ const PARAM_DOCS: ParamDoc[] = [
   },
 ];
 
-const EXAMPLE_YAML = `# Путь к исходному файлу отчёта (.docx)
-input_docx_path: "C:\\\\путь\\\\к\\\\файлу.docx"
-
-# Папка для сохранения результатов
-output_dir: "C:\\\\путь\\\\к\\\\результатам"
-
-# Диапазон подразделов (пусто = все, пример: "1-3, 5")
-subchapters_range: ""
-
-# Размер чанка в токенах
-chunk_size_tokens: 10000
-
-# Температура модели (null = по умолчанию)
-temperature: null
-
-# Промпт проверки (используйте | для многострочного текста)
-check_prompt: |
-  Вы — строгий рецензент технических отчётов.
-  Проверьте приведённый раздел по следующим критериям:
-  1. Полнота и корректность изложения
-  2. Соответствие нормативным требованиям
-  3. Наличие необходимых расчётов и обоснований
-  Укажите все найденные замечания с конкретными ссылками на текст.
-
-# Промпт валидации (пусто = пропустить этап)
-validation_prompt: ""
-
-# Промпт суммаризации (пусто = пропустить этап)
-summary_prompt: ""
-`;
+const DEFAULT_SCALARS: Pick<PipelineConfigData, "input_docx_path" | "output_dir" | "subchapters_range" | "chunk_size_tokens" | "temperature"> = {
+  input_docx_path: "C:\\путь\\к\\файлу.docx",
+  output_dir: "C:\\путь\\к\\результатам",
+  subchapters_range: "",
+  chunk_size_tokens: 10000,
+  temperature: null,
+};
 
 function serializeToYaml(cfg: PipelineConfigData): string {
   const lines: string[] = [];
@@ -225,7 +202,7 @@ function parseYaml(text: string): PipelineConfigData {
 }
 
 export default function ConfigDialog({ onClose }: Props) {
-  const [yaml, setYaml] = useState(EXAMPLE_YAML);
+  const [yaml, setYaml] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -234,11 +211,17 @@ export default function ConfigDialog({ onClose }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    getConfig()
-      .then((cfg) => {
-        if (cfg) setYaml(serializeToYaml(cfg));
+    Promise.all([getConfig(), fetchDefaultPrompts()])
+      .then(([cfg, defaults]) => {
+        if (cfg) {
+          setYaml(serializeToYaml(cfg));
+        } else {
+          setYaml(serializeToYaml({ ...DEFAULT_SCALARS, ...defaults }));
+        }
       })
-      .catch(() => { /* use EXAMPLE_YAML */ })
+      .catch(() => {
+        setYaml(serializeToYaml({ ...DEFAULT_SCALARS, check_prompt: "", validation_prompt: "", summary_prompt: "" }));
+      })
       .finally(() => setLoading(false));
   }, []);
 
