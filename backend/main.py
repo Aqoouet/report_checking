@@ -399,7 +399,7 @@ async def set_config(request: Request):
     except HTTPException:
         raise
 
-    errors = config_store.validate_and_set(data, resolved_docx, resolved_output)
+    errors = config_store.validate_and_set(data, resolved_docx, resolved_output, validate_range_with_ai=ai_client.validate_range)
     if errors:
         raise HTTPException(status_code=400, detail="; ".join(errors))
 

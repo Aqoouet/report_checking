@@ -120,6 +120,8 @@ def validate_and_set(
     data: dict[str, Any],
     resolved_docx: str,
     resolved_output: str,
+    *,
+    validate_range_with_ai: callable | None = None,
 ) -> list[str]:
     patched = dict(data)
     patched["input_docx_path"] = resolved_docx
@@ -141,7 +143,12 @@ def validate_and_set(
     if config.subchapters_range:
         quick = parse_range_script(config.subchapters_range)
         if not quick.get("valid"):
-            errors.append("subchapters_range: неверный формат диапазона")
+            if validate_range_with_ai is not None:
+                ai = validate_range_with_ai(config.subchapters_range)
+                if not ai.get("valid"):
+                    errors.append("subchapters_range: неверный формат диапазона")
+            else:
+                errors.append("subchapters_range: неверный формат диапазона")
 
     if not errors:
         save_config(config)
