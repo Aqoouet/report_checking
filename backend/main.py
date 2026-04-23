@@ -124,7 +124,7 @@ async def _pipeline_worker() -> None:
                 job_store.complete_active_job()
                 job_store.task_done()
                 continue
-            cfg = config_store.get_config()
+            cfg = job.config_snapshot or config_store.get_config()
             if cfg is None:
                 job.status = JobStatus.ERROR
                 job.error = "Конфигурация не задана"
@@ -427,6 +427,7 @@ async def check(request: Request):
     job = job_store.create_job()
     job.submitted_at = time.time()
     job.docx_name = Path(cfg.input_docx_path).name
+    job.config_snapshot = cfg
     job_store.update_job(job)
 
     queue_size = await enqueue_job(job.id)
