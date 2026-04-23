@@ -1,4 +1,8 @@
-"""Auto-discovery of checkpoint modules.
+"""LEGACY — not used by the active pipeline_orchestrator flow.
+
+This checkpoint framework predates the current orchestrator and is not
+called from main.py or pipeline_orchestrator.py.  Do not add new checks
+here; use pipeline_orchestrator instead.
 
 Any module inside this package whose name starts with ``check_`` and
 contains a subclass of BaseCheckpoint is loaded automatically when

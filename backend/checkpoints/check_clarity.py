@@ -1,4 +1,7 @@
-"""Checkpoint 1 — Clarity, coherence and scientific-technical style."""
+"""LEGACY — Checkpoint 1 — Clarity, coherence and scientific-technical style.
+
+Not called by the active pipeline.  See pipeline_orchestrator.py instead.
+"""
 
 from __future__ import annotations
 

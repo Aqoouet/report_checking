@@ -19,7 +19,7 @@ class JobStatus(str, Enum):
 
 
 class JobCancelledError(Exception):
-    """Raised by checkpoints when they detect job.cancelled == True.
+    """LEGACY — raised by checkpoints/ (not by active pipeline_orchestrator).
 
     Carries checkpoint progress so a partial report can list finished sections.
     """

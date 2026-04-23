@@ -1,3 +1,5 @@
+# LEGACY — not called by pipeline_orchestrator.py or main.py.
+# Active pipeline runs directly through pipeline_orchestrator.run().
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
