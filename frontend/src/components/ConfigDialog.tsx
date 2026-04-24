@@ -74,7 +74,7 @@ const PARAM_DOCS: ParamDoc[] = [
 
 function getDefaultScalars(isLinux: boolean): Pick<PipelineConfigData, "input_docx_path" | "output_dir" | "subchapters_range" | "chunk_size_tokens" | "temperature"> {
   return {
-    input_docx_path: isLinux ? "/filer/wps/wp/" : "P:\\путь\\к\\файлу.docx",
+    input_docx_path: isLinux ? "/filer/wps/wp/.../отчет.docx" : "P:\\путь\\к\\файлу.docx",
     output_dir: isLinux ? "/filer/wps/wp/temp/report_check_results" : "P:\\temp\\report_check_results\\",
     subchapters_range: "",
     chunk_size_tokens: 3000,
