@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import * as jsYaml from "js-yaml";
 import { fetchDefaultPrompts, fetchRuntimeInfo, getConfig, postConfig, type PipelineConfigData, type RuntimeInfo } from "../api";
 
 interface Props {
@@ -139,76 +140,22 @@ function serializeToYaml(cfg: PipelineConfigData): string {
 }
 
 function parseYaml(text: string): PipelineConfigData {
-  const result: Partial<PipelineConfigData> = {};
-  const lines = text.split("\n");
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    if (!trimmed || trimmed.startsWith("#")) {
-      i++;
-      continue;
-    }
-
-    const colonIdx = trimmed.indexOf(":");
-    if (colonIdx < 0) { i++; continue; }
-
-    const key = trimmed.slice(0, colonIdx).trim();
-    const rest = trimmed.slice(colonIdx + 1).trim();
-
-    if (rest === "|" || rest === "|-") {
-      i++;
-      const blockLines: string[] = [];
-      const baseIndent = lines[i] ? lines[i].match(/^(\s*)/)?.[1].length ?? 0 : 0;
-      while (i < lines.length) {
-        const bline = lines[i];
-        if (!bline.trim() && i + 1 < lines.length && (lines[i + 1].match(/^(\s*)/)?.[1].length ?? 0) < baseIndent) {
-          break;
-        }
-        const indent = bline.match(/^(\s*)/)?.[1].length ?? 0;
-        if (bline.trim() && indent < baseIndent) break;
-        blockLines.push(bline.slice(baseIndent));
-        i++;
-      }
-      let blockVal = blockLines.join("\n");
-      if (rest === "|-") blockVal = blockVal.replace(/\n+$/, "");
-      else blockVal = blockVal.replace(/\n+$/, "\n");
-      (result as Record<string, unknown>)[key] = blockVal;
-      continue;
-    }
-
-    let val: string | number | null;
-    if (rest === "null" || rest === "~") {
-      val = null;
-    } else if (/^-?\d+(\.\d+)?$/.test(rest)) {
-      val = Number(rest);
-    } else if ((rest.startsWith('"') && rest.endsWith('"')) || (rest.startsWith("'") && rest.endsWith("'"))) {
-      val = rest
-        .slice(1, -1)
-        .replace(/\\"/g, '"')
-        .replace(/\\\\/g, "\\");
-    } else {
-      val = rest;
-    }
-    (result as Record<string, unknown>)[key] = val;
-    i++;
-  }
-
+  const raw = jsYaml.load(text) as Record<string, unknown>;
+  if (!raw || typeof raw !== "object") throw new Error("Неверный YAML");
+  const str = (key: string) => {
+    const v = raw[key];
+    return v == null ? "" : String(v);
+  };
+  const temp = raw["temperature"];
   return {
-    input_docx_path: String(result.input_docx_path ?? ""),
-    output_dir: String(result.output_dir ?? ""),
-    check_prompt: String(result.check_prompt ?? ""),
-    validation_prompt: String(result.validation_prompt ?? ""),
-    summary_prompt: String(result.summary_prompt ?? ""),
-    subchapters_range: String(result.subchapters_range ?? ""),
-    chunk_size_tokens: typeof result.chunk_size_tokens === "number" ? result.chunk_size_tokens : 3000,
-    temperature: result.temperature === null || result.temperature === undefined
-      ? null
-      : typeof result.temperature === "number"
-        ? result.temperature
-        : null,
+    input_docx_path: str("input_docx_path"),
+    output_dir: str("output_dir"),
+    check_prompt: str("check_prompt"),
+    validation_prompt: str("validation_prompt"),
+    summary_prompt: str("summary_prompt"),
+    subchapters_range: str("subchapters_range"),
+    chunk_size_tokens: typeof raw["chunk_size_tokens"] === "number" ? raw["chunk_size_tokens"] : 3000,
+    temperature: temp == null ? null : typeof temp === "number" ? temp : null,
   };
 }
 

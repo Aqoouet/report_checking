@@ -129,6 +129,10 @@ async def _pipeline_worker() -> None:
                 job_store.complete_active_job()
                 job_store.task_done()
                 continue
+            if job.status == JobStatus.CANCELLED:
+                job_store.complete_active_job()
+                job_store.task_done()
+                continue
             cfg = job.config_snapshot or config_store.get_config()
             if cfg is None:
                 job.status = JobStatus.ERROR
@@ -528,6 +532,9 @@ async def cancel_job(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Задача не найдена")
     job.cancelled = True
+    if job.status == JobStatus.PENDING:
+        job.status = JobStatus.CANCELLED
+        job.finished_at = time.time()
     job_store.update_job(job)
     if job.log_path:
         try:
