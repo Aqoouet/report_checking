@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchDefaultPrompts, getConfig, postConfig, type PipelineConfigData } from "../api";
+import { fetchDefaultPrompts, fetchRuntimeInfo, getConfig, postConfig, type PipelineConfigData, type RuntimeInfo } from "../api";
 
 interface Props {
   onClose: () => void;
@@ -39,7 +39,7 @@ const PARAM_DOCS: ParamDoc[] = [
     key: "chunk_size_tokens",
     title: "chunk_size_tokens",
     type: "integer",
-    desc: "Максимальный размер одного чанка текста в токенах, передаваемого в модель. Увеличьте для длинных разделов, уменьшите при ошибках context length.",
+    desc: "Максимальный размер одного чанка текста в токенах, передаваемого в модель. Увеличьте для длинных разделов, уменьшите при ошибках context length.\n\nВерхний предел задаётся переменной окружения MAX_CHUNK_TOKENS (по умолчанию 15 000).",
     example: "chunk_size_tokens: 10000",
   },
   {
@@ -210,6 +210,7 @@ function parseYaml(text: string): PipelineConfigData {
   };
 }
 
+
 export default function ConfigDialog({ onClose }: Props) {
   const [yaml, setYaml] = useState("");
   const [loading, setLoading] = useState(true);
@@ -217,11 +218,13 @@ export default function ConfigDialog({ onClose }: Props) {
   const [saveError, setSaveError] = useState("");
   const [parseError, setParseError] = useState("");
   const [activeDoc, setActiveDoc] = useState<string | null>(null);
+  const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    Promise.all([getConfig(), fetchDefaultPrompts()])
-      .then(([cfg, defaults]) => {
+    Promise.all([getConfig(), fetchDefaultPrompts(), fetchRuntimeInfo().catch(() => null)])
+      .then(([cfg, defaults, info]) => {
+        if (info) setRuntimeInfo(info);
         if (cfg) {
           setYaml(serializeToYaml(cfg));
         } else {
@@ -280,6 +283,11 @@ export default function ConfigDialog({ onClose }: Props) {
       cfg = parseYaml(yaml);
     } catch (e) {
       setParseError(e instanceof Error ? e.message : "Ошибка парсинга YAML");
+      return;
+    }
+    const maxChunk = runtimeInfo?.max_chunk_tokens ?? 3000;
+    if (cfg.chunk_size_tokens > maxChunk) {
+      setParseError(`chunk_size_tokens: максимум ${maxChunk.toLocaleString()} (задан параметром MAX_CHUNK_TOKENS)`);
       return;
     }
     setSaving(true);

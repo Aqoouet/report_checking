@@ -132,7 +132,7 @@ def _split_check_result_blocks(text: str) -> list[str]:
 async def _call_in_chunks(
     text: str,
     prompt: str,
-    server_url: str,
+    servers: list[dict],
     model: str | None,
     temperature: float | None,
     max_chunk_tokens: int = 8000,
@@ -141,12 +141,14 @@ async def _call_in_chunks(
 ) -> str:
     from token_chunker import count_tokens
 
+    first_url = servers[0]["url"]
+
     if count_tokens(text) <= max_chunk_tokens:
-        return await call_async(text, prompt, server_url, model=model, temperature=temperature)
+        return await call_async(text, prompt, first_url, model=model, temperature=temperature)
 
     blocks = _split_check_result_blocks(text)
     if not blocks:
-        return await call_async(text, prompt, server_url, model=model, temperature=temperature)
+        return await call_async(text, prompt, first_url, model=model, temperature=temperature)
 
     chunks: list[str] = []
     current_parts: list[str] = []
@@ -163,17 +165,33 @@ async def _call_in_chunks(
         chunks.append("".join(current_parts))
 
     if log:
-        log.info(f"  Text too large, split into {len(chunks)} chunks")
+        log.info(f"  Text too large, split into {len(chunks)} chunks (parallel across {len(servers)} server(s))")
 
-    results: list[str] = []
-    for i, chunk in enumerate(chunks, 1):
+    sems = {s["url"]: asyncio.Semaphore(s.get("concurrency", 3)) for s in servers}
+    results: list[str | None] = [None] * len(chunks)
+
+    async def process_chunk(i: int, chunk: str) -> None:
         if job_id:
-            _ensure_not_cancelled(job_id, log)
+            fresh = get_job(job_id)
+            if fresh and fresh.cancelled:
+                return
+        server = servers[i % len(servers)]
+        url = server["url"]
         if log:
-            log.info(f"  Chunk {i}/{len(chunks)}")
-        results.append(await call_async(chunk, prompt, server_url, model=model, temperature=temperature))
+            log.info(f"  Chunk {i + 1}/{len(chunks)} → [{url}]")
+        async with sems[url]:
+            if job_id:
+                fresh = get_job(job_id)
+                if fresh and fresh.cancelled:
+                    return
+            results[i] = await call_async(chunk, prompt, url, model=model, temperature=temperature)
+        if log:
+            log.info(f"  Chunk {i + 1}/{len(chunks)} ✓")
 
-    return "\n\n".join(results)
+    tasks = [asyncio.create_task(process_chunk(i, c)) for i, c in enumerate(chunks)]
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+    return "\n\n".join(r for r in results if r is not None)
 
 
 async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
@@ -261,7 +279,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
             validated_text = await _call_in_chunks(
                 check_text,
                 config.validation_prompt,
-                servers[0]["url"],
+                servers,
                 model=config.model,
                 temperature=config.temperature,
                 max_chunk_tokens=config.chunk_size_tokens,
@@ -285,7 +303,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
             summary_text = await _call_in_chunks(
                 source_text,
                 config.summary_prompt,
-                servers[0]["url"],
+                servers,
                 model=config.model,
                 temperature=config.temperature,
                 max_chunk_tokens=config.chunk_size_tokens,

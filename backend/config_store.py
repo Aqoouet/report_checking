@@ -80,8 +80,9 @@ def validate_preflight(
     if not config.check_prompt:
         errors.append("check_prompt: field is required")
 
-    if config.chunk_size_tokens <= 0 or config.chunk_size_tokens > 128000:
-        errors.append("chunk_size_tokens: must be between 1 and 128000")
+    max_chunk = _max_chunk_tokens()
+    if config.chunk_size_tokens <= 0 or config.chunk_size_tokens > max_chunk:
+        errors.append(f"chunk_size_tokens: must be between 1 and {max_chunk}")
 
     if config.temperature is not None and not (0.0 <= config.temperature <= 2.0):
         errors.append("temperature: must be between 0.0 and 2.0")
@@ -116,6 +117,13 @@ def to_dict() -> dict[str, Any] | None:
     return config_to_dict(cfg)
 
 
+def _max_chunk_tokens() -> int:
+    try:
+        return int(os.getenv("MAX_CHUNK_TOKENS", "3000"))
+    except ValueError:
+        return 3000
+
+
 def validate_and_set(
     data: dict[str, Any],
     resolved_docx: str,
@@ -133,11 +141,12 @@ def validate_and_set(
     except ValueError as exc:
         return [str(exc)]
 
+    max_chunk = _max_chunk_tokens()
     errors: list[str] = []
     if not config.check_prompt:
         errors.append("check_prompt: поле обязательно")
-    if config.chunk_size_tokens <= 0 or config.chunk_size_tokens > 128000:
-        errors.append("chunk_size_tokens: должно быть от 1 до 128000")
+    if config.chunk_size_tokens <= 0 or config.chunk_size_tokens > max_chunk:
+        errors.append(f"chunk_size_tokens: должно быть от 1 до {max_chunk}")
     if config.temperature is not None and not (0.0 <= config.temperature <= 2.0):
         errors.append("temperature: должно быть от 0.0 до 2.0")
     if config.subchapters_range:

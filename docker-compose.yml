@@ -39,6 +39,7 @@ services:
       - AI_TIMEOUT=${AI_TIMEOUT:-0}
       - AI_CONNECT_TIMEOUT=${AI_CONNECT_TIMEOUT:-15}
       - DOC_CHUNK_SIZE=${DOC_CHUNK_SIZE:-10000}
+      - MAX_CHUNK_TOKENS=${MAX_CHUNK_TOKENS:-3000}
       - DOCLING_URL=${DOCLING_URL:-http://docling:5001}
       - DOCLING_TIMEOUT=${DOCLING_TIMEOUT:-300}
       # Кеш MD по SHA-256 исходного .docx (см. backend/md_cache.py). Именованный volume переживает перезапуск контейнера.

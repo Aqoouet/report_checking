@@ -66,7 +66,7 @@ _OUTPUT_BASE_DIR_STR = os.getenv("OUTPUT_BASE_DIR", "").strip()
 
 _DEFAULT_SERVERS = [
     {"url": "http://10.99.66.97:1234", "concurrency": 3},
-    {"url": "http://10.99.66.212:1234", "concurrency": 3},
+    {"url": "http://10.99.66.212:1234", "concurrency": 6},
 ]
 
 _rate_store: dict[str, list[float]] = defaultdict(list)
@@ -546,6 +546,7 @@ async def runtime_info():
         "check_model": model_id or "—",
         "context_tokens": context_tokens,
         "doc_chunk_tokens": chunk,
+        "max_chunk_tokens": config_store._max_chunk_tokens(),
     }
 
 
