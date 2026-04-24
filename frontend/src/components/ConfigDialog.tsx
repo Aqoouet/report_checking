@@ -40,7 +40,7 @@ const PARAM_DOCS: ParamDoc[] = [
     title: "chunk_size_tokens",
     type: "integer",
     desc: "Максимальный размер одного чанка текста в токенах, передаваемого в модель. Увеличьте для длинных разделов, уменьшите при ошибках context length.\n\nВерхний предел задаётся переменной окружения MAX_CHUNK_TOKENS (по умолчанию 15 000).",
-    example: "chunk_size_tokens: 10000",
+    example: "chunk_size_tokens: 3000",
   },
   {
     key: "temperature",
@@ -76,7 +76,7 @@ const DEFAULT_SCALARS: Pick<PipelineConfigData, "input_docx_path" | "output_dir"
   input_docx_path: "C:\\путь\\к\\файлу.docx",
   output_dir: "C:\\путь\\к\\результатам",
   subchapters_range: "",
-  chunk_size_tokens: 10000,
+  chunk_size_tokens: 3000,
   temperature: null,
 };
 
@@ -201,7 +201,7 @@ function parseYaml(text: string): PipelineConfigData {
     validation_prompt: String(result.validation_prompt ?? ""),
     summary_prompt: String(result.summary_prompt ?? ""),
     subchapters_range: String(result.subchapters_range ?? ""),
-    chunk_size_tokens: typeof result.chunk_size_tokens === "number" ? result.chunk_size_tokens : 10000,
+    chunk_size_tokens: typeof result.chunk_size_tokens === "number" ? result.chunk_size_tokens : 3000,
     temperature: result.temperature === null || result.temperature === undefined
       ? null
       : typeof result.temperature === "number"
