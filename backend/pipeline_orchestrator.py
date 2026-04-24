@@ -86,13 +86,19 @@ async def _parallel_check(
         update_job(job)
 
     async def _cancel_watcher(tasks: list[asyncio.Task]) -> None:
+        notified = False
         while not all(t.done() for t in tasks):
             await asyncio.sleep(1)
             fresh = get_job(job.id)
             if fresh and fresh.cancelled:
-                for t in tasks:
-                    t.cancel()
-                return
+                if not notified:
+                    notified = True
+                    job.phase = "cancelling"
+                    update_job(job)
+                    log.info(
+                        "Cancellation requested — waiting for in-flight HTTP responses "
+                        "to avoid server overhead…"
+                    )
 
     job.checkpoint_sub_total = len(sections)
     update_job(job)
@@ -138,6 +144,7 @@ async def _call_in_chunks(
     max_chunk_tokens: int = 8000,
     log: "ArtifactLogger | None" = None,
     job_id: str | None = None,
+    job: "Job | None" = None,
 ) -> str:
     from token_chunker import count_tokens
 
@@ -189,7 +196,27 @@ async def _call_in_chunks(
             log.info(f"  Chunk {i + 1}/{len(chunks)} ✓")
 
     tasks = [asyncio.create_task(process_chunk(i, c)) for i, c in enumerate(chunks)]
-    await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _cancel_watcher_chunks() -> None:
+        notified = False
+        while not all(t.done() for t in tasks):
+            await asyncio.sleep(1)
+            if not job_id:
+                return
+            fresh = get_job(job_id)
+            if fresh and fresh.cancelled:
+                if not notified:
+                    notified = True
+                    target = job if job is not None else fresh
+                    target.phase = "cancelling"
+                    update_job(target)
+                    if log:
+                        log.info(
+                            "Cancellation requested — waiting for in-flight HTTP responses "
+                            "to avoid server overhead…"
+                        )
+
+    await asyncio.gather(_cancel_watcher_chunks(), *tasks, return_exceptions=True)
 
     return "\n\n".join(r for r in results if r is not None)
 
@@ -285,6 +312,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
                 max_chunk_tokens=config.chunk_size_tokens,
                 log=log,
                 job_id=job.id,
+                job=job,
             )
             validated_path = str(artifact_dir / "validated_result.txt")
             Path(validated_path).write_text(validated_text, encoding="utf-8")
@@ -309,6 +337,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
                 max_chunk_tokens=config.chunk_size_tokens,
                 log=log,
                 job_id=job.id,
+                job=job,
             )
             summary_path = str(artifact_dir / "summary.txt")
             write_summary(summary_text, summary_path)

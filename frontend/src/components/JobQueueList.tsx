@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { cancelJob, fetchJobs, fetchLog, resultLogUrl, resultMdUrl, resultUrl, type JobSummary } from "../api";
 
+const PHASE_LABEL: Record<string, string> = {
+  cancelling: "Ожидаем ответы серверов…",
+};
+
 const STATUS_LABEL: Record<JobSummary["status"], string> = {
   pending: "Очередь",
   processing: "Выполняется",
@@ -78,7 +82,7 @@ function JobRow({ job }: { job: JobSummary }) {
 
       {isProcessing && (
         <div className="job-progress">
-          <div className="job-phase">{job.phase || job.current_checkpoint_name}</div>
+          <div className="job-phase">{PHASE_LABEL[job.phase] ?? (job.phase || job.current_checkpoint_name)}</div>
           {job.checkpoint_sub_total > 0 && (
             <>
               <div className="progress-bar">
