@@ -721,6 +721,19 @@ body {
   margin-top: 6px;
 }
 
+.job-artifact-link {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: #64748b;
+  text-decoration: none;
+  word-break: break-all;
+}
+.job-artifact-link:hover {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
 .job-log-panel {
   margin-top: 8px;
   padding: 10px 12px;

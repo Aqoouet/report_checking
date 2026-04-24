@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { cancelJob, fetchJobs, fetchLog, resultLogUrl, resultMdUrl, resultUrl, type JobSummary } from "../api";
+import { cancelJob, fetchJobs, fetchLog, type JobSummary } from "../api";
 
 const PHASE_LABEL: Record<string, string> = {
   cancelling: "Ожидаем ответы серверов…",
@@ -135,22 +135,10 @@ function JobRow({ job, onDelete }: { job: JobSummary; onDelete?: () => void }) {
             {logOpen ? "Скрыть лог" : "Показать лог"}
           </button>
         )}
-        {isTerminal && (
-          <>
-            {job.status !== "error" && (
-              <a href={resultUrl(job.id)} download className="btn btn--primary btn--sm">
-                Отчёт
-              </a>
-            )}
-            {job.status !== "error" && (
-              <a href={resultMdUrl(job.id)} download className="btn btn--secondary btn--sm">
-                MD
-              </a>
-            )}
-            <a href={resultLogUrl(job.id)} download className="btn btn--secondary btn--sm">
-              Лог
-            </a>
-          </>
+        {isTerminal && job.artifact_dir && (
+          <a href={`file://${job.artifact_dir}`} className="job-artifact-link" title={job.artifact_dir}>
+            Сохранено: {job.artifact_dir}
+          </a>
         )}
       </div>
 
