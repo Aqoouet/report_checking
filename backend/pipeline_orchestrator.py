@@ -3,8 +3,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
+
+import yaml
 
 from jobs import Job, JobStatus, get_job, update_job
 from config_store import PipelineConfig
@@ -42,6 +45,14 @@ class ArtifactLogger:
 
     def close(self) -> None:
         self._f.close()
+
+
+def _write_config_yaml(config: PipelineConfig, path: Path) -> None:
+    payload = asdict(config)
+    path.write_text(
+        yaml.safe_dump(payload, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
 
 
 async def _parallel_check(
@@ -232,6 +243,8 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
 
         log_path = str(artifact_dir / "run.log")
         log = ArtifactLogger(log_path)
+        config_path = artifact_dir / "config.yaml"
+        _write_config_yaml(config, config_path)
 
         job.artifact_dir = str(artifact_dir)
         job.log_path = log_path
@@ -242,6 +255,7 @@ async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
 
         log.info(f"Start: {config.input_docx_path}")
         log.info(f"Model: {config.model or '(from env)'}")
+        log.info(f"Config saved: {config_path}")
         _ensure_not_cancelled(job.id, log)
 
         # CONVERT
