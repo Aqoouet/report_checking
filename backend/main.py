@@ -107,7 +107,7 @@ def _get_worker_servers() -> list[dict]:
 
 
 def _validate_output_dir(path: str) -> Path:
-    p = Path(path).resolve()
+    p = Path(map_path(path)).resolve()
     allowed_prefixes = get_allowed_prefixes()
     if allowed_prefixes:
         resolved_str = str(p)
