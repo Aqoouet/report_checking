@@ -86,7 +86,7 @@ function serializeToYaml(cfg: PipelineConfigData): string {
   const lines: string[] = [];
 
   const pathFields: Array<[keyof PipelineConfigData, string]> = [
-    ["input_docx_path", "Путь к исходному файлу отчёта (.docx) — вставьте как есть"],
+    ["input_docx_path", "Путь к исходному файлу отчёта (.docx) — вставьте как есть. Для Windows только P:\\..., для Linux любые пути."],
     ["output_dir", "Папка для сохранения результатов — вставьте как есть"],
   ];
 
