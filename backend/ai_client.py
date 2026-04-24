@@ -297,5 +297,13 @@ async def call_async(
         body["temperature"] = temperature
     async with httpx.AsyncClient(timeout=timeout) as client:
         r = await client.post(f"{server_url}/v1/chat/completions", json=body)
-        r.raise_for_status()
+        try:
+            r.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            body_text = r.text[:500].strip()
+            raise httpx.HTTPStatusError(
+                f"HTTP {r.status_code} from {server_url}: {body_text}",
+                request=exc.request,
+                response=exc.response,
+            ) from exc
         return r.json()["choices"][0]["message"]["content"]
