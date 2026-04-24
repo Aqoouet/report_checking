@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import sys
 import tempfile
 import time
 import uuid
@@ -547,6 +548,7 @@ async def runtime_info():
         "context_tokens": context_tokens,
         "doc_chunk_tokens": chunk,
         "max_chunk_tokens": config_store._max_chunk_tokens(),
+        "os": sys.platform,
     }
 
 

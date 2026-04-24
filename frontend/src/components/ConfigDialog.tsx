@@ -25,8 +25,8 @@ const PARAM_DOCS: ParamDoc[] = [
     key: "output_dir",
     title: "output_dir",
     type: "string",
-    desc: "Папка, куда будут сохранены результаты проверки. Создаётся автоматически, если не существует. Вставляйте путь как есть.\n\n⚠ Windows: в данный момент поддерживается только диск P:\\.",
-    example: "output_dir: P:\\WP13C\\results",
+    desc: "Папка, куда будут сохранены результаты проверки. Создаётся автоматически, если не существует. Вставляйте путь как есть.\n\n⚠ Windows: в данный момент поддерживается только диск P:\\.\n\nПо умолчанию: Windows — P:\\temp\\report_check_results\\, Linux — /filer/wps/wp/temp/report_check_results",
+    example: "output_dir: P:\\temp\\report_check_results\\",
   },
   {
     key: "subchapters_range",
@@ -72,13 +72,15 @@ const PARAM_DOCS: ParamDoc[] = [
   },
 ];
 
-const DEFAULT_SCALARS: Pick<PipelineConfigData, "input_docx_path" | "output_dir" | "subchapters_range" | "chunk_size_tokens" | "temperature"> = {
-  input_docx_path: "C:\\путь\\к\\файлу.docx",
-  output_dir: "C:\\путь\\к\\результатам",
-  subchapters_range: "",
-  chunk_size_tokens: 3000,
-  temperature: null,
-};
+function getDefaultScalars(isLinux: boolean): Pick<PipelineConfigData, "input_docx_path" | "output_dir" | "subchapters_range" | "chunk_size_tokens" | "temperature"> {
+  return {
+    input_docx_path: isLinux ? "/filer/wps/wp/" : "P:\\путь\\к\\файлу.docx",
+    output_dir: isLinux ? "/filer/wps/wp/temp/report_check_results" : "P:\\temp\\report_check_results\\",
+    subchapters_range: "",
+    chunk_size_tokens: 3000,
+    temperature: null,
+  };
+}
 
 function serializeToYaml(cfg: PipelineConfigData): string {
   const lines: string[] = [];
@@ -225,14 +227,15 @@ export default function ConfigDialog({ onClose }: Props) {
     Promise.all([getConfig(), fetchDefaultPrompts(), fetchRuntimeInfo().catch(() => null)])
       .then(([cfg, defaults, info]) => {
         if (info) setRuntimeInfo(info);
+        const isLinux = info?.os === "linux";
         if (cfg) {
           setYaml(serializeToYaml(cfg));
         } else {
-          setYaml(serializeToYaml({ ...DEFAULT_SCALARS, ...defaults }));
+          setYaml(serializeToYaml({ ...getDefaultScalars(isLinux), ...defaults }));
         }
       })
       .catch(() => {
-        setYaml(serializeToYaml({ ...DEFAULT_SCALARS, check_prompt: "", validation_prompt: "", summary_prompt: "" }));
+        setYaml(serializeToYaml({ ...getDefaultScalars(false), check_prompt: "", validation_prompt: "", summary_prompt: "" }));
       })
       .finally(() => setLoading(false));
   }, []);

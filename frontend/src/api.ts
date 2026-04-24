@@ -23,6 +23,7 @@ export interface RuntimeInfo {
   context_tokens: number | null;
   doc_chunk_tokens: number;
   max_chunk_tokens: number;
+  os: string;
 }
 
 export async function fetchRuntimeInfo(): Promise<RuntimeInfo> {
