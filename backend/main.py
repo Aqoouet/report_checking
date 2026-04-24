@@ -223,7 +223,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_CORS_ORIGINS,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "X-Session-ID"],
 )
 
 
@@ -375,6 +375,11 @@ async def _resolve_context_tokens(
     return None
 
 
+def _get_session_id(request: Request) -> str:
+    raw = request.headers.get("X-Session-ID", "default")
+    return raw[:64] if raw.strip() else "default"
+
+
 # ── Config endpoints ──────────────────────────────────────────────────────────
 
 @app.post("/config")
@@ -402,7 +407,8 @@ async def set_config(request: Request):
     except HTTPException:
         raise
 
-    errors = config_store.validate_and_set(data, resolved_docx, resolved_output, validate_range_with_ai=ai_client.validate_range)
+    session_id = _get_session_id(request)
+    errors = config_store.validate_and_set(data, resolved_docx, resolved_output, validate_range_with_ai=ai_client.validate_range, session_id=session_id)
     if errors:
         raise HTTPException(status_code=400, detail="; ".join(errors))
 
@@ -410,8 +416,9 @@ async def set_config(request: Request):
 
 
 @app.get("/config")
-async def get_config():
-    cfg = config_store.to_dict()
+async def get_config(request: Request):
+    session_id = _get_session_id(request)
+    cfg = config_store.to_dict(session_id)
     if cfg is None:
         return {}
     return cfg
@@ -425,7 +432,8 @@ async def check(request: Request):
     if _is_rate_limited(client_ip):
         raise HTTPException(status_code=429, detail="Слишком много запросов. Подождите минуту.")
 
-    cfg = config_store.get_config()
+    session_id = _get_session_id(request)
+    cfg = config_store.get_config(session_id)
     if cfg is None:
         raise HTTPException(status_code=400, detail="Сначала сохраните конфигурацию через /config")
 

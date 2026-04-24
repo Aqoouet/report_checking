@@ -1,5 +1,14 @@
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
+function getSessionId(): string {
+  let id = localStorage.getItem("rc_session_id");
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("rc_session_id", id);
+  }
+  return id;
+}
+
 export interface CheckResponse {
   job_id: string;
 }
@@ -177,7 +186,7 @@ export interface JobSummary {
 }
 
 export async function getConfig(): Promise<PipelineConfigData | null> {
-  const res = await fetch(`${BASE}/config`);
+  const res = await fetch(`${BASE}/config`, { headers: { "X-Session-ID": getSessionId() } });
   if (!res.ok) throw new Error(`config ${res.status}`);
   const data = (await res.json()) as Record<string, unknown>;
   if (!data || Object.keys(data).length === 0) return null;
@@ -187,7 +196,7 @@ export async function getConfig(): Promise<PipelineConfigData | null> {
 export async function postConfig(data: Partial<PipelineConfigData>): Promise<void> {
   const res = await fetch(`${BASE}/config`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Session-ID": getSessionId() },
     body: JSON.stringify(data),
   });
   if (!res.ok) {
@@ -197,7 +206,7 @@ export async function postConfig(data: Partial<PipelineConfigData>): Promise<voi
 }
 
 export async function startCheckNew(): Promise<{ job_id: string; queue_position: number }> {
-  const res = await fetch(`${BASE}/check`, { method: "POST" });
+  const res = await fetch(`${BASE}/check`, { method: "POST", headers: { "X-Session-ID": getSessionId() } });
   if (!res.ok) {
     const d = await res.json().catch(() => ({})) as { detail?: string };
     throw new Error(d.detail ?? `Ошибка запуска проверки: ${res.status}`);

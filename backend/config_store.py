@@ -23,7 +23,7 @@ class PipelineConfig:
     model: str = ""
 
 
-_current_config: PipelineConfig | None = None
+_configs: dict[str, PipelineConfig] = {}
 
 
 def parse_config_payload(payload: dict[str, Any]) -> PipelineConfig:
@@ -97,21 +97,20 @@ def validate_preflight(
     return errors
 
 
-def save_config(config: PipelineConfig) -> None:
-    global _current_config
-    _current_config = config
+def save_config(config: PipelineConfig, session_id: str = "default") -> None:
+    _configs[session_id] = config
 
 
-def get_config() -> PipelineConfig | None:
-    return _current_config
+def get_config(session_id: str = "default") -> PipelineConfig | None:
+    return _configs.get(session_id)
 
 
 def config_to_dict(config: PipelineConfig) -> dict[str, Any]:
     return asdict(config)
 
 
-def to_dict() -> dict[str, Any] | None:
-    cfg = get_config()
+def to_dict(session_id: str = "default") -> dict[str, Any] | None:
+    cfg = get_config(session_id)
     if cfg is None:
         return None
     return config_to_dict(cfg)
@@ -130,6 +129,7 @@ def validate_and_set(
     resolved_output: str,
     *,
     validate_range_with_ai: callable | None = None,
+    session_id: str = "default",
 ) -> list[str]:
     patched = dict(data)
     patched["input_docx_path"] = resolved_docx
@@ -160,5 +160,5 @@ def validate_and_set(
                 errors.append("subchapters_range: неверный формат диапазона")
 
     if not errors:
-        save_config(config)
+        save_config(config, session_id)
     return errors

@@ -25,7 +25,8 @@ function formatTime(ts: number): string {
   return new Date(ts * 1000).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
-function JobRow({ job }: { job: JobSummary }) {
+function JobRow({ job, onDelete }: { job: JobSummary; onDelete?: () => void }) {
+  const isPending = job.status === "pending";
   const isProcessing = job.status === "processing";
   const isTerminal = job.status === "done" || job.status === "error" || job.status === "cancelled";
   const pct =
@@ -63,7 +64,11 @@ function JobRow({ job }: { job: JobSummary }) {
     setCancelling(true);
     try {
       await cancelJob(job.id);
-      setPendingCancel(true);
+      if (isPending) {
+        onDelete?.();
+      } else {
+        setPendingCancel(true);
+      }
     } catch { }
     finally { setCancelling(false); }
   };
@@ -101,6 +106,16 @@ function JobRow({ job }: { job: JobSummary }) {
       )}
 
       <div className="job-actions">
+        {isPending && (
+          <button
+            type="button"
+            className="btn btn--sm btn--danger"
+            onClick={handleCancel}
+            disabled={cancelling}
+          >
+            {cancelling ? "Отменяем…" : "Отменить"}
+          </button>
+        )}
         {(isProcessing || pendingCancel) && (
           <button
             type="button"
@@ -154,6 +169,7 @@ export default function JobQueueList() {
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [fetchError, setFetchError] = useState("");
   const [now, setNow] = useState(() => Date.now());
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -173,6 +189,7 @@ export default function JobQueueList() {
 
   const TERMINAL: JobSummary["status"][] = ["done", "error", "cancelled"];
   const visible = jobs.filter((j) => {
+    if (deletedIds.has(j.id)) return false;
     if (!TERMINAL.includes(j.status)) return true;
     if (j.finished_at === null) return true;
     return now - j.finished_at * 1000 < HIDE_AFTER_MS;
@@ -182,7 +199,13 @@ export default function JobQueueList() {
 
   return (
     <div className="job-list">
-      {visible.map((j) => <JobRow key={j.id} job={j} />)}
+      {visible.map((j) => (
+        <JobRow
+          key={j.id}
+          job={j}
+          onDelete={j.status === "pending" ? () => setDeletedIds((prev) => new Set([...prev, j.id])) : undefined}
+        />
+      ))}
     </div>
   );
 }
