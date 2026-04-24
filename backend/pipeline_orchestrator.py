@@ -6,6 +6,7 @@ import time
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import yaml
 
@@ -17,6 +18,7 @@ from ai_client import call_async
 from aggregator import write_summary
 
 logger = logging.getLogger(__name__)
+MSK_TZ = ZoneInfo("Europe/Moscow")
 
 
 class PipelineCancelledError(Exception):
@@ -36,11 +38,11 @@ class ArtifactLogger:
         self._f = open(path, "w", encoding="utf-8", buffering=1)
 
     def info(self, msg: str) -> None:
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ts = datetime.now(MSK_TZ).strftime("%Y-%m-%d %H:%M:%S")
         self._f.write(f"[{ts}] INFO  {msg}\n")
 
     def error(self, msg: str) -> None:
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ts = datetime.now(MSK_TZ).strftime("%Y-%m-%d %H:%M:%S")
         self._f.write(f"[{ts}] ERROR {msg}\n")
 
     def close(self) -> None:
@@ -233,7 +235,7 @@ async def _call_in_chunks(
 
 
 async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(MSK_TZ).strftime("%Y%m%d_%H%M%S")
     stem = Path(config.input_docx_path).stem
     artifact_dir = Path(config.output_dir) / f"{stem}_{ts}"
 

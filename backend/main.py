@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import Lock
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 import httpx
 from dotenv import load_dotenv
@@ -36,6 +37,7 @@ load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
+MSK_TZ = ZoneInfo("Europe/Moscow")
 
 RESULT_DIR = Path(tempfile.gettempdir()) / "report_checker"
 RESULT_DIR.mkdir(parents=True, exist_ok=True)
@@ -521,7 +523,7 @@ async def cancel_job(job_id: str):
     job_store.update_job(job)
     if job.log_path:
         try:
-            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ts = datetime.now(MSK_TZ).strftime("%Y-%m-%d %H:%M:%S")
             with open(job.log_path, "a", encoding="utf-8") as _lf:
                 _lf.write(f"[{ts}] INFO  Cancel requested by user\n")
         except OSError:
