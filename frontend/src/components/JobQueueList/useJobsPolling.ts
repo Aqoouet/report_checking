@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { fetchJobs, type JobSummary } from "../../api";
+import { formatDisplayError, type DisplayError } from "./errorDetails";
 
 export function useJobsPolling() {
   const [jobs, setJobs] = useState<JobSummary[]>([]);
-  const [fetchError, setFetchError] = useState("");
+  const [fetchError, setFetchError] = useState<DisplayError | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
@@ -12,8 +13,19 @@ export function useJobsPolling() {
 
     const poll = () => {
       fetchJobs()
-        .then((list) => { if (active) { setJobs(list); setNow(Date.now()); } })
-        .catch(() => { if (active) setFetchError("Не удалось получить список задач"); });
+        .then((list) => {
+          if (active) {
+            setJobs(list);
+            setFetchError(null);
+            setNow(Date.now());
+          }
+        })
+        .catch((error: unknown) => {
+          if (active) {
+            setNow(Date.now());
+            setFetchError(formatDisplayError(error, "Не удалось получить список задач"));
+          }
+        });
     };
 
     poll();

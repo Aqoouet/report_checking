@@ -1,4 +1,4 @@
-import { BASE, getSessionId, throwApiError } from "./client";
+import { ApiError, BASE, getSessionId, throwApiError } from "./client";
 import type { JobSummary } from "./types";
 
 export async function startCheckNew(): Promise<{ job_id: string; queue_position: number }> {
@@ -22,7 +22,16 @@ export async function cancelJob(jobId: string): Promise<void> {
 
 export async function fetchLog(jobId: string): Promise<string> {
   const res = await fetch(`${BASE}/result_log/${jobId}`);
-  if (!res.ok) return "";
+  if (!res.ok) {
+    try {
+      await throwApiError(res, "Ошибка загрузки лога");
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "ERR_LOG_NOT_FOUND") {
+        return "";
+      }
+      throw error;
+    }
+  }
   const data = (await res.json()) as { log?: string };
   return data.log ?? "";
 }

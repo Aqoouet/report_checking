@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchDefaultPrompts, fetchRuntimeInfo, getConfig, postConfig, type PipelineConfigData, type RuntimeInfo } from "../../api";
-import { getDefaultScalars, parseYaml, serializeToYaml } from "./yaml";
+import { ConfigYamlValidationError, getDefaultScalars, parseYaml, serializeToYaml, type ConfigYamlFieldError } from "./yaml";
 
 export function useConfigDialog(onClose: () => void) {
   const [yaml, setYaml] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
-  const [parseError, setParseError] = useState("");
+  const [parseErrors, setParseErrors] = useState<ConfigYamlFieldError[]>([]);
   const [activeDoc, setActiveDoc] = useState<string | null>(null);
   const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -61,25 +61,40 @@ export function useConfigDialog(onClose: () => void) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       setYaml(ev.target?.result as string);
-      setParseError("");
+      setParseErrors([]);
     };
     reader.readAsText(file);
     e.target.value = "";
   };
 
   const handleSave = async () => {
-    setParseError("");
+    setParseErrors([]);
     setSaveError("");
+    const collectRuntimeErrors = (cfg: PipelineConfigData): ConfigYamlFieldError[] => {
+      const maxChunk = runtimeInfo?.max_chunk_tokens ?? 3000;
+      if (cfg.chunk_size_tokens > maxChunk) {
+        return [{
+          field: "chunk_size_tokens",
+          message: `Максимум ${maxChunk.toLocaleString()} (задан параметром MAX_CHUNK_TOKENS)`,
+        }];
+      }
+      return [];
+    };
+
     let cfg: PipelineConfigData;
     try {
       cfg = parseYaml(yaml);
     } catch (e) {
-      setParseError(e instanceof Error ? e.message : "Ошибка парсинга YAML");
+      if (e instanceof ConfigYamlValidationError) {
+        setParseErrors([...e.fieldErrors, ...(e.draftConfig ? collectRuntimeErrors(e.draftConfig) : [])]);
+      } else {
+        setParseErrors([{ field: "yaml", message: e instanceof Error ? e.message : "Ошибка парсинга YAML" }]);
+      }
       return;
     }
-    const maxChunk = runtimeInfo?.max_chunk_tokens ?? 3000;
-    if (cfg.chunk_size_tokens > maxChunk) {
-      setParseError(`chunk_size_tokens: максимум ${maxChunk.toLocaleString()} (задан параметром MAX_CHUNK_TOKENS)`);
+    const validationErrors = collectRuntimeErrors(cfg);
+    if (validationErrors.length > 0) {
+      setParseErrors(validationErrors);
       return;
     }
     setSaving(true);
@@ -99,8 +114,8 @@ export function useConfigDialog(onClose: () => void) {
     loading,
     saving,
     saveError,
-    parseError,
-    setParseError,
+    parseErrors,
+    setParseErrors,
     activeDoc,
     setActiveDoc,
     runtimeInfo,

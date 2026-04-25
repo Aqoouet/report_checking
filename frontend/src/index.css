@@ -949,6 +949,17 @@ body {
   border-color: #fde047;
   color: #713f12;
 }
+.cfg-parse-error-content {
+  min-width: 0;
+}
+.cfg-field-errors {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+.cfg-field-error-name {
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-weight: 700;
+}
 .cfg-save-error {
   background: #fee2e2;
   border-color: #fca5a5;

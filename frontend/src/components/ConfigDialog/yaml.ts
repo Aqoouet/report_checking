@@ -1,6 +1,25 @@
 import * as jsYaml from "js-yaml";
 import type { PipelineConfigData } from "../../api";
 
+export type ConfigYamlField = keyof PipelineConfigData | "yaml";
+
+export interface ConfigYamlFieldError {
+  field: ConfigYamlField;
+  message: string;
+}
+
+export class ConfigYamlValidationError extends Error {
+  fieldErrors: ConfigYamlFieldError[];
+  draftConfig?: PipelineConfigData;
+
+  constructor(fieldErrors: ConfigYamlFieldError[], message = "Проверьте значения в YAML", draftConfig?: PipelineConfigData) {
+    super(message);
+    this.name = "ConfigYamlValidationError";
+    this.fieldErrors = fieldErrors;
+    this.draftConfig = draftConfig;
+  }
+}
+
 export function getDefaultScalars(isLinux: boolean): Pick<PipelineConfigData, "input_docx_path" | "output_dir" | "subchapters_range" | "chunk_size_tokens" | "temperature"> {
   return {
     input_docx_path: isLinux ? "/filer/wps/wp/.../отчет.docx" : "P:\\путь\\к\\файлу.docx",
@@ -68,21 +87,78 @@ export function serializeToYaml(cfg: PipelineConfigData): string {
 }
 
 export function parseYaml(text: string): PipelineConfigData {
-  const raw = jsYaml.load(text) as Record<string, unknown>;
-  if (!raw || typeof raw !== "object") throw new Error("Неверный YAML");
-  const str = (key: string) => {
-    const v = raw[key];
-    return v == null ? "" : String(v);
+  let loaded: unknown;
+  try {
+    loaded = jsYaml.load(text);
+  } catch (error) {
+    const details = error instanceof Error ? `: ${error.message}` : "";
+    throw new ConfigYamlValidationError([{ field: "yaml", message: `Неверный YAML${details}` }], "Ошибка парсинга YAML");
+  }
+
+  if (!loaded || typeof loaded !== "object" || Array.isArray(loaded)) {
+    throw new ConfigYamlValidationError([{ field: "yaml", message: "Корневой YAML должен быть объектом с параметрами конфигурации" }]);
+  }
+
+  const raw = loaded as Record<string, unknown>;
+  const fieldErrors: ConfigYamlFieldError[] = [];
+
+  const readString = (field: keyof PipelineConfigData): string => {
+    const value = raw[field];
+    if (value == null) return "";
+    if (typeof value === "string") return value;
+    fieldErrors.push({ field, message: "Ожидается строка; массивы, объекты и числа не преобразуются автоматически" });
+    return "";
   };
-  const temp = raw["temperature"];
-  return {
-    input_docx_path: str("input_docx_path"),
-    output_dir: str("output_dir"),
-    check_prompt: str("check_prompt"),
-    validation_prompt: str("validation_prompt"),
-    summary_prompt: str("summary_prompt"),
-    subchapters_range: str("subchapters_range"),
-    chunk_size_tokens: typeof raw["chunk_size_tokens"] === "number" ? raw["chunk_size_tokens"] : 3000,
-    temperature: temp == null ? null : typeof temp === "number" ? temp : null,
+
+  const readChunkSize = (): number => {
+    const field: keyof PipelineConfigData = "chunk_size_tokens";
+    const value = raw[field];
+    if (value == null) {
+      fieldErrors.push({ field, message: "Укажите положительное целое число" });
+      return 0;
+    }
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      fieldErrors.push({ field, message: "Ожидается число без кавычек" });
+      return 0;
+    }
+    if (!Number.isInteger(value)) {
+      fieldErrors.push({ field, message: "Ожидается целое число" });
+      return value;
+    }
+    if (value <= 0) {
+      fieldErrors.push({ field, message: "Значение должно быть больше 0" });
+    }
+    return value;
   };
+
+  const readTemperature = (): number | null => {
+    const field: keyof PipelineConfigData = "temperature";
+    const value = raw[field];
+    if (value == null || value === "") return null;
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      fieldErrors.push({ field, message: "Ожидается число от 0.0 до 2.0 или null" });
+      return null;
+    }
+    if (value < 0 || value > 2) {
+      fieldErrors.push({ field, message: "Значение должно быть в диапазоне 0.0..2.0" });
+    }
+    return value;
+  };
+
+  const config: PipelineConfigData = {
+    input_docx_path: readString("input_docx_path"),
+    output_dir: readString("output_dir"),
+    check_prompt: readString("check_prompt"),
+    validation_prompt: readString("validation_prompt"),
+    summary_prompt: readString("summary_prompt"),
+    subchapters_range: readString("subchapters_range"),
+    chunk_size_tokens: readChunkSize(),
+    temperature: readTemperature(),
+  };
+
+  if (fieldErrors.length > 0) {
+    throw new ConfigYamlValidationError(fieldErrors, "Проверьте значения в YAML", config);
+  }
+
+  return config;
 }

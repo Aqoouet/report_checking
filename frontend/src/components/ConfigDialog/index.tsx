@@ -12,8 +12,8 @@ export default function ConfigDialog({ onClose }: Props) {
     loading,
     saving,
     saveError,
-    parseError,
-    setParseError,
+    parseErrors,
+    setParseErrors,
     activeDoc,
     setActiveDoc,
     fileInputRef,
@@ -66,15 +66,25 @@ export default function ConfigDialog({ onClose }: Props) {
               <textarea
                 className="cfg-yaml-editor"
                 value={yaml}
-                onChange={(e) => { setYaml(e.target.value); setParseError(""); }}
+                onChange={(e) => { setYaml(e.target.value); setParseErrors([]); }}
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="off"
               />
 
-              {parseError && (
+              {parseErrors.length > 0 && (
                 <div className="cfg-parse-error">
-                  <span className="cfg-error-icon">⚠</span> {parseError}
+                  <span className="cfg-error-icon">⚠</span>
+                  <div className="cfg-parse-error-content">
+                    <div>Проверьте значения в YAML:</div>
+                    <ul className="cfg-field-errors">
+                      {parseErrors.map((error, index) => (
+                        <li key={`${error.field}-${index}`}>
+                          <span className="cfg-field-error-name">{error.field}</span>: {error.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               )}
               {saveError && (

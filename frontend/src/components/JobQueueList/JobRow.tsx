@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { cancelJob, type JobSummary } from "../../api";
+import { formatDisplayError, type DisplayError } from "./errorDetails";
 import { useJobLog } from "./useJobLog";
 
 const PHASE_LABEL: Record<string, string> = {
@@ -43,13 +44,18 @@ export function JobRow({ job, onDelete }: Props) {
   const [logOpen, setLogOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [pendingCancel, setPendingCancel] = useState(false);
+  const [cancelError, setCancelError] = useState<DisplayError | null>(null);
   const logRef = useRef<HTMLPreElement>(null);
 
-  const { logText } = useJobLog(job.id, isProcessing || pendingCancel);
+  const { logText, logError } = useJobLog(job.id, isProcessing || pendingCancel);
 
   useEffect(() => {
     if (isTerminal) setPendingCancel(false);
   }, [isTerminal]);
+
+  useEffect(() => {
+    setCancelError(null);
+  }, [job.id]);
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -57,6 +63,7 @@ export function JobRow({ job, onDelete }: Props) {
 
   const handleCancel = async () => {
     setCancelling(true);
+    setCancelError(null);
     try {
       await cancelJob(job.id);
       if (isPending) {
@@ -64,8 +71,9 @@ export function JobRow({ job, onDelete }: Props) {
       } else {
         setPendingCancel(true);
       }
-    } catch {
+    } catch (error) {
       setPendingCancel(false);
+      setCancelError(formatDisplayError(error, "Не удалось отменить задачу"));
     } finally {
       setCancelling(false);
     }
@@ -101,6 +109,18 @@ export function JobRow({ job, onDelete }: Props) {
 
       {job.status === "error" && job.error && (
         <div className="job-error-msg">{job.error}</div>
+      )}
+
+      {cancelError && (
+        <div className="job-error-msg">
+          <div>{cancelError.message}</div>
+          {cancelError.debugDetail && (
+            <details>
+              <summary>Подробности отмены</summary>
+              <code>{cancelError.debugDetail}</code>
+            </details>
+          )}
+        </div>
       )}
 
       <div className="job-actions">
@@ -141,9 +161,22 @@ export function JobRow({ job, onDelete }: Props) {
       </div>
 
       {(isProcessing || pendingCancel) && logOpen && (
-        <pre ref={logRef} className="job-log-panel">
-          {logText || "Лог пока пуст…"}
-        </pre>
+        <>
+          {logError && (
+            <div className="job-error-msg">
+              <div>{logError.message}</div>
+              {logError.debugDetail && (
+                <details>
+                  <summary>Подробности лога</summary>
+                  <code>{logError.debugDetail}</code>
+                </details>
+              )}
+            </div>
+          )}
+          <pre ref={logRef} className="job-log-panel">
+            {logText || "Лог пока пуст…"}
+          </pre>
+        </>
       )}
     </div>
   );
