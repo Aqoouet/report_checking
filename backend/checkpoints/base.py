@@ -63,7 +63,7 @@ class PerSectionCheckpoint(BaseCheckpoint):
         temperature: float | None = None,
     ) -> list[dict]:
         import ai_client
-        import jobs as job_store
+        import job_repo
         from jobs import JobCancelledError
 
         override = (prompt_override or "").strip()
@@ -82,13 +82,13 @@ class PerSectionCheckpoint(BaseCheckpoint):
             sub_name = f"{section.number} {section.title}".strip()
 
             if job_id:
-                job = job_store.get_job(job_id)
+                job = job_repo.get_job(job_id)
                 if job:
                     job.checkpoint_sub_current = i + 1
                     job.checkpoint_sub_total = total
                     job.checkpoint_sub_location = location
                     job.checkpoint_sub_name = sub_name
-                    job_store.update_job(job)
+                    job_repo.update_job(job)
 
             result = ai_client.check_text_chunk(section.text, prompt, temperature=temperature)
             cleaned = (result or "").strip()
@@ -102,10 +102,10 @@ class PerSectionCheckpoint(BaseCheckpoint):
                 ok_locations.append(location)
 
             if job_id:
-                job = job_store.get_job(job_id)
+                job = job_repo.get_job(job_id)
                 if job:
                     job.previous_result = cleaned
-                    job_store.update_job(job)
+                    job_repo.update_job(job)
                     if job.cancelled:
                         raise JobCancelledError(
                             partial_issues=list(errors),

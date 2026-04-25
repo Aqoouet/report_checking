@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
-import jobs as job_store
+import job_repo
 from jobs import JobStatus
 from utils import safe_download_stem
 
@@ -15,7 +15,7 @@ router = APIRouter()
 
 @router.get("/status/{job_id}")
 async def status(job_id: str):
-    job = job_store.get_job(job_id)
+    job = job_repo.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Задача не найдена")
     return {
@@ -36,7 +36,7 @@ async def status(job_id: str):
 
 @router.get("/result_log/{job_id}")
 async def result_log(job_id: str):
-    job = job_store.get_job(job_id)
+    job = job_repo.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Задача не найдена")
     if not job.log_path:
@@ -50,7 +50,7 @@ async def result_log(job_id: str):
 
 @router.get("/result/{job_id}")
 async def result(job_id: str):
-    job = job_store.get_job(job_id)
+    job = job_repo.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Задача не найдена")
     if job.status not in (JobStatus.DONE, JobStatus.CANCELLED):
@@ -74,7 +74,7 @@ async def result(job_id: str):
 
 @router.get("/result_md/{job_id}")
 async def result_md(job_id: str):
-    job = job_store.get_job(job_id)
+    job = job_repo.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Задача не найдена")
     if job.status not in (JobStatus.DONE, JobStatus.CANCELLED):

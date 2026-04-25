@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-import jobs as job_store
+import retention_service
 from pipeline_worker import pipeline_worker
 from rate_limit import cleanup_rate_store
 from settings import RESULT_DIR, RESULT_TTL_SECONDS
@@ -31,7 +31,7 @@ async def _periodic_cleanup() -> None:
         try:
             await asyncio.sleep(3600)
             _cleanup_old_results()
-            job_store.cleanup_old_jobs()
+            retention_service.cleanup_old_jobs()
             cleanup_rate_store()
         except asyncio.CancelledError:
             raise
@@ -42,7 +42,7 @@ async def _periodic_cleanup() -> None:
 @asynccontextmanager
 async def lifespan(application: FastAPI):  # noqa: ARG001
     _cleanup_old_results()
-    job_store.cleanup_old_jobs()
+    retention_service.cleanup_old_jobs()
     cleanup_task = asyncio.create_task(_periodic_cleanup())
     worker_task = asyncio.create_task(pipeline_worker())
     yield

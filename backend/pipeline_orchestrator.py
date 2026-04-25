@@ -10,7 +10,8 @@ from zoneinfo import ZoneInfo
 
 import yaml
 
-from jobs import Job, JobStatus, get_job, update_job
+from job_repo import get_job, update_job
+from jobs import Job, JobStatus
 from config_store import PipelineConfig
 from doc_parser import parse_document
 from range_parser import parse_range_script
