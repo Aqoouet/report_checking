@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { cancelJob, fetchJobs, fetchLog, type JobSummary } from "../api";
+import { cancelJob, type JobSummary } from "../../api";
+import { useJobLog } from "./useJobLog";
 
 const PHASE_LABEL: Record<string, string> = {
   cancelling: "Ожидаем ответы серверов…",
@@ -25,7 +26,12 @@ function formatTime(ts: number): string {
   return new Date(ts * 1000).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
-function JobRow({ job, onDelete }: { job: JobSummary; onDelete?: () => void }) {
+interface Props {
+  job: JobSummary;
+  onDelete?: () => void;
+}
+
+export function JobRow({ job, onDelete }: Props) {
   const isPending = job.status === "pending";
   const isProcessing = job.status === "processing";
   const isTerminal = job.status === "done" || job.status === "error" || job.status === "cancelled";
@@ -35,26 +41,15 @@ function JobRow({ job, onDelete }: { job: JobSummary; onDelete?: () => void }) {
       : 0;
 
   const [logOpen, setLogOpen] = useState(false);
-  const [logText, setLogText] = useState("");
   const [cancelling, setCancelling] = useState(false);
   const [pendingCancel, setPendingCancel] = useState(false);
   const logRef = useRef<HTMLPreElement>(null);
 
+  const { logText } = useJobLog(job.id, isProcessing || pendingCancel);
+
   useEffect(() => {
     if (isTerminal) setPendingCancel(false);
   }, [isTerminal]);
-
-  useEffect(() => {
-    if (!isProcessing && !pendingCancel) return;
-    let active = true;
-    const poll = () =>
-      fetchLog(job.id)
-        .then((t: string) => { if (active) setLogText(t); })
-        .catch(() => {});
-    poll();
-    const id = setInterval(poll, 2000);
-    return () => { active = false; clearInterval(id); };
-  }, [job.id, isProcessing, pendingCancel]);
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -147,53 +142,6 @@ function JobRow({ job, onDelete }: { job: JobSummary; onDelete?: () => void }) {
           {logText || "Лог пока пуст…"}
         </pre>
       )}
-    </div>
-  );
-}
-
-const HIDE_AFTER_MS = 15 * 60 * 1000;
-
-export default function JobQueueList() {
-  const [jobs, setJobs] = useState<JobSummary[]>([]);
-  const [fetchError, setFetchError] = useState("");
-  const [now, setNow] = useState(() => Date.now());
-  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    let active = true;
-
-    const poll = () => {
-      fetchJobs()
-        .then((list) => { if (active) { setJobs(list); setNow(Date.now()); } })
-        .catch(() => { if (active) setFetchError("Не удалось получить список задач"); });
-    };
-
-    poll();
-    const id = setInterval(poll, 3000);
-    return () => { active = false; clearInterval(id); };
-  }, []);
-
-  if (fetchError) return <div className="jobs-error">{fetchError}</div>;
-
-  const TERMINAL: JobSummary["status"][] = ["done", "error", "cancelled"];
-  const visible = jobs.filter((j) => {
-    if (deletedIds.has(j.id)) return false;
-    if (!TERMINAL.includes(j.status)) return true;
-    if (j.finished_at === null) return true;
-    return now - j.finished_at * 1000 < HIDE_AFTER_MS;
-  });
-
-  if (visible.length === 0) return <div className="jobs-empty">Нет задач</div>;
-
-  return (
-    <div className="job-list">
-      {visible.map((j) => (
-        <JobRow
-          key={j.id}
-          job={j}
-          onDelete={j.status === "pending" ? () => setDeletedIds((prev) => new Set([...prev, j.id])) : undefined}
-        />
-      ))}
     </div>
   );
 }

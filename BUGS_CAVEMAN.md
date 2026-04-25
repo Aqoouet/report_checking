@@ -4,15 +4,12 @@
 
 
 
-21. `frontend/src/api.ts` слишком жирный god-file: session, DTO, fetchers, URL builders. Резать на `client/session/jobs/config`. time to fix = 3-6h
-22. `frontend/src/api.ts` есть legacy `startCheck/pollStatus`, но UI живёт на `startCheckNew/fetchJobs`. Удалить мёртвые API. time to fix = 0.5-1h
-23. `frontend/src/components/ConfigDialog.tsx` UI + YAML serialize/parse + docs в одном файле 400+ строк. Разделить hook/utils/view. time to fix = 4-8h
-24. `frontend/src/components/ConfigDialog.tsx` `PARAM_DOCS` hardcode с бизнес-ограничениями. Вынести в schema-driven config docs. time to fix = 2-4h
-25. `frontend/src/components/JobQueueList.tsx` polling/row/log/cancel всё смешано. Нужны `useJobsPolling`, `useJobLog`, dumb row. time to fix = 3-6h
-26. `frontend/src/components/PathField.tsx`, `RangeField.tsx`, `ProcessingView.tsx`, `ResultView.tsx` legacy, в `App.tsx` не используются. Чистить. time to fix = 1-3h
+
 28. Контракты API разъехались: frontend типы не покрывают `failed_sections_count`, backend отдает больше. Нужен shared schema/OpenAPI client. time to fix = 6-12h
 29. Конфиги расползлись (`README`, `.env.example`, `backend/.env.example`) с разными дефолтами/терминами. Нужен один source-of-truth. time to fix = 2-4h
-30. Логи/ошибки RU+EN вперемешку по слоям. Ввести единый стиль сообщений + error codes для UI. time to fix = 3-6h
+30. Логи/ошибки RU+EN вперемешку по слоям. Ввести единый стиль сообщений (english logs) + error codes для UI. time to fix = 3-6h
+final task improve codebase folders structure now its a mess
+
 
 
 
@@ -35,3 +32,9 @@
 18. `backend/ai_client.py` parse JSON руками (`_parse_json`) хрупко. Ввести schema validation + strict response format. time to fix = 2-4h
 19. `backend/token_chunker.py` глобальный `_MAX_TOKENS` читается при import. Делать runtime-config, не import-time side effect. time to fix = 1-2h
 20. `backend/checkpoints/*` помечены LEGACY, но лежат в прод-коде. удалить. time to fix = 0.5-1h
+21. `frontend/src/api.ts` слишком жирный god-file: session, DTO, fetchers, URL builders. Резать на `client/session/jobs/config`. time to fix = 3-6h
+22. `frontend/src/api.ts` есть legacy `startCheck/pollStatus`, но UI живёт на `startCheckNew/fetchJobs`. Удалить мёртвые API. time to fix = 0.5-1h
+23. `frontend/src/components/ConfigDialog.tsx` UI + YAML serialize/parse + docs в одном файле 400+ строк. Разделить hook/utils/view. time to fix = 4-8h
+24. `frontend/src/components/ConfigDialog.tsx` `PARAM_DOCS` hardcode с бизнес-ограничениями. Вынести в schema-driven config docs. time to fix = 2-4h
+25. `frontend/src/components/JobQueueList.tsx` polling/row/log/cancel всё смешано. Нужны `useJobsPolling`, `useJobLog`, dumb row. time to fix = 3-6h
+26. `frontend/src/components/PathField.tsx`, `RangeField.tsx`, `ProcessingView.tsx`, `ResultView.tsx` legacy, в `App.tsx` не используются. Чистить. time to fix = 1-3h
