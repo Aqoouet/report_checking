@@ -6,8 +6,12 @@ import sys
 import httpx
 from fastapi import APIRouter, HTTPException
 
+import logging
+
 import config_store
 from context_resolver import resolve_context_tokens
+
+logger = logging.getLogger(__name__)
 from settings import (
     DEFAULT_CHECK_PROMPT_PATH,
     DEFAULT_SUMMARY_PROMPT_PATH,
@@ -26,8 +30,8 @@ async def runtime_info():
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             context_tokens = await resolve_context_tokens(client, base, model_id)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("runtime_info: resolve_context_tokens failed: %s", exc, exc_info=True)
     try:
         chunk = int(os.getenv("DOC_CHUNK_SIZE", "10000"))
     except ValueError:

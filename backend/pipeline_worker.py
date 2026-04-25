@@ -54,4 +54,4 @@ async def pipeline_worker() -> None:
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            logger.error("pipeline_worker loop error: %s", exc)
+            logger.error("pipeline_worker loop error: %s", exc, exc_info=True)

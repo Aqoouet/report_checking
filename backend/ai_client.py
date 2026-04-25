@@ -115,8 +115,8 @@ def _openai_error_payload(exc: APIStatusError) -> dict[str, Any]:
             data = r.json()
             if isinstance(data, dict) and isinstance(data.get("error"), dict):
                 return data["error"]
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("_openai_error_payload extraction failed: %s", exc)
     return {}
 
 
@@ -251,7 +251,7 @@ def validate_range(text: str) -> dict:
             return _range_error(server_error=False)
         return _range_error()
     except Exception as exc:
-        logger.warning("validate_range unexpected error: %s", exc)
+        logger.warning("validate_range unexpected error: %s", exc, exc_info=True)
         return _range_error()
 
     raw = (response.choices[0].message.content or "").strip()
