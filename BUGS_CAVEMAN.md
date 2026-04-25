@@ -1,14 +1,9 @@
 # РЕФАКТОР УЛЬТРА (КОДБАЗА ВСЯ)
 
 
-13. `backend/jobs.py` смешан state + очередь + GC + файлы. Разделить на `JobRepo`, `QueueService`, `RetentionService`. time to fix = 6-10h /
-14. `backend/pipeline_orchestrator.py` длинный сценарий `run()` с 4 фазами в одной функции. Разбить на stage handlers. time to fix = 4-8h
-15. `backend/pipeline_orchestrator.py` логгер сам пишет файл через `open`. Лучше stdlib logger + handler + context job_id. time to fix = 2-4h
-16. `backend/pipeline_orchestrator.py` много прямых `get_job/update_job` в циклах. Сделать atomic progress API. time to fix = 3-6h
-17. `backend/ai_client.py` sync OpenAI client + async httpx вызовы в одном модуле. Разделить client layers. time to fix = 3-6h
-18. `backend/ai_client.py` parse JSON руками (`_parse_json`) хрупко. Ввести schema validation + strict response format. time to fix = 2-4h
-19. `backend/token_chunker.py` глобальный `_MAX_TOKENS` читается при import. Делать runtime-config, не import-time side effect. time to fix = 1-2h
-20. `backend/checkpoints/*` помечены LEGACY, но лежат в прод-коде. удалить. time to fix = 0.5-1h
+
+
+
 21. `frontend/src/api.ts` слишком жирный god-file: session, DTO, fetchers, URL builders. Резать на `client/session/jobs/config`. time to fix = 3-6h
 22. `frontend/src/api.ts` есть legacy `startCheck/pollStatus`, но UI живёт на `startCheckNew/fetchJobs`. Удалить мёртвые API. time to fix = 0.5-1h
 23. `frontend/src/components/ConfigDialog.tsx` UI + YAML serialize/parse + docs в одном файле 400+ строк. Разделить hook/utils/view. time to fix = 4-8h
@@ -32,3 +27,11 @@
 9. `backend/routes/*`, `backend/pipeline_worker.py`, `backend/context_resolver.py`, `backend/ai_client.py` много `except Exception` глушат детали. Нужна типовая карта ошибок. time to fix = 3-6h /
 10. `backend/config_store.py` дубли валидации (preflight + validate_and_set). Один источник правил. time to fix = 2-4h /
 11. `backend/config_store.py` in-memory `_configs` без lock/TTL. Нужен thread-safe store + eviction. time to fix = 2-4h /
+13. `backend/jobs.py` смешан state + очередь + GC + файлы. Разделить на `JobRepo`, `QueueService`, `RetentionService`. time to fix = 6-10h /
+14. `backend/pipeline_orchestrator.py` длинный сценарий `run()` с 4 фазами в одной функции. Разбить на stage handlers. time to fix = 4-8h /
+15. `backend/pipeline_orchestrator.py` логгер сам пишет файл через `open`. Лучше stdlib logger + handler + context job_id. time to fix = 2-4h /
+16. `backend/pipeline_orchestrator.py` много прямых `get_job/update_job` в циклах. Сделать atomic progress API. time to fix = 3-6h /
+17. `backend/ai_client.py` sync OpenAI client + async httpx вызовы в одном модуле. Разделить client layers. time to fix = 3-6h
+18. `backend/ai_client.py` parse JSON руками (`_parse_json`) хрупко. Ввести schema validation + strict response format. time to fix = 2-4h
+19. `backend/token_chunker.py` глобальный `_MAX_TOKENS` читается при import. Делать runtime-config, не import-time side effect. time to fix = 1-2h
+20. `backend/checkpoints/*` помечены LEGACY, но лежат в прод-коде. удалить. time to fix = 0.5-1h

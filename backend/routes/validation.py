@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, Form, HTTPException
 
-import ai_client
+from range_ai_validator import validate_range as validate_range_with_ai
 from range_parser import parse_range_script
 from settings import MAX_RANGE_SPEC_LEN
 from validators import validate_file_path
@@ -37,7 +37,7 @@ async def validate_range(range_text: str = Form(...)):
         return {"valid": True, "type": "sections", "items": [], "display": "", "suggestion": ""}
     if len(range_text) > MAX_RANGE_SPEC_LEN:
         return {"valid": False, "range_message": "Текст диапазона слишком длинный", "server_error": False}
-    result = ai_client.validate_range(range_text.strip())
+    result = validate_range_with_ai(range_text.strip())
     if not result.get("valid") and result.get("server_error"):
         logger.warning("AI range validation failed: %s", result.get("range_message", "unknown error"))
     return result

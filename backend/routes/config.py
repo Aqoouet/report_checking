@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
 
-import ai_client
 import config_store
+from range_ai_validator import validate_range
 from utils import get_session_id
 from validators import validate_file_path, validate_output_dir
 
@@ -33,7 +33,7 @@ async def set_config(request: Request):
         data,
         resolved_docx,
         resolved_output,
-        validate_range_with_ai=ai_client.validate_range,
+        validate_range_with_ai=validate_range,
         session_id=session_id,
     )
     if errors:

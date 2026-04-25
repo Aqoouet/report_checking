@@ -11,19 +11,21 @@ Each chunk inherits the section's number, title, and level.
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 
 import tiktoken
 
 from doc_models import Section
 
-_MAX_TOKENS = int(os.getenv("DOC_CHUNK_SIZE", "10000"))
 
-_enc = tiktoken.get_encoding("cl100k_base")
+@lru_cache(maxsize=1)
+def _encoding():
+    return tiktoken.get_encoding("cl100k_base")
 
 
 def chunk_sections(sections: list[Section], max_tokens: int | None = None) -> list[Section]:
     """Return sections split into at most *max_tokens* tokens each (default: DOC_CHUNK_SIZE env)."""
-    limit = max_tokens if max_tokens is not None else _MAX_TOKENS
+    limit = _resolve_max_tokens(max_tokens)
     result: list[Section] = []
     for sec in sections:
         result.extend(_chunk_one(sec, limit))
@@ -31,13 +33,27 @@ def chunk_sections(sections: list[Section], max_tokens: int | None = None) -> li
 
 
 def count_tokens(text: str) -> int:
-    return len(_enc.encode(text))
+    return len(_encoding().encode(text))
 
 
 # ---------------------------------------------------------------------------
 
+def _resolve_max_tokens(max_tokens: int | None) -> int:
+    if max_tokens is not None:
+        if max_tokens <= 0:
+            raise ValueError("max_tokens must be positive")
+        return max_tokens
+
+    try:
+        value = int(os.getenv("DOC_CHUNK_SIZE", "10000"))
+    except ValueError:
+        return 10000
+    return value if value > 0 else 10000
+
+
 def _chunk_one(sec: Section, max_tokens: int) -> list[Section]:
-    tokens = _enc.encode(sec.text)
+    enc = _encoding()
+    tokens = enc.encode(sec.text)
     if len(tokens) <= max_tokens:
         return [sec]
 
@@ -48,7 +64,7 @@ def _chunk_one(sec: Section, max_tokens: int) -> list[Section]:
     part = 1
 
     for line in lines:
-        line_tokens = len(_enc.encode(line + "\n"))
+        line_tokens = len(enc.encode(line + "\n"))
         if current_tokens + line_tokens > max_tokens and current_lines:
             chunks.append(_make_chunk(sec, "\n".join(current_lines), part))
             part += 1

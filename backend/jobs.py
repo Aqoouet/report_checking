@@ -15,23 +15,6 @@ class JobStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class JobCancelledError(Exception):
-    """LEGACY — raised by checkpoints/ (not by active pipeline_orchestrator).
-
-    Carries checkpoint progress so a partial report can list finished sections.
-    """
-
-    def __init__(
-        self,
-        *,
-        partial_issues: list[dict] | None = None,
-        ok_locations: list[str] | None = None,
-    ):
-        super().__init__()
-        self.partial_issues = partial_issues or []
-        self.ok_locations = ok_locations or []
-
-
 @dataclass
 class Job:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))

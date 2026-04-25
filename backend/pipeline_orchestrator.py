@@ -17,7 +17,7 @@ from config_store import PipelineConfig
 from doc_models import DocData
 from doc_parser import parse_document
 from range_parser import parse_range_script
-from ai_client import call_async
+from worker_ai_client import call_worker_chat as call_async
 from aggregator import write_summary
 from worker_servers import WorkerServer
 
