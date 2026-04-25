@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ai_config import get_chunk_max_tokens, get_default_temperature, get_model
-from openai_sync_client import get_client
+from app.ai_config import get_chunk_max_tokens, get_default_temperature, get_model
+from app.openai_sync_client import get_client
 
 logger = logging.getLogger(__name__)
 

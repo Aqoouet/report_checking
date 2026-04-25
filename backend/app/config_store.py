@@ -9,7 +9,7 @@ from typing import Any, Callable
 
 from fastapi import HTTPException
 
-from range_parser import parse_range_script
+from app.range_parser import parse_range_script
 
 
 @dataclass

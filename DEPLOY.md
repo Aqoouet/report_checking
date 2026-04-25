@@ -20,7 +20,7 @@ nano .env
 - `OPENAI_BASE_URL` — URL OpenAI-совместимого API (для LM Studio обычно `http://host.docker.internal:1234/v1`).
 - `APP_PORT` — порт UI (по умолчанию `5173`).
 - `HOST_STORAGE_U` и `HOST_STORAGE_P` — host-пути, которые backend монтирует как
-  `/filer/users/rymax1e` и `/filer/wps/wp` соответственно (для `U:\` и `P:\` из `backend/path_mapping.json`)
+  `/filer/users/rymax1e` и `/filer/wps/wp` соответственно (для `U:\` и `P:\` из `backend/app/path_mapping.json`)
 - `BACKEND_UID` и `BACKEND_GID` — uid/gid пользователя в backend-контейнере.
   Для закрытых сетевых шар оставьте `0:0`, иначе получите `Permission denied` при валидации пути.
 
@@ -71,7 +71,7 @@ docker compose logs -f backend
 
 ## Диагностика ошибки «Нет доступа к файлу или каталогу»
 
-1. Проверьте, что путь файла попадает в маппинг `backend/path_mapping.json`.
+1. Проверьте, что путь файла попадает в маппинг `backend/app/path_mapping.json`.
 2. Убедитесь, что соответствующий host-каталог смонтирован (`HOST_STORAGE_U` / `HOST_STORAGE_P`).
 3. Убедитесь, что mount backend не read-only (`docker inspect ... RW=true`).
 4. Для сетевых шар с жесткими ACL используйте `BACKEND_UID=0`, `BACKEND_GID=0`.

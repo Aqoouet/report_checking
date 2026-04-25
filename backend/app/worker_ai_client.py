@@ -4,7 +4,7 @@ from typing import Any
 
 import httpx
 
-from ai_config import get_model
+from app.ai_config import get_model
 
 
 async def call_worker_chat(

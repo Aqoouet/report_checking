@@ -7,10 +7,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-import retention_service
-from pipeline_worker import pipeline_worker
-from rate_limit import cleanup_rate_store
-from settings import RESULT_DIR, RESULT_TTL_SECONDS
+from app import retention_service
+from app.pipeline_worker import pipeline_worker
+from app.rate_limit import cleanup_rate_store
+from app.settings import RESULT_DIR, RESULT_TTL_SECONDS
 
 logger = logging.getLogger(__name__)
 

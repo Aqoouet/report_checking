@@ -64,8 +64,11 @@ export function JobRow({ job, onDelete }: Props) {
       } else {
         setPendingCancel(true);
       }
-    } catch { }
-    finally { setCancelling(false); }
+    } catch {
+      setPendingCancel(false);
+    } finally {
+      setCancelling(false);
+    }
   };
 
   return (

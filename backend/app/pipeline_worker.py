@@ -3,13 +3,14 @@ from __future__ import annotations
 import asyncio
 import logging
 
-import config_store
-import job_repo
-import pipeline_orchestrator
-import queue_service
-from config_store import PipelineConfig
-from jobs import JobStatus
-from worker_servers import get_worker_servers
+from app import config_store
+from app import job_repo
+from app import pipeline_orchestrator
+from app import queue_service
+from app.config_store import PipelineConfig
+from app.error_codes import ERR_CONFIG_NOT_SET
+from app.jobs import JobStatus
+from app.worker_servers import get_worker_servers
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ async def pipeline_worker() -> None:
             cfg = cfg or config_store.get_config()
             if cfg is None:
                 job.status = JobStatus.ERROR
-                job.error = "Конфигурация не задана"
+                job.error = ERR_CONFIG_NOT_SET.code
                 job_repo.update_job(job)
                 queue_service.complete_active_job()
                 queue_service.task_done()

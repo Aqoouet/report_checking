@@ -15,7 +15,7 @@ from functools import lru_cache
 
 import tiktoken
 
-from doc_models import Section
+from app.doc_models import Section
 
 
 @lru_cache(maxsize=1)

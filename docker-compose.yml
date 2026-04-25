@@ -47,7 +47,7 @@ services:
       - OUTPUT_BASE_DIR=${OUTPUT_BASE_DIR:-/output}
       - WORKER_SERVERS=${WORKER_SERVERS:-}
     volumes:
-      # Host path roots used by backend/path_mapping.json (U:\ and P:\ drives).
+      # Host path roots used by backend/app/path_mapping.json (U:\ and P:\ drives).
       # Keep these mounts writable: backend creates artifact folders/logs in output_dir.
       - ${HOST_STORAGE_U:-/filer/users/rymax1e}:/filer/users/rymax1e
       - ${HOST_STORAGE_P:-/filer/wps/wp}:/filer/wps/wp

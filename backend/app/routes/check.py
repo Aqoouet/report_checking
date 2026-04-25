@@ -6,14 +6,14 @@ from pathlib import Path
 
 from fastapi import APIRouter, Request
 
-import config_store
-import job_repo
-from error_codes import ERR_CONFIG_NOT_SET, ERR_JOB_NOT_FOUND, api_error
-from jobs import JobStatus
-from queue_service import enqueue_job
-from job_repo import list_jobs
-from settings import MSK_TZ
-from utils import get_session_id
+from app import config_store
+from app import job_repo
+from app.error_codes import ERR_CONFIG_NOT_SET, ERR_JOB_NOT_FOUND, api_error
+from app.job_repo import list_jobs
+from app.jobs import JobStatus
+from app.queue_service import enqueue_job
+from app.settings import MSK_TZ
+from app.utils import get_session_id
 
 router = APIRouter()
 

@@ -4,7 +4,7 @@ import asyncio
 from threading import Lock
 from typing import Optional
 
-import job_repo
+from app import job_repo
 
 _pipeline_queue: asyncio.Queue[str] = asyncio.Queue()
 _active_job_id: Optional[str] = None

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from error_codes import (
+from app.error_codes import (
     ERR_ACCESS_DENIED,
     ERR_FILE_NOT_FOUND,
     ERR_INVALID_FILE_TYPE,
@@ -11,8 +11,8 @@ from error_codes import (
     ApiError,
     api_error,
 )
-from path_mapper import get_allowed_prefixes, map_path
-from settings import MAX_PATH_LEN
+from app.path_mapper import get_allowed_prefixes, map_path
+from app.settings import MAX_PATH_LEN
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ def _path_guard(resolved: Path, err: ApiError) -> None:
     """
     allowed_prefixes = get_allowed_prefixes()
     if not allowed_prefixes:
-        logger.error("No path allowlist configured — denying access (fail-close)")
+        logger.error("No path allowlist configured; denying access (fail-close)")
         raise api_error(err)
 
     if not any(resolved.is_relative_to(Path(pfx).resolve()) for pfx in allowed_prefixes):

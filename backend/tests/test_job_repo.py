@@ -6,8 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import job_repo
-from jobs import JobStatus
+from app import job_repo
+from app.jobs import JobStatus
 
 
 class JobRepoAtomicTests(unittest.TestCase):

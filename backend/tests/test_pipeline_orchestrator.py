@@ -10,12 +10,12 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import job_repo
-import pipeline_orchestrator
-from config_store import PipelineConfig
-from doc_models import DocData, Section
-from jobs import JobStatus
-from worker_servers import WorkerServer
+from app import job_repo
+from app import pipeline_orchestrator
+from app.config_store import PipelineConfig
+from app.doc_models import DocData, Section
+from app.jobs import JobStatus
+from app.worker_servers import WorkerServer
 
 
 def _config(output_dir: str, *, validation_prompt: str = "", summary_prompt: str = "") -> PipelineConfig:
@@ -52,7 +52,7 @@ class PipelineOrchestratorTests(unittest.TestCase):
                 return "ok"
 
             with tempfile.TemporaryDirectory() as tmp, mock.patch(
-                "pipeline_orchestrator.call_async", side_effect=fake_call
+                "app.pipeline_orchestrator.call_async", side_effect=fake_call
             ):
                 log = pipeline_orchestrator.ArtifactLogger(str(Path(tmp) / "run.log"), job.id)
                 try:
@@ -85,8 +85,8 @@ class PipelineOrchestratorTests(unittest.TestCase):
                 log = pipeline_orchestrator.ArtifactLogger(str(Path(tmp) / "run.log"), job.id)
                 try:
                     fake_token_chunker = types.SimpleNamespace(count_tokens=lambda _: 1)
-                    with mock.patch.dict(sys.modules, {"token_chunker": fake_token_chunker}), mock.patch(
-                        "pipeline_orchestrator.call_async", return_value="ok"
+                    with mock.patch.dict(sys.modules, {"app.token_chunker": fake_token_chunker}), mock.patch(
+                        "app.pipeline_orchestrator.call_async", return_value="ok"
                     ):
                         await pipeline_orchestrator._call_in_chunks(
                             "small",
@@ -123,10 +123,10 @@ class PipelineOrchestratorTests(unittest.TestCase):
 
             fake_loop = types.SimpleNamespace(run_in_executor=fake_run_in_executor)
             with tempfile.TemporaryDirectory() as tmp, mock.patch(
-                "pipeline_orchestrator.parse_document", return_value=(doc_data, "# md")
+                "app.pipeline_orchestrator.parse_document", return_value=(doc_data, "# md")
             ), mock.patch(
-                "pipeline_orchestrator.asyncio.get_event_loop", return_value=fake_loop
-            ), mock.patch("pipeline_orchestrator.call_async", side_effect=fake_call):
+                "app.pipeline_orchestrator.asyncio.get_event_loop", return_value=fake_loop
+            ), mock.patch("app.pipeline_orchestrator.call_async", side_effect=fake_call):
                 await pipeline_orchestrator.run(job, _config(tmp), _servers())
                 fresh = job_repo.get_job(job.id)
                 self.assertIsNotNone(fresh)

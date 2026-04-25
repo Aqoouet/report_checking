@@ -6,7 +6,7 @@
 ## Что умеет сервис сейчас
 
 - Принимает конфигурацию проверки через `YAML`-редактор в UI (диалог "Настройки").
-- Валидирует `input_docx_path` и `output_dir` на бэкенде с учетом allowlist из `backend/path_mapping.json`.
+- Валидирует `input_docx_path` и `output_dir` на бэкенде с учетом allowlist из `backend/app/path_mapping.json`.
 - Ставит проверки в очередь и показывает список задач (`pending/processing/done/error/cancelled`).
 - Выполняет pipeline по фазам:
   - `convert` -> `check` -> `validate` (опционально) -> `summary` (опционально).
@@ -61,15 +61,22 @@ UI: `http://localhost:5173`
 
 ## Ключевые переменные окружения
 
+Canonical source of truth for Docker/deployment defaults is [.env.example](.env.example).
+Service-local examples are overlays only:
+[backend/.env.example](backend/.env.example) is for direct local `uvicorn` runs, and
+[frontend/.env.example](frontend/.env.example) is for direct local Vite runs.
+
 | Переменная | Назначение | По умолчанию |
 |---|---|---|
 | `OPENAI_API_KEY` | API key OpenAI-совместимого endpoint | `lm-studio` |
 | `OPENAI_BASE_URL` | Базовый URL LLM API | `http://host.docker.internal:1234/v1` |
-| `OPENAI_MODEL` | Модель основных проверок и runtime info | `qwen3.6-35b-a3b` |
+| `OPENAI_MODEL` | Модель основных проверок и runtime info | `qwen3-coder-30b-a3b-instruct` |
 | `OPENAI_VALIDATE_MODEL` | Модель для AI-валидации диапазона | `qwen/qwen3-4b-2507` |
 | `AI_TIMEOUT` | Таймаут запроса к модели, сек (`0` = без лимита) | `0` |
 | `AI_CONNECT_TIMEOUT` | Таймаут подключения, сек | `15` |
-| `DOC_CHUNK_SIZE` | Размер фрагмента текста в токенах | `10000` |
+| `DOC_CHUNK_SIZE` | Примерный token budget одного фрагмента текста | `10000` |
+| `MAX_CHUNK_TOKENS` | Верхний предел `chunk_size_tokens`, который можно задать в UI | `3000` |
+| `AI_CHUNK_MAX_TOKENS` | `max_tokens` для ответа модели на один chunk (`0` = не передавать) | `0` |
 | `WORKER_SERVERS` | JSON-массив LLM-воркеров с `url` и `concurrency` | пусто (используются встроенные defaults) |
 | `OUTPUT_BASE_DIR` | Базовая директория результатов в контейнере | `/output` |
 | `APP_PORT` | Порт frontend | `5173` |
@@ -77,6 +84,12 @@ UI: `http://localhost:5173`
 | `HOST_STORAGE_P` | Host-путь для маппинга `P:\` | `/filer/wps/wp` |
 | `BACKEND_UID` | UID процесса backend | `0` |
 | `BACKEND_GID` | GID процесса backend | `0` |
+| `PDF_PAGES_PER_CHUNK` | Количество страниц PDF, объединяемых в один AI-запрос | `1` |
+| `MAX_FILE_SIZE_MB` | Максимальный размер входного файла | `100` |
+| `RESULT_TTL_HOURS` | Время хранения временных result-файлов | `24` |
+| `CORS_ORIGINS` | Разрешённые origins для прямого backend-доступа | `http://localhost:5173,http://localhost:80` |
+
+See [docs/configuration.md](docs/configuration.md) for ownership rules and local-development overlays.
 
 ## Примечания по доступам
 

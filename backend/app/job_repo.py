@@ -6,7 +6,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Optional
 
-from jobs import Job
+from app.jobs import Job
 
 _store: dict[str, Job] = {}
 _store_lock = Lock()

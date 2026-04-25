@@ -48,7 +48,7 @@ def parse_range_script(range_text: str) -> dict:
             "type": "sections",
             "items": [],
             "display": "",
-            "suggestion": "Не удалось распознать. Пример: 3.1 или 3.2–3.5",
+            "suggestion": "Could not parse the range. Example: 3.1 or 3.2-3.5",
         }
 
     items = []

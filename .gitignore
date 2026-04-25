@@ -4,8 +4,11 @@ backend/.env
 
 # Python
 backend/.venv/
+.venv/
 __pycache__/
 *.pyc
+.mypy_cache/
+.pytest_cache/
 
 # Node
 frontend/node_modules/
@@ -25,3 +28,4 @@ Thumbs.db
 # Cache
 *.tmp
 *.log
+.ruff_cache/

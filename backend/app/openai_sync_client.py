@@ -8,7 +8,7 @@ from typing import Any
 from dotenv import load_dotenv
 from openai import APIStatusError, OpenAI
 
-from ai_config import get_http_timeout
+from app.ai_config import get_http_timeout
 
 load_dotenv()
 

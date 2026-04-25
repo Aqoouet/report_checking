@@ -6,8 +6,8 @@ from typing import Any
 
 from openai import APIConnectionError, APIStatusError, APITimeoutError
 
-from ai_config import get_validate_model
-from openai_sync_client import get_client, openai_error_payload
+from app.ai_config import get_validate_model
+from app.openai_sync_client import get_client, openai_error_payload
 
 logger = logging.getLogger(__name__)
 
@@ -105,9 +105,9 @@ def _model_not_found_error(exc: APIStatusError) -> dict[str, Any]:
     msg = raw_msg if not any(key in raw_msg.lower() for key in _SENSITIVE) else ""
     return _range_error(
         range_message=(
-            "Неверный идентификатор модели (OPENAI_VALIDATE_MODEL). "
-            "Укажите точное имя модели из LM Studio или оставьте поле пустым."
-            + (f" Ответ сервера: {msg}" if msg else "")
+            "Invalid model identifier (OPENAI_VALIDATE_MODEL). "
+            "Use the exact model name from LM Studio or leave the field empty."
+            + (f" Server response: {msg}" if msg else "")
         ),
     )
 

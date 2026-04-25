@@ -7,15 +7,15 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from error_codes import ERR_RATE_LIMITED
-from lifespan import lifespan
-from rate_limit import is_rate_limited
-from routes.check import router as check_router
-from routes.config import router as config_router
-from routes.results import router as results_router
-from routes.runtime import router as runtime_router
-from routes.validation import router as validation_router
-from settings import CORS_ORIGINS
+from app.error_codes import ERR_RATE_LIMITED
+from app.lifespan import lifespan
+from app.rate_limit import is_rate_limited
+from app.routes.check import router as check_router
+from app.routes.config import router as config_router
+from app.routes.results import router as results_router
+from app.routes.runtime import router as runtime_router
+from app.routes.validation import router as validation_router
+from app.settings import CORS_ORIGINS
 
 load_dotenv()
 

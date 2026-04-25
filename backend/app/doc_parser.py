@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doc_models import DocData, Section  # noqa: F401
+from app.doc_models import DocData, Section  # noqa: F401
 
 
 def parse_document(file_path: str, range_spec: dict | None = None, chunk_size_tokens: int | None = None) -> tuple[DocData, str]:
@@ -30,10 +30,10 @@ def parse_document(file_path: str, range_spec: dict | None = None, chunk_size_to
     if ext != ".docx":
         raise ValueError(f"Unsupported format: {ext}. Expected .docx")
 
-    from docling_client import convert_file_to_md
-    from md_cache import get_or_convert_md
-    from md_parser import parse_sections
-    from token_chunker import chunk_sections
+    from app.docling_client import convert_file_to_md
+    from app.md_cache import get_or_convert_md
+    from app.md_parser import parse_sections
+    from app.token_chunker import chunk_sections
 
     md_text = get_or_convert_md(file_path, convert_file_to_md)
     sections = parse_sections(md_text, range_spec=range_spec)

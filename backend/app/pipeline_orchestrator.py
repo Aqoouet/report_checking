@@ -11,15 +11,15 @@ from zoneinfo import ZoneInfo
 
 import yaml  # type: ignore[import-untyped]
 
-from job_repo import get_job, patch_job, record_check_progress
-from jobs import Job, JobStatus
-from config_store import PipelineConfig
-from doc_models import DocData
-from doc_parser import parse_document
-from range_parser import parse_range_script
-from worker_ai_client import call_worker_chat as call_async
-from aggregator import write_summary
-from worker_servers import WorkerServer
+from app.job_repo import get_job, patch_job, record_check_progress
+from app.jobs import Job, JobStatus
+from app.config_store import PipelineConfig
+from app.doc_models import DocData
+from app.doc_parser import parse_document
+from app.range_parser import parse_range_script
+from app.worker_ai_client import call_worker_chat as call_async
+from app.aggregator import write_summary
+from app.worker_servers import WorkerServer
 
 logger = logging.getLogger(__name__)
 MSK_TZ = ZoneInfo("Europe/Moscow")
@@ -185,7 +185,7 @@ async def _call_in_chunks(
     job_id: str | None = None,
     job: "Job | None" = None,
 ) -> str:
-    from token_chunker import count_tokens
+    from app.token_chunker import count_tokens
 
     first_url = servers[0].url_str
 

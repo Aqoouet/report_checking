@@ -12,8 +12,8 @@ fake_tiktoken = types.ModuleType("tiktoken")
 fake_tiktoken.get_encoding = lambda _name: types.SimpleNamespace(encode=lambda text: text.split())  # type: ignore[attr-defined]
 sys.modules.setdefault("tiktoken", fake_tiktoken)
 
-from doc_models import Section
-from token_chunker import chunk_sections
+from app.doc_models import Section
+from app.token_chunker import chunk_sections
 
 
 class TokenChunkerTests(unittest.TestCase):

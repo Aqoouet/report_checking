@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from doc_models import DocData
+    from app.doc_models import DocData
 
 
 def _build_summary(doc_data: "DocData", *, is_partial: bool = False) -> str:

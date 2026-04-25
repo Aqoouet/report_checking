@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from doc_models import Section
+from app.doc_models import Section
 
 # Matches ATX headings: captures (hashes, heading text)
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)

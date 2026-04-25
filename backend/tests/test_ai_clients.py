@@ -12,8 +12,8 @@ from openai import APIStatusError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import range_ai_validator
-import worker_ai_client
+from app import range_ai_validator
+from app import worker_ai_client
 
 _REAL_ASYNC_CLIENT = httpx.AsyncClient
 
@@ -78,7 +78,7 @@ class RangeAiValidatorTests(unittest.TestCase):
         }
         client = _Client([json.dumps(payload)])
 
-        with mock.patch("range_ai_validator.get_client", return_value=client):
+        with mock.patch("app.range_ai_validator.get_client", return_value=client):
             result = range_ai_validator.validate_range("3.1-3.4")
 
         self.assertTrue(result["valid"])
@@ -91,7 +91,7 @@ class RangeAiValidatorTests(unittest.TestCase):
     def test_validate_range_rejects_non_json_without_salvage(self) -> None:
         client = _Client(['```json\n{"valid": true, "items": []}\n```'])
 
-        with mock.patch("range_ai_validator.get_client", return_value=client):
+        with mock.patch("app.range_ai_validator.get_client", return_value=client):
             result = range_ai_validator.validate_range("3")
 
         self.assertFalse(result["valid"])
@@ -100,7 +100,7 @@ class RangeAiValidatorTests(unittest.TestCase):
     def test_validate_range_rejects_invalid_schema(self) -> None:
         client = _Client([json.dumps({"valid": True, "items": [{"start": 1, "end": "2"}]})])
 
-        with mock.patch("range_ai_validator.get_client", return_value=client):
+        with mock.patch("app.range_ai_validator.get_client", return_value=client):
             result = range_ai_validator.validate_range("1-2")
 
         self.assertFalse(result["valid"])
@@ -119,7 +119,7 @@ class RangeAiValidatorTests(unittest.TestCase):
         }
         client = _Client([unsupported, json.dumps(payload)])
 
-        with mock.patch("range_ai_validator.get_client", return_value=client):
+        with mock.patch("app.range_ai_validator.get_client", return_value=client):
             result = range_ai_validator.validate_range("1")
 
         self.assertTrue(result["valid"])
@@ -146,7 +146,7 @@ class RangeAiValidatorTests(unittest.TestCase):
         }
         client = _Client([strict_unsupported, json_object_unsupported, json.dumps(payload)])
 
-        with mock.patch("range_ai_validator.get_client", return_value=client):
+        with mock.patch("app.range_ai_validator.get_client", return_value=client):
             result = range_ai_validator.validate_range("2")
 
         self.assertTrue(result["valid"])
@@ -160,7 +160,7 @@ class RangeAiValidatorTests(unittest.TestCase):
         )
         client = _Client([error])
 
-        with mock.patch("range_ai_validator.get_client", return_value=client):
+        with mock.patch("app.range_ai_validator.get_client", return_value=client):
             result = range_ai_validator.validate_range("1")
 
         self.assertFalse(result["valid"])
@@ -174,7 +174,7 @@ class RangeAiValidatorTests(unittest.TestCase):
         )
         client = _Client([error])
 
-        with mock.patch("range_ai_validator.get_client", return_value=client):
+        with mock.patch("app.range_ai_validator.get_client", return_value=client):
             result = range_ai_validator.validate_range("1")
 
         self.assertFalse(result["valid"])
@@ -196,7 +196,7 @@ class WorkerAiClientTests(unittest.TestCase):
         async def run() -> None:
             transport = httpx.MockTransport(handler)
             with mock.patch(
-                "worker_ai_client.httpx.AsyncClient",
+                "app.worker_ai_client.httpx.AsyncClient",
                 _mock_async_client(transport),
             ):
                 result = await worker_ai_client.call_worker_chat(
@@ -216,7 +216,7 @@ class WorkerAiClientTests(unittest.TestCase):
         async def run() -> None:
             transport = httpx.MockTransport(handler)
             with mock.patch(
-                "worker_ai_client.httpx.AsyncClient",
+                "app.worker_ai_client.httpx.AsyncClient",
                 _mock_async_client(transport),
             ):
                 with self.assertRaises(httpx.HTTPStatusError) as ctx:
