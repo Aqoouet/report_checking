@@ -9,7 +9,7 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": null,
+    "buildCommand": "cd /home/aqouet/Desktop/MRO/report_checking/frontend && rtk tsc --noEmit 2>&1 | head -50",
     "testCommand": "rtk read ~/.local/share/rtk/tee/1777134354_pytest.log",
     "lintCommand": null,
     "devCommand": null,
@@ -128,8 +128,38 @@
     },
     {
       "path": "INDEX.md",
-      "accessCount": 9,
-      "lastAccessed": 1777151160045,
+      "accessCount": 10,
+      "lastAccessed": 1777151409039,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/JobQueueList/JobRow.tsx",
+      "accessCount": 7,
+      "lastAccessed": 1777151495824,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/pipeline_check.py",
+      "accessCount": 7,
+      "lastAccessed": 1777151524330,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/pipeline_validate.py",
+      "accessCount": 7,
+      "lastAccessed": 1777151524818,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/pipeline_convert.py",
+      "accessCount": 7,
+      "lastAccessed": 1777151525069,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/pipeline_infra.py",
+      "accessCount": 7,
+      "lastAccessed": 1777151525373,
       "type": "file"
     },
     {
@@ -139,9 +169,51 @@
       "type": "file"
     },
     {
+      "path": "backend/app/routes/results.py",
+      "accessCount": 6,
+      "lastAccessed": 1777151494806,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/aggregator.py",
+      "accessCount": 6,
+      "lastAccessed": 1777151525617,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/worker_servers.py",
+      "accessCount": 5,
+      "lastAccessed": 1777151646159,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/JobQueueList/useJobsPolling.ts",
+      "accessCount": 4,
+      "lastAccessed": 1777151463898,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/JobQueueList/useJobLog.ts",
+      "accessCount": 4,
+      "lastAccessed": 1777151464097,
+      "type": "file"
+    },
+    {
       "path": "backend/tests/test_pipeline_orchestrator.py",
       "accessCount": 3,
       "lastAccessed": 1777134208309,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/api/jobs.ts",
+      "accessCount": 3,
+      "lastAccessed": 1777151495272,
+      "type": "file"
+    },
+    {
+      "path": "backend/.env.example",
+      "accessCount": 3,
+      "lastAccessed": 1777151720551,
       "type": "file"
     },
     {
@@ -151,9 +223,27 @@
       "type": "file"
     },
     {
-      "path": "backend/app/pipeline_infra.py",
+      "path": "backend/app/pipeline_summary.py",
       "accessCount": 2,
-      "lastAccessed": 1777151195209,
+      "lastAccessed": 1777151275658,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/JobQueueList/usePolling.ts",
+      "accessCount": 2,
+      "lastAccessed": 1777151463653,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/artifact_writer.py",
+      "accessCount": 2,
+      "lastAccessed": 1777151529270,
+      "type": "file"
+    },
+    {
+      "path": ".env.example",
+      "accessCount": 2,
+      "lastAccessed": 1777151804478,
       "type": "file"
     },
     {
@@ -175,63 +265,9 @@
       "type": "file"
     },
     {
-      "path": "backend/app/pipeline_check.py",
+      "path": "frontend/src/components/JobQueueList/index.tsx",
       "accessCount": 1,
-      "lastAccessed": 1777133916677,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/pipeline_convert.py",
-      "accessCount": 1,
-      "lastAccessed": 1777133927592,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/pipeline_validate.py",
-      "accessCount": 1,
-      "lastAccessed": 1777133935811,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/pipeline_summary.py",
-      "accessCount": 1,
-      "lastAccessed": 1777133942332,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/aggregator.py",
-      "accessCount": 1,
-      "lastAccessed": 1777151165934,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/worker_servers.py",
-      "accessCount": 1,
-      "lastAccessed": 1777151166462,
-      "type": "file"
-    },
-    {
-      "path": "frontend/src/components/JobQueueList/useJobsPolling.ts",
-      "accessCount": 1,
-      "lastAccessed": 1777151166676,
-      "type": "file"
-    },
-    {
-      "path": "frontend/src/components/JobQueueList/useJobLog.ts",
-      "accessCount": 1,
-      "lastAccessed": 1777151167216,
-      "type": "file"
-    },
-    {
-      "path": "frontend/src/components/JobQueueList/JobRow.tsx",
-      "accessCount": 1,
-      "lastAccessed": 1777151167485,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/routes/results.py",
-      "accessCount": 1,
-      "lastAccessed": 1777151195447,
+      "lastAccessed": 1777151475335,
       "type": "file"
     }
   ],
