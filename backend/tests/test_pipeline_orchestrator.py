@@ -11,6 +11,8 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app import job_repo
+from app import pipeline_check
+from app import pipeline_infra
 from app import pipeline_orchestrator
 from app.config_store import PipelineConfig
 from app.doc_models import DocData, Section
@@ -52,11 +54,11 @@ class PipelineOrchestratorTests(unittest.TestCase):
                 return "ok"
 
             with tempfile.TemporaryDirectory() as tmp, mock.patch(
-                "app.pipeline_orchestrator.call_async", side_effect=fake_call
+                "app.pipeline_check.call_async", side_effect=fake_call
             ):
-                log = pipeline_orchestrator.ArtifactLogger(str(Path(tmp) / "run.log"), job.id)
+                log = pipeline_infra.ArtifactLogger(str(Path(tmp) / "run.log"), job.id)
                 try:
-                    results = await pipeline_orchestrator._parallel_check(
+                    results = await pipeline_check._parallel_check(
                         sections,
                         _config(tmp),
                         _servers(),
@@ -82,13 +84,13 @@ class PipelineOrchestratorTests(unittest.TestCase):
             job.cancelled = True
             job_repo.update_job(job)
             with tempfile.TemporaryDirectory() as tmp:
-                log = pipeline_orchestrator.ArtifactLogger(str(Path(tmp) / "run.log"), job.id)
+                log = pipeline_infra.ArtifactLogger(str(Path(tmp) / "run.log"), job.id)
                 try:
                     fake_token_chunker = types.SimpleNamespace(count_tokens=lambda _: 1)
                     with mock.patch.dict(sys.modules, {"app.token_chunker": fake_token_chunker}), mock.patch(
-                        "app.pipeline_orchestrator.call_async", return_value="ok"
+                        "app.pipeline_infra.call_async", return_value="ok"
                     ):
-                        await pipeline_orchestrator._call_in_chunks(
+                        await pipeline_infra._call_in_chunks(
                             "small",
                             "prompt",
                             _servers(),
@@ -123,10 +125,10 @@ class PipelineOrchestratorTests(unittest.TestCase):
 
             fake_loop = types.SimpleNamespace(run_in_executor=fake_run_in_executor)
             with tempfile.TemporaryDirectory() as tmp, mock.patch(
-                "app.pipeline_orchestrator.parse_document", return_value=(doc_data, "# md")
+                "app.pipeline_convert.parse_document", return_value=(doc_data, "# md")
             ), mock.patch(
-                "app.pipeline_orchestrator.asyncio.get_event_loop", return_value=fake_loop
-            ), mock.patch("app.pipeline_orchestrator.call_async", side_effect=fake_call):
+                "app.pipeline_convert.asyncio.get_event_loop", return_value=fake_loop
+            ), mock.patch("app.pipeline_check.call_async", side_effect=fake_call):
                 await pipeline_orchestrator.run(job, _config(tmp), _servers())
                 fresh = job_repo.get_job(job.id)
                 self.assertIsNotNone(fresh)
