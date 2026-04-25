@@ -1,0 +1,96 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1777134693929,
+  "projectRoot": "/home/aqouet/Desktop/MRO/report_checking/backend",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "requirements.txt"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "pip",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": "rtk proxy /home/aqouet/Desktop/MRO/report_checking/backend/.venv/bin/python -m pytest /home/aqouet/Desktop/MRO/report_checking/backend/tests/test_pipeline_orchestrator.py -v 2>&1 | tail -20",
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": "snake_case",
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "app",
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "master",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "__pycache__": {
+      "path": "__pycache__",
+      "purpose": null,
+      "fileCount": 31,
+      "lastAccessed": 1777134693923,
+      "keyFiles": [
+        "aggregator.cpython-314.pyc",
+        "ai_client.cpython-314.pyc",
+        "ai_config.cpython-314.pyc",
+        "config_store.cpython-314.pyc",
+        "context_resolver.cpython-314.pyc"
+      ]
+    },
+    "app": {
+      "path": "app",
+      "purpose": "Application code",
+      "fileCount": 38,
+      "lastAccessed": 1777134693924,
+      "keyFiles": [
+        "__init__.py",
+        "aggregator.py",
+        "ai_client.py",
+        "ai_config.py",
+        "config_store.py"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 7,
+      "lastAccessed": 1777134693925,
+      "keyFiles": [
+        "__init__.py",
+        "test_ai_clients.py",
+        "test_error_contract.py",
+        "test_job_repo.py",
+        "test_legacy_checkpoints_removed.py"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "app/pipeline_orchestrator.py",
+      "accessCount": 1,
+      "lastAccessed": 1777134704279,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

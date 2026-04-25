@@ -66,15 +66,6 @@ def list_jobs() -> list[Job]:
         )
 
 
-def set_queue_positions(active_id: Optional[str], waiting: list[str]) -> None:
-    with _store_lock:
-        if active_id and active_id in _store:
-            _store[active_id].queue_position = 0
-        for idx, jid in enumerate(waiting, start=1):
-            if jid in _store:
-                _store[jid].queue_position = idx
-
-
 def delete_expired_jobs(ttl_seconds: float) -> None:
     now = time.time()
     with _store_lock:

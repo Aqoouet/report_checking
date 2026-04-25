@@ -8,10 +8,10 @@ from fastapi import APIRouter, Request
 
 from app import config_store
 from app import job_repo
+from app import queue_service
 from app.error_codes import ERR_CONFIG_NOT_SET, ERR_JOB_NOT_FOUND, api_error
 from app.job_repo import list_jobs
 from app.jobs import JobStatus
-from app.queue_service import enqueue_job
 from app.settings import MSK_TZ
 from app.utils import get_session_id
 
@@ -31,11 +31,9 @@ async def check(request: Request):
     job.config_snapshot = cfg
     job_repo.update_job(job)
 
-    queue_size = await enqueue_job(job.id)
-    job.queue_position = queue_size
-    job_repo.update_job(job)
+    queue_position = await queue_service.enqueue_job(job.id)
 
-    return {"job_id": job.id, "queue_position": queue_size}
+    return {"job_id": job.id, "queue_position": queue_position}
 
 
 @router.get("/jobs")
@@ -68,8 +66,10 @@ async def cancel_job(job_id: str):
         raise api_error(ERR_JOB_NOT_FOUND)
     fields: dict[str, object] = {"cancelled": True}
     if job.status == JobStatus.PENDING:
+        queue_service.cancel_queued_job(job.id)
         fields["status"] = JobStatus.CANCELLED
         fields["finished_at"] = time.time()
+        fields["queue_position"] = 0
     job_repo.patch_job(job.id, **fields)
     if job.log_path:
         try:

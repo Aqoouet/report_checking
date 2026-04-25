@@ -75,7 +75,7 @@ async def result(job_id: str):
             media_type="text/plain; charset=utf-8",
             filename=filename,
         )
-    except FileNotFoundError:
+    except OSError:
         raise api_error(ERR_FILE_NOT_FOUND)
 
 
@@ -97,5 +97,5 @@ async def result_md(job_id: str):
             media_type="text/markdown; charset=utf-8",
             filename=filename,
         )
-    except FileNotFoundError:
+    except OSError:
         raise api_error(ERR_FILE_NOT_FOUND)

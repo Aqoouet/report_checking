@@ -40,7 +40,7 @@ async def runtime_info():
         "check_model": model_id or "—",
         "context_tokens": context_tokens,
         "doc_chunk_tokens": chunk,
-        "max_chunk_tokens": config_store._max_chunk_tokens(),
+        "max_chunk_tokens": config_store.max_chunk_tokens(),
         "os": sys.platform,
     }
 

@@ -4,10 +4,7 @@ import os
 import threading
 import time
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from typing import Any, Callable
-
-from fastapi import HTTPException
 
 from app.range_parser import parse_range_script
 
@@ -91,7 +88,7 @@ def _validate_fields(
     if not config.check_prompt:
         errors.append("check_prompt: field is required")
 
-    max_chunk = _max_chunk_tokens()
+    max_chunk = max_chunk_tokens()
     if config.chunk_size_tokens <= 0 or config.chunk_size_tokens > max_chunk:
         errors.append(f"chunk_size_tokens: must be between 1 and {max_chunk}")
 
@@ -110,37 +107,6 @@ def _validate_fields(
 
     return errors
 
-
-def validate_preflight(
-    config: PipelineConfig,
-    *,
-    validate_file_path: Callable,
-    validate_range_with_ai: Callable,
-) -> list[str]:
-    errors: list[str] = []
-
-    try:
-        validate_file_path(config.input_docx_path)
-    except HTTPException as exc:
-        errors.append(f"input_docx_path: {exc.detail}")
-    except Exception as exc:  # pragma: no cover
-        errors.append(f"input_docx_path: {exc}")
-
-    output_path = Path(config.output_dir)
-    if not output_path.exists():
-        errors.append("output_dir: directory does not exist")
-    elif not output_path.is_dir():
-        errors.append("output_dir: path is not a directory")
-    else:
-        try:
-            test_file = output_path / ".write_test.tmp"
-            test_file.write_text("ok", encoding="utf-8")
-            test_file.unlink(missing_ok=True)
-        except OSError:
-            errors.append("output_dir: directory is not writable")
-
-    errors.extend(_validate_fields(config, validate_range_with_ai=validate_range_with_ai))
-    return errors
 
 
 def save_config(config: PipelineConfig, session_id: str = "default") -> None:
@@ -171,7 +137,7 @@ def to_dict(session_id: str = "default") -> dict[str, Any] | None:
     return config_to_dict(cfg)
 
 
-def _max_chunk_tokens() -> int:
+def max_chunk_tokens() -> int:
     try:
         return int(os.getenv("MAX_CHUNK_TOKENS", "3000"))
     except ValueError:

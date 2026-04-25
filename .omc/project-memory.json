@@ -1,0 +1,239 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1777125774156,
+  "projectRoot": "/home/aqouet/Desktop/MRO/report_checking",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": "rtk read ~/.local/share/rtk/tee/1777134354_pytest.log",
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs"
+    ],
+    "gitBranches": {
+      "defaultBranch": "master",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "backend": {
+      "path": "backend",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1777125774144,
+      "keyFiles": [
+        "Dockerfile",
+        "mypy.ini",
+        "requirements-dev.txt",
+        "requirements.txt"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 2,
+      "lastAccessed": 1777125774145,
+      "keyFiles": [
+        "configuration.md",
+        "structure.md"
+      ]
+    },
+    "frontend": {
+      "path": "frontend",
+      "purpose": null,
+      "fileCount": 13,
+      "lastAccessed": 1777125774145,
+      "keyFiles": [
+        "Dockerfile",
+        "README.md",
+        "eslint.config.js",
+        "index.html",
+        "nginx.conf"
+      ]
+    },
+    "test_files": {
+      "path": "test_files",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1777125774145,
+      "keyFiles": [
+        "test.docx"
+      ]
+    },
+    "backend/app": {
+      "path": "backend/app",
+      "purpose": "Application code",
+      "fileCount": 33,
+      "lastAccessed": 1777125774145,
+      "keyFiles": [
+        "__init__.py",
+        "aggregator.py",
+        "ai_client.py"
+      ]
+    },
+    "backend/tests": {
+      "path": "backend/tests",
+      "purpose": "Test files",
+      "fileCount": 7,
+      "lastAccessed": 1777125774146,
+      "keyFiles": [
+        "__init__.py",
+        "test_ai_clients.py",
+        "test_error_contract.py"
+      ]
+    },
+    "frontend/dist": {
+      "path": "frontend/dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 3,
+      "lastAccessed": 1777125774146,
+      "keyFiles": [
+        "favicon.svg",
+        "icons.svg",
+        "index.html"
+      ]
+    },
+    "frontend/node_modules": {
+      "path": "frontend/node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1777125774149,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "backend/app/pipeline_orchestrator.py",
+      "accessCount": 15,
+      "lastAccessed": 1777151165541,
+      "type": "file"
+    },
+    {
+      "path": "INDEX.md",
+      "accessCount": 9,
+      "lastAccessed": 1777151160045,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/config_store.py",
+      "accessCount": 6,
+      "lastAccessed": 1777150906132,
+      "type": "file"
+    },
+    {
+      "path": "backend/tests/test_pipeline_orchestrator.py",
+      "accessCount": 3,
+      "lastAccessed": 1777134208309,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/routes/runtime.py",
+      "accessCount": 2,
+      "lastAccessed": 1777150912052,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/pipeline_infra.py",
+      "accessCount": 2,
+      "lastAccessed": 1777151195209,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/jobs.py",
+      "accessCount": 1,
+      "lastAccessed": 1777132543655,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/__init__.py",
+      "accessCount": 1,
+      "lastAccessed": 1777132543788,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/job_repo.py",
+      "accessCount": 1,
+      "lastAccessed": 1777132544081,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/pipeline_check.py",
+      "accessCount": 1,
+      "lastAccessed": 1777133916677,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/pipeline_convert.py",
+      "accessCount": 1,
+      "lastAccessed": 1777133927592,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/pipeline_validate.py",
+      "accessCount": 1,
+      "lastAccessed": 1777133935811,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/pipeline_summary.py",
+      "accessCount": 1,
+      "lastAccessed": 1777133942332,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/aggregator.py",
+      "accessCount": 1,
+      "lastAccessed": 1777151165934,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/worker_servers.py",
+      "accessCount": 1,
+      "lastAccessed": 1777151166462,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/JobQueueList/useJobsPolling.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777151166676,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/JobQueueList/useJobLog.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777151167216,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/JobQueueList/JobRow.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1777151167485,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/routes/results.py",
+      "accessCount": 1,
+      "lastAccessed": 1777151195447,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

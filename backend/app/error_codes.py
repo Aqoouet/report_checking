@@ -28,8 +28,27 @@ ERR_RATE_LIMITED = ApiError("ERR_RATE_LIMITED", "Too many requests.", 429)
 ERR_INVALID_FILE_TYPE = ApiError("ERR_INVALID_FILE_TYPE", "Only .docx files are supported.", 400)
 
 
+def error_detail(err: ApiError, *, message: str | None = None) -> dict[str, str]:
+    return {"code": err.code, "message": message or err.message}
+
+
+def error_detail_from_http_exception(
+    exc: HTTPException,
+    *,
+    fallback: ApiError,
+    fallback_message: str | None = None,
+) -> dict[str, str]:
+    detail = exc.detail if isinstance(exc.detail, dict) else {}
+    code = detail.get("code")
+    message = detail.get("message")
+    return {
+        "code": code if isinstance(code, str) else fallback.code,
+        "message": message if isinstance(message, str) else (fallback_message or fallback.message),
+    }
+
+
 def api_error(err: ApiError, *, message: str | None = None) -> HTTPException:
     return HTTPException(
         status_code=err.http_status,
-        detail={"code": err.code, "message": message or err.message},
+        detail=error_detail(err, message=message),
     )

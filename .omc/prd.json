@@ -1,0 +1,76 @@
+{
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "Create pipeline_infra.py with shared utilities",
+      "description": "Extract shared infrastructure: error types, ArtifactLogger, config writer, chunk helpers, job patching, mark_done",
+      "acceptanceCriteria": [
+        "File backend/app/pipeline_infra.py exists",
+        "Contains: PipelineCancelledError, _ensure_not_cancelled, _ArtifactFormatter, ArtifactLogger, _write_config_yaml, _split_check_result_blocks, _call_in_chunks, _patch_job, _mark_done",
+        "No imports from pipeline_check, pipeline_convert, pipeline_validate, pipeline_summary",
+        "python -c 'from app.pipeline_infra import ArtifactLogger, _call_in_chunks, _patch_job, _mark_done, PipelineCancelledError' exits 0"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Create pipeline_check.py with check stage",
+      "description": "Extract _parallel_check, _write_check_result, _run_check_stage",
+      "acceptanceCriteria": [
+        "File backend/app/pipeline_check.py exists",
+        "Contains: _parallel_check, _write_check_result, _run_check_stage",
+        "Imports ArtifactLogger, _ensure_not_cancelled, _patch_job from app.pipeline_infra",
+        "python -c 'from app.pipeline_check import _parallel_check, _run_check_stage' exits 0"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Create pipeline_convert.py with convert stage",
+      "description": "Extract _run_convert_stage",
+      "acceptanceCriteria": [
+        "File backend/app/pipeline_convert.py exists",
+        "Contains: _run_convert_stage",
+        "Imports ArtifactLogger, _ensure_not_cancelled, _patch_job from app.pipeline_infra",
+        "python -c 'from app.pipeline_convert import _run_convert_stage' exits 0"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Create pipeline_validate.py with validate stage",
+      "description": "Extract _run_validate_stage",
+      "acceptanceCriteria": [
+        "File backend/app/pipeline_validate.py exists",
+        "Contains: _run_validate_stage",
+        "Imports _call_in_chunks from app.pipeline_infra (not pipeline_check)",
+        "python -c 'from app.pipeline_validate import _run_validate_stage' exits 0"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Create pipeline_summary.py with summary stage",
+      "description": "Extract _run_summary_stage",
+      "acceptanceCriteria": [
+        "File backend/app/pipeline_summary.py exists",
+        "Contains: _run_summary_stage",
+        "Imports _call_in_chunks from app.pipeline_infra",
+        "python -c 'from app.pipeline_summary import _run_summary_stage' exits 0"
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Slim orchestrator + update tests",
+      "description": "Reduce pipeline_orchestrator.py to run() only; update test patches to new module paths",
+      "acceptanceCriteria": [
+        "pipeline_orchestrator.py contains only run() plus imports — no stage logic, no _parallel_check, no _call_in_chunks, no ArtifactLogger definition",
+        "pipeline_orchestrator.py line count <= 60",
+        "test_pipeline_orchestrator.py patches updated to new module paths",
+        "cd backend && python -m pytest tests/test_pipeline_orchestrator.py -q exits 0 with 4 passed"
+      ],
+      "passes": false
+    }
+  ]
+}

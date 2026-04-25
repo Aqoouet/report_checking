@@ -12,8 +12,12 @@ from fastapi import HTTPException
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app import config_store
-from app.error_codes import ERR_CONFIG_NOT_SET, api_error
+from app import job_repo
+from app.error_codes import ERR_ACCESS_DENIED, ERR_CONFIG_NOT_SET, api_error, error_detail_from_http_exception
+from app.jobs import JobStatus
 from app.routes.config import set_config
+from app.routes.results import result, result_log, result_md, status
+from app.routes.validation import validate_path_endpoint
 
 
 def _detail(exc: HTTPException) -> dict[str, Any]:
@@ -40,6 +44,26 @@ class ErrorContractTests(unittest.TestCase):
         self.assertEqual(
             exc.detail,
             {"code": "ERR_CONFIG_NOT_SET", "message": "Configuration is not set."},
+        )
+
+    def test_error_detail_from_http_exception_preserves_known_api_shape(self) -> None:
+        exc = api_error(ERR_ACCESS_DENIED)
+
+        self.assertEqual(
+            error_detail_from_http_exception(exc, fallback=ERR_CONFIG_NOT_SET),
+            {"code": "ERR_ACCESS_DENIED", "message": "Access denied."},
+        )
+
+    def test_error_detail_from_http_exception_uses_fallback_for_plain_detail(self) -> None:
+        exc = HTTPException(status_code=403, detail="forbidden")
+
+        self.assertEqual(
+            error_detail_from_http_exception(
+                exc,
+                fallback=ERR_ACCESS_DENIED,
+                fallback_message="File is not accessible.",
+            ),
+            {"code": "ERR_ACCESS_DENIED", "message": "File is not accessible."},
         )
 
 
@@ -92,3 +116,102 @@ class ConfigRouteErrorTests(unittest.TestCase):
         detail = _detail(ctx.exception)
         self.assertEqual(detail["code"], "ERR_CONFIG_VALIDATION_FAILED")
         self.assertIn("check_prompt: field is required", detail["message"])
+
+
+class ValidationRouteContractTests(unittest.TestCase):
+    def test_validate_path_returns_coded_error_payload_for_blank_input(self) -> None:
+        result = asyncio.run(validate_path_endpoint(None))
+
+        self.assertEqual(
+            result,
+            {
+                "valid": False,
+                "code": "ERR_INPUT_DOCX_REQUIRED",
+                "message": "File path is required.",
+                "mapped_path": "",
+            },
+        )
+
+    def test_validate_path_reuses_api_error_detail_payload(self) -> None:
+        exc = api_error(ERR_ACCESS_DENIED)
+
+        with mock.patch("app.routes.validation.validate_file_path", side_effect=exc):
+            result = asyncio.run(validate_path_endpoint("/tmp/in.docx"))
+
+        self.assertEqual(
+            result,
+            {
+                "valid": False,
+                "code": "ERR_ACCESS_DENIED",
+                "message": "Access denied.",
+                "mapped_path": "",
+            },
+        )
+
+    def test_validate_path_falls_back_to_access_denied_for_non_dict_detail(self) -> None:
+        with mock.patch(
+            "app.routes.validation.validate_file_path",
+            side_effect=HTTPException(status_code=403, detail="denied"),
+        ):
+            result = asyncio.run(validate_path_endpoint("/tmp/in.docx"))
+
+        self.assertEqual(
+            result,
+            {
+                "valid": False,
+                "code": "ERR_ACCESS_DENIED",
+                "message": "File is not accessible.",
+                "mapped_path": "",
+            },
+        )
+
+
+class ResultsRouteContractTests(unittest.TestCase):
+    def setUp(self) -> None:
+        job_repo._store.clear()
+
+    def test_status_missing_job_uses_standard_error_shape(self) -> None:
+        with self.assertRaises(HTTPException) as ctx:
+            asyncio.run(status("missing"))
+
+        self.assertEqual(_detail(ctx.exception), {"code": "ERR_JOB_NOT_FOUND", "message": "Job was not found."})
+
+    def test_result_log_missing_file_uses_standard_error_shape(self) -> None:
+        job = job_repo.create_job()
+
+        with self.assertRaises(HTTPException) as ctx:
+            asyncio.run(result_log(job.id))
+
+        self.assertEqual(_detail(ctx.exception), {"code": "ERR_LOG_NOT_FOUND", "message": "Log was not found."})
+
+    def test_result_not_ready_uses_standard_error_shape(self) -> None:
+        job = job_repo.create_job()
+
+        with self.assertRaises(HTTPException) as ctx:
+            asyncio.run(result(job.id))
+
+        self.assertEqual(_detail(ctx.exception), {"code": "ERR_RESULT_NOT_READY", "message": "Result is not ready."})
+
+    def test_result_file_missing_maps_os_error_to_standard_error_shape(self) -> None:
+        job = job_repo.create_job()
+        job.status = JobStatus.DONE
+        job.result_path = "/tmp/result.txt"
+        job_repo.update_job(job)
+
+        with mock.patch("app.routes.results.FileResponse", side_effect=OSError("missing")):
+            with self.assertRaises(HTTPException) as ctx:
+                asyncio.run(result(job.id))
+
+        self.assertEqual(_detail(ctx.exception), {"code": "ERR_FILE_NOT_FOUND", "message": "File was not found."})
+
+    def test_result_md_file_missing_maps_os_error_to_standard_error_shape(self) -> None:
+        job = job_repo.create_job()
+        job.status = JobStatus.DONE
+        job.md_result_path = "/tmp/result.md"
+        job_repo.update_job(job)
+
+        with mock.patch("app.routes.results.FileResponse", side_effect=OSError("missing")):
+            with self.assertRaises(HTTPException) as ctx:
+                asyncio.run(result_md(job.id))
+
+        self.assertEqual(_detail(ctx.exception), {"code": "ERR_FILE_NOT_FOUND", "message": "File was not found."})
