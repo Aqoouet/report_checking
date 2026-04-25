@@ -30,6 +30,34 @@ def update_job(job: Job) -> None:
         _store[job.id] = job
 
 
+def patch_job(job_id: str, **fields: object) -> Optional[Job]:
+    with _store_lock:
+        job = _store.get(job_id)
+        if job is None:
+            return None
+        for name, value in fields.items():
+            setattr(job, name, value)
+        return copy.copy(job)
+
+
+def record_check_progress(
+    job_id: str,
+    *,
+    completed_delta: int = 0,
+    failed_delta: int = 0,
+    total: int | None = None,
+) -> Optional[Job]:
+    with _store_lock:
+        job = _store.get(job_id)
+        if job is None:
+            return None
+        if total is not None:
+            job.checkpoint_sub_total = total
+        job.checkpoint_sub_current += completed_delta
+        job.failed_sections_count += failed_delta
+        return copy.copy(job)
+
+
 def list_jobs() -> list[Job]:
     with _store_lock:
         return sorted(

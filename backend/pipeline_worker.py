@@ -7,6 +7,7 @@ import config_store
 import job_repo
 import pipeline_orchestrator
 import queue_service
+from config_store import PipelineConfig
 from jobs import JobStatus
 from worker_servers import get_worker_servers
 
@@ -26,7 +27,8 @@ async def pipeline_worker() -> None:
                 queue_service.complete_active_job()
                 queue_service.task_done()
                 continue
-            cfg = job.config_snapshot or config_store.get_config()
+            cfg = job.config_snapshot if isinstance(job.config_snapshot, PipelineConfig) else None
+            cfg = cfg or config_store.get_config()
             if cfg is None:
                 job.status = JobStatus.ERROR
                 job.error = "Конфигурация не задана"

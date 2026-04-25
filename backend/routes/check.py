@@ -65,11 +65,11 @@ async def cancel_job(job_id: str):
     job = job_repo.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Задача не найдена")
-    job.cancelled = True
+    fields: dict[str, object] = {"cancelled": True}
     if job.status == JobStatus.PENDING:
-        job.status = JobStatus.CANCELLED
-        job.finished_at = time.time()
-    job_repo.update_job(job)
+        fields["status"] = JobStatus.CANCELLED
+        fields["finished_at"] = time.time()
+    job_repo.patch_job(job.id, **fields)
     if job.log_path:
         try:
             ts = datetime.now(MSK_TZ).strftime("%Y-%m-%d %H:%M:%S")

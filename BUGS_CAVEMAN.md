@@ -1,9 +1,7 @@
 # РЕФАКТОР УЛЬТРА (КОДБАЗА ВСЯ)
 
-9. `backend/routes/*`, `backend/pipeline_worker.py`, `backend/context_resolver.py`, `backend/ai_client.py` много `except Exception` глушат детали. Нужна типовая карта ошибок. time to fix = 3-6h /
-10. `backend/config_store.py` дубли валидации (preflight + validate_and_set). Один источник правил. time to fix = 2-4h
-11. `backend/config_store.py` in-memory `_configs` без lock/TTL. Нужен thread-safe store + eviction. time to fix = 2-4h
-13. `backend/jobs.py` смешан state + очередь + GC + файлы. Разделить на `JobRepo`, `QueueService`, `RetentionService`. time to fix = 6-10h
+
+13. `backend/jobs.py` смешан state + очередь + GC + файлы. Разделить на `JobRepo`, `QueueService`, `RetentionService`. time to fix = 6-10h /
 14. `backend/pipeline_orchestrator.py` длинный сценарий `run()` с 4 фазами в одной функции. Разбить на stage handlers. time to fix = 4-8h
 15. `backend/pipeline_orchestrator.py` логгер сам пишет файл через `open`. Лучше stdlib logger + handler + context job_id. time to fix = 2-4h
 16. `backend/pipeline_orchestrator.py` много прямых `get_job/update_job` в циклах. Сделать atomic progress API. time to fix = 3-6h
@@ -31,3 +29,6 @@
 4. `backend/validators.py` path-check через `startswith` строкой. FIXED in `5d6a269`: переход на path-boundary (`is_relative_to`). time to fix = done
 7. `backend/worker_servers.py` `get_worker_servers` без schema-check. FIXED in `4f4354d`: добавлена pydantic-модель `WorkerServer` (`HttpUrl`, `concurrency >= 1`) + валидация записей. time to fix = done
 8. `backend/routes/check.py` + `backend/rate_limit.py`: `/check` берёт глобальный rate-limit по IP в памяти. FIXED in `169ce97`: проверка вынесена в HTTP middleware (`backend/main.py`), сервис `backend/rate_limit.py` сохранён (in-memory). time to fix = done
+9. `backend/routes/*`, `backend/pipeline_worker.py`, `backend/context_resolver.py`, `backend/ai_client.py` много `except Exception` глушат детали. Нужна типовая карта ошибок. time to fix = 3-6h /
+10. `backend/config_store.py` дубли валидации (preflight + validate_and_set). Один источник правил. time to fix = 2-4h /
+11. `backend/config_store.py` in-memory `_configs` без lock/TTL. Нужен thread-safe store + eviction. time to fix = 2-4h /
