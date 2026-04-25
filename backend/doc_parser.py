@@ -24,11 +24,11 @@ def parse_document(file_path: str, range_spec: dict | None = None, chunk_size_to
     """
     path = Path(file_path)
     if not path.exists():
-        raise FileNotFoundError(f"Файл не найден: {file_path}")
+        raise FileNotFoundError(f"File not found: {file_path}")
 
     ext = path.suffix.lower()
     if ext != ".docx":
-        raise ValueError(f"Неподдерживаемый формат: {ext}. Ожидается .docx")
+        raise ValueError(f"Unsupported format: {ext}. Expected .docx")
 
     from docling_client import convert_file_to_md
     from md_cache import get_or_convert_md

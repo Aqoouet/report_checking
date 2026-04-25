@@ -35,5 +35,6 @@ export interface JobSummary {
   submitted_at: number;
   finished_at: number | null;
   error: string | null;
-  artifact_dir: string;
+  artifact_dir: string | null;
+  failed_sections_count: number;
 }

@@ -4,12 +4,13 @@ import os
 import sys
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 import logging
 
 import config_store
 from context_resolver import resolve_context_tokens
+from error_codes import ERR_PROMPT_MISSING, api_error
 
 logger = logging.getLogger(__name__)
 from settings import (
@@ -48,7 +49,7 @@ async def runtime_info():
 @router.get("/default_check_prompt")
 async def default_check_prompt():
     if not DEFAULT_CHECK_PROMPT_PATH.is_file():
-        raise HTTPException(status_code=500, detail="Файл промпта по умолчанию не найден")
+        raise api_error(ERR_PROMPT_MISSING)
     return {"prompt": DEFAULT_CHECK_PROMPT_PATH.read_text(encoding="utf-8")}
 
 

@@ -4,8 +4,9 @@ import type { JobSummary } from "./types";
 export async function startCheckNew(): Promise<{ job_id: string; queue_position: number }> {
   const res = await fetch(`${BASE}/check`, { method: "POST", headers: { "X-Session-ID": getSessionId() } });
   if (!res.ok) {
-    const d = await res.json().catch(() => ({})) as { detail?: string };
-    throw new Error(d.detail ?? `Ошибка запуска проверки: ${res.status}`);
+    const d = await res.json().catch(() => ({})) as { detail?: string | { code: string; message: string } };
+    const msg = typeof d.detail === "object" && d.detail !== null ? d.detail.message : d.detail;
+    throw new Error(msg ?? `Ошибка запуска проверки: ${res.status}`);
   }
   return res.json() as Promise<{ job_id: string; queue_position: number }>;
 }

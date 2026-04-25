@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from error_codes import ERR_RATE_LIMITED
 from lifespan import lifespan
 from rate_limit import is_rate_limited
 from routes.check import router as check_router
@@ -36,8 +37,8 @@ async def _rate_limit(request: Request, call_next):
         client_ip = request.client.host if request.client else "unknown"
         if is_rate_limited(client_ip):
             return JSONResponse(
-                status_code=429,
-                content={"detail": "Слишком много запросов. Подождите минуту."},
+                status_code=ERR_RATE_LIMITED.http_status,
+                content={"detail": {"code": ERR_RATE_LIMITED.code, "message": ERR_RATE_LIMITED.message}},
             )
     return await call_next(request)
 

@@ -3,10 +3,17 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import FileResponse
 
 import job_repo
+from error_codes import (
+    ERR_FILE_NOT_FOUND,
+    ERR_JOB_NOT_FOUND,
+    ERR_LOG_NOT_FOUND,
+    ERR_RESULT_NOT_READY,
+    api_error,
+)
 from jobs import JobStatus
 from utils import safe_download_stem
 
@@ -17,7 +24,7 @@ router = APIRouter()
 async def status(job_id: str):
     job = job_repo.get_job(job_id)
     if not job:
-        raise HTTPException(status_code=404, detail="Задача не найдена")
+        raise api_error(ERR_JOB_NOT_FOUND)
     return {
         "status": job.status,
         "current_checkpoint": job.current_checkpoint,
@@ -38,25 +45,25 @@ async def status(job_id: str):
 async def result_log(job_id: str):
     job = job_repo.get_job(job_id)
     if not job:
-        raise HTTPException(status_code=404, detail="Задача не найдена")
+        raise api_error(ERR_JOB_NOT_FOUND)
     if not job.log_path:
-        raise HTTPException(status_code=404, detail="Лог не найден")
+        raise api_error(ERR_LOG_NOT_FOUND)
     try:
         text = Path(job.log_path).read_text(encoding="utf-8")
         return {"log": text}
     except OSError:
-        raise HTTPException(status_code=404, detail="Лог не найден")
+        raise api_error(ERR_LOG_NOT_FOUND)
 
 
 @router.get("/result/{job_id}")
 async def result(job_id: str):
     job = job_repo.get_job(job_id)
     if not job:
-        raise HTTPException(status_code=404, detail="Задача не найдена")
+        raise api_error(ERR_JOB_NOT_FOUND)
     if job.status not in (JobStatus.DONE, JobStatus.CANCELLED):
-        raise HTTPException(status_code=400, detail="Результат ещё не готов")
+        raise api_error(ERR_RESULT_NOT_READY)
     if not job.result_path:
-        raise HTTPException(status_code=404, detail="Файл результата не найден")
+        raise api_error(ERR_FILE_NOT_FOUND)
 
     stem = safe_download_stem(job.source_doc_stem)
     ts = datetime.fromtimestamp(job.created_at).strftime("%Y%m%d_%H%M%S")
@@ -69,18 +76,18 @@ async def result(job_id: str):
             filename=filename,
         )
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Файл результата не найден")
+        raise api_error(ERR_FILE_NOT_FOUND)
 
 
 @router.get("/result_md/{job_id}")
 async def result_md(job_id: str):
     job = job_repo.get_job(job_id)
     if not job:
-        raise HTTPException(status_code=404, detail="Задача не найдена")
+        raise api_error(ERR_JOB_NOT_FOUND)
     if job.status not in (JobStatus.DONE, JobStatus.CANCELLED):
-        raise HTTPException(status_code=400, detail="Результат ещё не готов")
+        raise api_error(ERR_RESULT_NOT_READY)
     if not job.md_result_path:
-        raise HTTPException(status_code=404, detail="Файл Markdown не найден")
+        raise api_error(ERR_FILE_NOT_FOUND)
 
     stem = safe_download_stem(job.source_doc_stem)
     filename = f"{stem}_docling.md"
@@ -91,4 +98,4 @@ async def result_md(job_id: str):
             filename=filename,
         )
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Файл Markdown не найден")
+        raise api_error(ERR_FILE_NOT_FOUND)

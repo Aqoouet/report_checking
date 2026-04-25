@@ -4,10 +4,11 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 
 import config_store
 import job_repo
+from error_codes import ERR_CONFIG_NOT_SET, ERR_JOB_NOT_FOUND, api_error
 from jobs import JobStatus
 from queue_service import enqueue_job
 from job_repo import list_jobs
@@ -22,7 +23,7 @@ async def check(request: Request):
     session_id = get_session_id(request)
     cfg = config_store.get_config(session_id)
     if cfg is None:
-        raise HTTPException(status_code=400, detail="Сначала сохраните конфигурацию через /config")
+        raise api_error(ERR_CONFIG_NOT_SET)
 
     job = job_repo.create_job()
     job.submitted_at = time.time()
@@ -64,7 +65,7 @@ async def get_jobs():
 async def cancel_job(job_id: str):
     job = job_repo.get_job(job_id)
     if not job:
-        raise HTTPException(status_code=404, detail="Задача не найдена")
+        raise api_error(ERR_JOB_NOT_FOUND)
     fields: dict[str, object] = {"cancelled": True}
     if job.status == JobStatus.PENDING:
         fields["status"] = JobStatus.CANCELLED
