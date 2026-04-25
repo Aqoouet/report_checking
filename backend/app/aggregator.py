@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from app.artifact_writer import write_artifact
+
 if TYPE_CHECKING:
     from app.doc_models import DocData
 
@@ -64,8 +66,7 @@ def aggregate(
 
 
 def _write(path: str, text: str) -> None:
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(text)
+    write_artifact(path, text)
 
 
 def write_summary(summary_text: str, path: str) -> None:

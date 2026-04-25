@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 import yaml  # type: ignore[import-untyped]
 
+from app.artifact_writer import write_artifact
 from app.job_repo import get_job, patch_job
 from app.jobs import Job, JobStatus
 from app.config_store import PipelineConfig
@@ -67,9 +68,9 @@ class ArtifactLogger:
 
 def _write_config_yaml(config: PipelineConfig, path: Path) -> None:
     payload = asdict(config)
-    path.write_text(
+    write_artifact(
+        path,
         yaml.safe_dump(payload, allow_unicode=True, sort_keys=False),
-        encoding="utf-8",
     )
 
 

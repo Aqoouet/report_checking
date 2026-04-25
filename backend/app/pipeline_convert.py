@@ -5,6 +5,7 @@ import functools
 import logging
 from pathlib import Path
 
+from app.artifact_writer import write_artifact
 from app.config_store import PipelineConfig
 from app.doc_models import DocData
 from app.doc_parser import parse_document
@@ -49,7 +50,7 @@ async def _run_convert_stage(
     )
 
     converted_path = str(artifact_dir / "converted.md")
-    Path(converted_path).write_text(md_text, encoding="utf-8")
+    write_artifact(converted_path, md_text)
     _patch_job(job.id, md_result_path=converted_path, source_doc_stem=stem)
     log.info("Convert done")
     _ensure_not_cancelled(job.id, log)

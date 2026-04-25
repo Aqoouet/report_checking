@@ -4,6 +4,7 @@ import asyncio
 import logging
 from pathlib import Path
 
+from app.artifact_writer import write_artifact
 from app.config_store import PipelineConfig
 from app.doc_models import DocData
 from app.job_repo import get_job, patch_job, record_check_progress
@@ -94,7 +95,7 @@ def _write_check_result(section_results: list[tuple[str, str]], path: str) -> No
         lines.append("=" * 40)
         lines.append(response.strip())
         lines.append("")
-    Path(path).write_text("\n".join(lines), encoding="utf-8")
+    write_artifact(path, "\n".join(lines))
 
 
 async def _run_check_stage(

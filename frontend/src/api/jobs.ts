@@ -35,3 +35,8 @@ export async function fetchLog(jobId: string): Promise<string> {
   const data = (await res.json()) as { log?: string };
   return data.log ?? "";
 }
+
+export async function openArtifactDir(jobId: string): Promise<void> {
+  const res = await fetch(`${BASE}/open_artifact/${jobId}`, { method: "POST" });
+  if (!res.ok) await throwApiError(res, "Ошибка открытия папки");
+}

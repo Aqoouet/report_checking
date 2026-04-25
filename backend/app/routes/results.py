@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -99,3 +100,15 @@ async def result_md(job_id: str):
         )
     except OSError:
         raise api_error(ERR_FILE_NOT_FOUND)
+
+
+@router.post("/open_artifact/{job_id}", status_code=200)
+async def open_artifact_dir(job_id: str) -> dict:
+    job = job_repo.get_job(job_id)
+    if not job or not job.artifact_dir:
+        raise api_error(ERR_JOB_NOT_FOUND)
+    artifact_path = Path(job.artifact_dir)
+    if not artifact_path.exists():
+        raise api_error(ERR_FILE_NOT_FOUND)
+    subprocess.Popen(["xdg-open", str(artifact_path)])
+    return {"opened": str(artifact_path)}

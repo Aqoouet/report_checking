@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { cancelJob, type JobSummary } from "../../api";
+import { cancelJob, openArtifactDir, type JobSummary } from "../../api";
 import { formatDisplayError, type DisplayError } from "./errorDetails";
 import { useJobLog } from "./useJobLog";
 
@@ -154,9 +154,14 @@ export function JobRow({ job, onDelete }: Props) {
           </button>
         )}
         {isTerminal && job.artifact_dir && (
-          <a href={`file://${job.artifact_dir}`} className="job-artifact-link" title={job.artifact_dir}>
+          <button
+            type="button"
+            className="job-artifact-link"
+            title={job.artifact_dir}
+            onClick={() => openArtifactDir(job.id)}
+          >
             Сохранено: {job.artifact_dir}
-          </a>
+          </button>
         )}
       </div>
 

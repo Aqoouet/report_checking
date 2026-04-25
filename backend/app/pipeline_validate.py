@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from app.artifact_writer import write_artifact
 from app.config_store import PipelineConfig
 from app.jobs import Job
 from app.worker_servers import WorkerServer
@@ -42,7 +43,7 @@ async def _run_validate_stage(
         job=job,
     )
     validated_path = str(artifact_dir / "validated_result.txt")
-    Path(validated_path).write_text(validated_text, encoding="utf-8")
+    write_artifact(validated_path, validated_text)
     _patch_job(job.id, result_path=validated_path)
     log.info("Validate done")
     _ensure_not_cancelled(job.id, log)

@@ -8,11 +8,6 @@ from pydantic import BaseModel, HttpUrl, field_validator
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_SERVERS = [
-    {"url": "http://10.99.66.97:1234", "concurrency": 3},
-    {"url": "http://10.99.66.212:1234", "concurrency": 6},
-]
-
 
 class WorkerServer(BaseModel):
     url: HttpUrl
@@ -33,14 +28,14 @@ class WorkerServer(BaseModel):
 def get_worker_servers() -> list[WorkerServer]:
     raw = os.getenv("WORKER_SERVERS", "").strip()
     if not raw:
-        return _parse_servers(_DEFAULT_SERVERS)
+        return []
     try:
         parsed = json.loads(raw)
         if isinstance(parsed, list) and parsed:
             return _parse_servers(parsed)
     except Exception:
-        logger.warning("WORKER_SERVERS env var is not valid JSON, using defaults")
-    return _parse_servers(_DEFAULT_SERVERS)
+        logger.warning("WORKER_SERVERS env var is not valid JSON, returning empty list")
+    return []
 
 
 def _parse_servers(data: list[dict]) -> list[WorkerServer]:
