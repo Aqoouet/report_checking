@@ -5,8 +5,10 @@ import logging
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from lifespan import lifespan
+from rate_limit import is_rate_limited
 from routes.check import router as check_router
 from routes.config import router as config_router
 from routes.results import router as results_router
@@ -26,6 +28,18 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type", "X-Session-ID"],
 )
+
+
+@app.middleware("http")
+async def _rate_limit(request: Request, call_next):
+    if request.method == "POST" and request.url.path == "/check":
+        client_ip = request.client.host if request.client else "unknown"
+        if is_rate_limited(client_ip):
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Слишком много запросов. Подождите минуту."},
+            )
+    return await call_next(request)
 
 
 @app.middleware("http")

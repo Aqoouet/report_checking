@@ -9,7 +9,6 @@ from fastapi import APIRouter, HTTPException, Request
 import config_store
 import jobs as job_store
 from jobs import JobStatus, enqueue_job, list_jobs
-from rate_limit import is_rate_limited
 from settings import MSK_TZ
 from utils import get_session_id
 
@@ -18,10 +17,6 @@ router = APIRouter()
 
 @router.post("/check")
 async def check(request: Request):
-    client_ip = request.client.host if request.client else "unknown"
-    if is_rate_limited(client_ip):
-        raise HTTPException(status_code=429, detail="Слишком много запросов. Подождите минуту.")
-
     session_id = get_session_id(request)
     cfg = config_store.get_config(session_id)
     if cfg is None:
