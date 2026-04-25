@@ -1,13 +1,6 @@
 # РЕФАКТОР УЛЬТРА (КОДБАЗА ВСЯ)
 
-
-2. `backend/validators.py` дубли allowlist-проверок (`validate_file_path`, `validate_output_dir`). FIXED in `5d6a269`: вынесен общий `_path_guard`. time to fix = done
-3. `backend/validators.py` fail-open: пустой `path_mapping.json` => доступ ко всем путям. FIXED in `5d6a269`: сделан fail-close. time to fix = done
-4. `backend/validators.py` path-check через `startswith` строкой. FIXED in `5d6a269`: переход на path-boundary (`is_relative_to`). time to fix = done
-
-7. `backend/worker_servers.py` `get_worker_servers` без schema-check. Ввести pydantic-модель воркера. FIXED: добавлена `WorkerServer` pydantic-модель с валидацией url/concurrency, обновлены type hints в `pipeline_orchestrator.py`. time to fix = done
-8. `backend/routes/check.py` + `backend/rate_limit.py`: `/check` берёт глобальный rate-limit по IP в памяти. Минимум: вынести в middleware + service, оставить in-memory. time to fix = 2-4h
-9. `backend/routes/*`, `backend/pipeline_worker.py`, `backend/context_resolver.py`, `backend/ai_client.py` много `except Exception` глушат детали. Нужна типовая карта ошибок. time to fix = 3-6h
+9. `backend/routes/*`, `backend/pipeline_worker.py`, `backend/context_resolver.py`, `backend/ai_client.py` много `except Exception` глушат детали. Нужна типовая карта ошибок. time to fix = 3-6h /
 10. `backend/config_store.py` дубли валидации (preflight + validate_and_set). Один источник правил. time to fix = 2-4h
 11. `backend/config_store.py` in-memory `_configs` без lock/TTL. Нужен thread-safe store + eviction. time to fix = 2-4h
 13. `backend/jobs.py` смешан state + очередь + GC + файлы. Разделить на `JobRepo`, `QueueService`, `RetentionService`. time to fix = 6-10h
@@ -33,3 +26,8 @@
 1. `backend/main.py` монолит 650+ строк. FIXED в `72b87f6`: разнесено в `backend/routes/*`, `backend/validators.py`, `backend/pipeline_worker.py`, `backend/lifespan.py`. time to fix = done
 5. `_RangeItem/_RangeSpec` в `backend/main.py` не используются. FIXED в `72b87f6`: удалено. time to fix = done
 6. `_OUTPUT_BASE_DIR_STR` в `backend/main.py` не используется. FIXED в `72b87f6`: удалено. time to fix = done
+2. `backend/validators.py` дубли allowlist-проверок (`validate_file_path`, `validate_output_dir`). FIXED in `5d6a269`: вынесен общий `_path_guard`. time to fix = done
+3. `backend/validators.py` fail-open: пустой `path_mapping.json` => доступ ко всем путям. FIXED in `5d6a269`: сделан fail-close. time to fix = done
+4. `backend/validators.py` path-check через `startswith` строкой. FIXED in `5d6a269`: переход на path-boundary (`is_relative_to`). time to fix = done
+7. `backend/worker_servers.py` `get_worker_servers` без schema-check. FIXED in `4f4354d`: добавлена pydantic-модель `WorkerServer` (`HttpUrl`, `concurrency >= 1`) + валидация записей. time to fix = done
+8. `backend/routes/check.py` + `backend/rate_limit.py`: `/check` берёт глобальный rate-limit по IP в памяти. FIXED in `169ce97`: проверка вынесена в HTTP middleware (`backend/main.py`), сервис `backend/rate_limit.py` сохранён (in-memory). time to fix = done
