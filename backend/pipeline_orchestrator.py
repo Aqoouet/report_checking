@@ -16,6 +16,7 @@ from doc_parser import parse_document
 from range_parser import parse_range_script
 from ai_client import call_async
 from aggregator import write_summary
+from worker_servers import WorkerServer
 
 logger = logging.getLogger(__name__)
 MSK_TZ = ZoneInfo("Europe/Moscow")
@@ -60,16 +61,16 @@ def _write_config_yaml(config: PipelineConfig, path: Path) -> None:
 async def _parallel_check(
     sections: list,
     config: PipelineConfig,
-    servers: list[dict],
+    servers: list[WorkerServer],
     job: Job,
     log: ArtifactLogger,
 ) -> list[tuple[str, str]]:
-    sems = {s["url"]: asyncio.Semaphore(s.get("concurrency", 3)) for s in servers}
+    sems = {s.url_str: asyncio.Semaphore(s.concurrency) for s in servers}
     results: list[tuple[str, str] | None] = [None] * len(sections)
 
     async def check_one(i: int, section) -> None:
         server = servers[i % len(servers)]
-        url = server["url"]
+        url = server.url_str
         sem = sems[url]
         label = (
             f"{getattr(section, 'number', '')} {getattr(section, 'title', '')}".strip()
@@ -151,7 +152,7 @@ def _split_check_result_blocks(text: str) -> list[str]:
 async def _call_in_chunks(
     text: str,
     prompt: str,
-    servers: list[dict],
+    servers: list[WorkerServer],
     model: str | None,
     temperature: float | None,
     max_chunk_tokens: int = 8000,
@@ -161,7 +162,7 @@ async def _call_in_chunks(
 ) -> str:
     from token_chunker import count_tokens
 
-    first_url = servers[0]["url"]
+    first_url = servers[0].url_str
 
     if count_tokens(text) <= max_chunk_tokens:
         return await call_async(text, prompt, first_url, model=model, temperature=temperature)
@@ -187,7 +188,7 @@ async def _call_in_chunks(
     if log:
         log.info(f"  Text too large, split into {len(chunks)} chunks (parallel across {len(servers)} server(s))")
 
-    sems = {s["url"]: asyncio.Semaphore(s.get("concurrency", 3)) for s in servers}
+    sems = {s.url_str: asyncio.Semaphore(s.concurrency) for s in servers}
     results: list[str | None] = [None] * len(chunks)
 
     async def process_chunk(i: int, chunk: str) -> None:
@@ -196,7 +197,7 @@ async def _call_in_chunks(
             if fresh and fresh.cancelled:
                 return
         server = servers[i % len(servers)]
-        url = server["url"]
+        url = server.url_str
         if log:
             log.info(f"  Chunk {i + 1}/{len(chunks)} → [{url}]")
         async with sems[url]:
@@ -234,7 +235,7 @@ async def _call_in_chunks(
     return "\n\n".join(r for r in results if r is not None)
 
 
-async def run(job: Job, config: PipelineConfig, servers: list[dict]) -> None:
+async def run(job: Job, config: PipelineConfig, servers: list[WorkerServer]) -> None:
     ts = datetime.now(MSK_TZ).strftime("%Y%m%d_%H%M%S")
     stem = Path(config.input_docx_path).stem
     artifact_dir = Path(config.output_dir) / f"{stem}_{ts}"
