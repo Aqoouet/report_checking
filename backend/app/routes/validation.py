@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, Form, HTTPException
@@ -88,7 +89,7 @@ async def validate_range(range_text: str | None = Form(None)):
     quick = parse_range_script(raw)
     if quick.get("valid"):
         return quick
-    result = validate_range_with_ai(raw)
+    result = await asyncio.to_thread(validate_range_with_ai, raw)
     if not result.get("valid") and result.get("server_error"):
         logger.warning("AI range validation failed: %s", result.get("range_message", "unknown error"))
     return result

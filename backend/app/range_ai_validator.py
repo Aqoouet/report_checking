@@ -7,7 +7,7 @@ from typing import Any
 from openai import APIConnectionError, APIStatusError, APITimeoutError
 
 from app.ai_config import get_validate_model
-from app.openai_sync_client import get_client, openai_error_payload
+from app.openai_sync_client import get_range_client, openai_error_payload
 
 logger = logging.getLogger(__name__)
 
@@ -166,10 +166,18 @@ def _create_completion(text: str, response_format: dict[str, Any] | None) -> Any
     }
     if response_format is not None:
         kwargs["response_format"] = response_format
-    return get_client().chat.completions.create(**kwargs)
+    return get_range_client().chat.completions.create(**kwargs)
+
+
+_FORMAT_UNSET = object()
+_cached_format: Any = _FORMAT_UNSET
 
 
 def _completion_with_fallback(text: str) -> Any:
+    global _cached_format
+    if _cached_format is not _FORMAT_UNSET:
+        return _create_completion(text, _cached_format)
+
     formats: tuple[dict[str, Any] | None, ...] = (
         _STRICT_RESPONSE_FORMAT,
         _JSON_OBJECT_RESPONSE_FORMAT,
@@ -178,7 +186,9 @@ def _completion_with_fallback(text: str) -> Any:
     last_unsupported: APIStatusError | None = None
     for response_format in formats:
         try:
-            return _create_completion(text, response_format)
+            result = _create_completion(text, response_format)
+            _cached_format = response_format
+            return result
         except APIStatusError as exc:
             if _is_response_format_unsupported(exc) and response_format is not None:
                 last_unsupported = exc

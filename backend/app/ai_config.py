@@ -70,3 +70,13 @@ def get_model() -> str:
 def get_validate_model() -> str:
     raw = os.getenv("OPENAI_VALIDATE_MODEL", "").strip()
     return raw if raw else get_model()
+
+
+def get_range_read_timeout() -> float:
+    """Dedicated timeout for range validation AI calls (seconds). Default 30s."""
+    raw = os.getenv("AI_RANGE_TIMEOUT", "30").strip().lower()
+    try:
+        value = float(raw)
+        return value if value > 0 else 30.0
+    except ValueError:
+        return 30.0

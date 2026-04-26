@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1777125774156,
+  "lastScanned": 1777212931995,
   "projectRoot": "/home/aqouet/Desktop/MRO/report_checking",
   "techStack": {
     "languages": [],
@@ -9,8 +9,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd /home/aqouet/Desktop/MRO/report_checking/frontend && rtk tsc --noEmit 2>&1 | head -50",
-    "testCommand": "rtk read ~/.local/share/rtk/tee/1777134354_pytest.log",
+    "buildCommand": null,
+    "testCommand": null,
     "lintCommand": null,
     "devCommand": null,
     "scripts": {}
@@ -38,7 +38,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1777125774144,
+      "lastAccessed": 1777212931989,
       "keyFiles": [
         "Dockerfile",
         "mypy.ini",
@@ -49,10 +49,11 @@
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
-      "fileCount": 2,
-      "lastAccessed": 1777125774145,
+      "fileCount": 3,
+      "lastAccessed": 1777212931990,
       "keyFiles": [
         "configuration.md",
+        "geometry-search-link-approach-plan.md",
         "structure.md"
       ]
     },
@@ -60,7 +61,7 @@
       "path": "frontend",
       "purpose": null,
       "fileCount": 13,
-      "lastAccessed": 1777125774145,
+      "lastAccessed": 1777212931990,
       "keyFiles": [
         "Dockerfile",
         "README.md",
@@ -73,7 +74,7 @@
       "path": "test_files",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1777125774145,
+      "lastAccessed": 1777212931991,
       "keyFiles": [
         "test.docx"
       ]
@@ -81,30 +82,19 @@
     "backend/app": {
       "path": "backend/app",
       "purpose": "Application code",
-      "fileCount": 33,
-      "lastAccessed": 1777125774145,
+      "fileCount": 40,
+      "lastAccessed": 1777212931991,
       "keyFiles": [
         "__init__.py",
         "aggregator.py",
         "ai_client.py"
       ]
     },
-    "backend/tests": {
-      "path": "backend/tests",
-      "purpose": "Test files",
-      "fileCount": 7,
-      "lastAccessed": 1777125774146,
-      "keyFiles": [
-        "__init__.py",
-        "test_ai_clients.py",
-        "test_error_contract.py"
-      ]
-    },
     "frontend/dist": {
       "path": "frontend/dist",
       "purpose": "Distribution/build output",
       "fileCount": 3,
-      "lastAccessed": 1777125774146,
+      "lastAccessed": 1777212931992,
       "keyFiles": [
         "favicon.svg",
         "icons.svg",
@@ -115,7 +105,7 @@
       "path": "frontend/node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1777125774149,
+      "lastAccessed": 1777212931992,
       "keyFiles": []
     }
   },
@@ -128,8 +118,8 @@
     },
     {
       "path": "INDEX.md",
-      "accessCount": 12,
-      "lastAccessed": 1777192957416,
+      "accessCount": 13,
+      "lastAccessed": 1777213029145,
       "type": "file"
     },
     {
@@ -217,6 +207,12 @@
       "type": "file"
     },
     {
+      "path": "backend/app/routes/validation.py",
+      "accessCount": 5,
+      "lastAccessed": 1777213269457,
+      "type": "file"
+    },
+    {
       "path": "frontend/src/components/JobQueueList/useJobsPolling.ts",
       "accessCount": 4,
       "lastAccessed": 1777151463898,
@@ -253,6 +249,12 @@
       "type": "file"
     },
     {
+      "path": "backend/app/range_ai_validator.py",
+      "accessCount": 4,
+      "lastAccessed": 1777213240620,
+      "type": "file"
+    },
+    {
       "path": "backend/tests/test_pipeline_orchestrator.py",
       "accessCount": 3,
       "lastAccessed": 1777134208309,
@@ -280,6 +282,12 @@
       "path": "backend/app/routes/check.py",
       "accessCount": 3,
       "lastAccessed": 1777211807536,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/openai_sync_client.py",
+      "accessCount": 3,
+      "lastAccessed": 1777213187661,
       "type": "file"
     },
     {
@@ -313,12 +321,6 @@
       "type": "file"
     },
     {
-      "path": "backend/app/routes/validation.py",
-      "accessCount": 2,
-      "lastAccessed": 1777193321026,
-      "type": "file"
-    },
-    {
       "path": "frontend/src/components/ConfigDialog/paramDocs.ts",
       "accessCount": 2,
       "lastAccessed": 1777193764201,
@@ -328,6 +330,12 @@
       "path": "backend/app/path_mapper.py",
       "accessCount": 2,
       "lastAccessed": 1777211649955,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/ai_config.py",
+      "accessCount": 2,
+      "lastAccessed": 1777213154316,
       "type": "file"
     },
     {
@@ -376,6 +384,12 @@
       "path": "docs/geometry-search-link-approach-plan.md",
       "accessCount": 1,
       "lastAccessed": 1777211445516,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/range_parser.py",
+      "accessCount": 1,
+      "lastAccessed": 1777213039465,
       "type": "file"
     }
   ],

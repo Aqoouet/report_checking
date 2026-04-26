@@ -5,10 +5,11 @@ import os
 from threading import Lock
 from typing import Any
 
+import httpx
 from dotenv import load_dotenv
 from openai import APIStatusError, OpenAI
 
-from app.ai_config import get_http_timeout
+from app.ai_config import get_connect_timeout, get_http_timeout, get_range_read_timeout
 
 load_dotenv()
 
@@ -33,6 +34,32 @@ def get_client() -> OpenAI:
                 max_retries=2,
             )
     return _client
+
+
+_range_client: OpenAI | None = None
+_range_client_lock = Lock()
+
+
+def get_range_client() -> OpenAI:
+    """Dedicated client for range validation: no retries, hard 30 s timeout."""
+    global _range_client
+    with _range_client_lock:
+        if _range_client is None:
+            api_key = os.getenv("OPENAI_API_KEY", "").strip()
+            if not api_key:
+                raise ValueError(
+                    "OPENAI_API_KEY not set. Set it to 'lm-studio' for local LM Studio "
+                    "or your OpenAI API key for remote endpoints."
+                )
+            connect = get_connect_timeout()
+            read = get_range_read_timeout()
+            _range_client = OpenAI(
+                api_key=api_key,
+                base_url=os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1"),
+                timeout=httpx.Timeout(connect=connect, read=read, write=read, pool=connect),
+                max_retries=0,
+            )
+    return _range_client
 
 
 def openai_error_payload(exc: APIStatusError) -> dict[str, Any]:
