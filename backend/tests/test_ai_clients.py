@@ -87,6 +87,7 @@ class RangeAiValidatorTests(unittest.TestCase):
             client.completions.calls[0]["response_format"]["type"],
             "json_schema",
         )
+        self.assertEqual(client.completions.calls[0]["temperature"], 0)
 
     def test_validate_range_rejects_non_json_without_salvage(self) -> None:
         client = _Client(['```json\n{"valid": true, "items": []}\n```'])

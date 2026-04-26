@@ -128,8 +128,14 @@
     },
     {
       "path": "INDEX.md",
-      "accessCount": 10,
-      "lastAccessed": 1777151409039,
+      "accessCount": 12,
+      "lastAccessed": 1777192957416,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/index.css",
+      "accessCount": 8,
+      "lastAccessed": 1777194142131,
       "type": "file"
     },
     {
@@ -187,6 +193,30 @@
       "type": "file"
     },
     {
+      "path": "frontend/src/components/ConfigDialog/yaml.ts",
+      "accessCount": 5,
+      "lastAccessed": 1777194132436,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/ConfigDialog/useConfigDialog.ts",
+      "accessCount": 5,
+      "lastAccessed": 1777194132841,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/ConfigDialog/index.tsx",
+      "accessCount": 5,
+      "lastAccessed": 1777194141574,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/api/types.ts",
+      "accessCount": 5,
+      "lastAccessed": 1777194280749,
+      "type": "file"
+    },
+    {
       "path": "frontend/src/components/JobQueueList/useJobsPolling.ts",
       "accessCount": 4,
       "lastAccessed": 1777151463898,
@@ -196,6 +226,24 @@
       "path": "frontend/src/components/JobQueueList/useJobLog.ts",
       "accessCount": 4,
       "lastAccessed": 1777151464097,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/settings.py",
+      "accessCount": 4,
+      "lastAccessed": 1777194119096,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/main.py",
+      "accessCount": 4,
+      "lastAccessed": 1777194119474,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/api/config.ts",
+      "accessCount": 4,
+      "lastAccessed": 1777194132026,
       "type": "file"
     },
     {
@@ -214,6 +262,12 @@
       "path": "backend/.env.example",
       "accessCount": 3,
       "lastAccessed": 1777151720551,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/api/index.ts",
+      "accessCount": 3,
+      "lastAccessed": 1777194280311,
       "type": "file"
     },
     {
@@ -247,6 +301,18 @@
       "type": "file"
     },
     {
+      "path": "backend/app/routes/validation.py",
+      "accessCount": 2,
+      "lastAccessed": 1777193321026,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/ConfigDialog/paramDocs.ts",
+      "accessCount": 2,
+      "lastAccessed": 1777193764201,
+      "type": "file"
+    },
+    {
       "path": "backend/app/jobs.py",
       "accessCount": 1,
       "lastAccessed": 1777132543655,
@@ -268,6 +334,30 @@
       "path": "frontend/src/components/JobQueueList/index.tsx",
       "accessCount": 1,
       "lastAccessed": 1777151475335,
+      "type": "file"
+    },
+    {
+      "path": "backend/requirements.txt",
+      "accessCount": 1,
+      "lastAccessed": 1777193190063,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/api/client.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777193771475,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/config_defaults.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1777193980306,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/routes/defaults.py",
+      "accessCount": 1,
+      "lastAccessed": 1777193985520,
       "type": "file"
     }
   ],
