@@ -39,6 +39,8 @@ class Job:
     queue_position: int = 0
     phase: str = ""
     artifact_dir: Optional[str] = None
+    artifact_dir_windows: Optional[str] = None
+    artifact_dir_file_url: Optional[str] = None
     log_path: Optional[str] = None
     submitted_at: float = field(default_factory=time.time)
     finished_at: Optional[float] = None

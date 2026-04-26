@@ -53,6 +53,8 @@ async def get_jobs():
             "finished_at": j.finished_at,
             "error": j.error,
             "artifact_dir": j.artifact_dir,
+            "artifact_dir_windows": j.artifact_dir_windows,
+            "artifact_dir_file_url": j.artifact_dir_file_url,
             "failed_sections_count": j.failed_sections_count,
         }
         for j in jobs

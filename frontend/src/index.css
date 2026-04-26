@@ -721,13 +721,16 @@ body {
   margin-top: 6px;
 }
 
-.job-artifact-link {
-  display: block;
+.job-artifact-text {
   margin-top: 6px;
   font-size: 0.78rem;
   color: #64748b;
-  text-decoration: none;
   word-break: break-all;
+}
+
+.job-artifact-link {
+  color: #64748b;
+  text-decoration: none;
 }
 .job-artifact-link:hover {
   color: #3b82f6;

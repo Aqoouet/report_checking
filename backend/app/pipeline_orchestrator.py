@@ -9,6 +9,7 @@ from app.config_store import PipelineConfig
 from app.jobs import Job, JobStatus
 from app.worker_servers import WorkerServer
 from app.pipeline_infra import ArtifactLogger, MSK_TZ, PipelineCancelledError, _mark_done, _patch_job, _write_config_yaml
+from app.path_mapper import map_linux_to_windows, to_file_url
 from app.pipeline_convert import _run_convert_stage
 from app.pipeline_check import _run_check_stage
 from app.pipeline_validate import _run_validate_stage
@@ -29,7 +30,16 @@ async def run(job: Job, config: PipelineConfig, servers: list[WorkerServer]) -> 
         log = ArtifactLogger(log_path, job.id)
         config_path = artifact_dir / "config.yaml"
         _write_config_yaml(config, config_path)
-        _patch_job(job.id, artifact_dir=str(artifact_dir), log_path=log_path)
+        artifact_dir_str = str(artifact_dir)
+        win_path = map_linux_to_windows(artifact_dir_str)
+        file_url = to_file_url(win_path if win_path != artifact_dir_str else artifact_dir_str)
+        _patch_job(
+            job.id,
+            artifact_dir=artifact_dir_str,
+            artifact_dir_windows=win_path,
+            artifact_dir_file_url=file_url,
+            log_path=log_path,
+        )
 
         log.info(f"Start: {config.input_docx_path}")
         log.info(f"Model: {config.model or '(from env)'}")

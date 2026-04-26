@@ -122,8 +122,8 @@
   "hotPaths": [
     {
       "path": "backend/app/pipeline_orchestrator.py",
-      "accessCount": 15,
-      "lastAccessed": 1777151165541,
+      "accessCount": 19,
+      "lastAccessed": 1777211780564,
       "type": "file"
     },
     {
@@ -134,14 +134,20 @@
     },
     {
       "path": "frontend/src/index.css",
-      "accessCount": 8,
-      "lastAccessed": 1777194142131,
+      "accessCount": 12,
+      "lastAccessed": 1777211920791,
       "type": "file"
     },
     {
       "path": "frontend/src/components/JobQueueList/JobRow.tsx",
-      "accessCount": 7,
-      "lastAccessed": 1777151495824,
+      "accessCount": 11,
+      "lastAccessed": 1777211881530,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/api/types.ts",
+      "accessCount": 8,
+      "lastAccessed": 1777211842802,
       "type": "file"
     },
     {
@@ -211,12 +217,6 @@
       "type": "file"
     },
     {
-      "path": "frontend/src/api/types.ts",
-      "accessCount": 5,
-      "lastAccessed": 1777194280749,
-      "type": "file"
-    },
-    {
       "path": "frontend/src/components/JobQueueList/useJobsPolling.ts",
       "accessCount": 4,
       "lastAccessed": 1777151463898,
@@ -247,15 +247,15 @@
       "type": "file"
     },
     {
-      "path": "backend/tests/test_pipeline_orchestrator.py",
-      "accessCount": 3,
-      "lastAccessed": 1777134208309,
+      "path": "frontend/src/api/jobs.ts",
+      "accessCount": 4,
+      "lastAccessed": 1777211599128,
       "type": "file"
     },
     {
-      "path": "frontend/src/api/jobs.ts",
+      "path": "backend/tests/test_pipeline_orchestrator.py",
       "accessCount": 3,
-      "lastAccessed": 1777151495272,
+      "lastAccessed": 1777134208309,
       "type": "file"
     },
     {
@@ -268,6 +268,18 @@
       "path": "frontend/src/api/index.ts",
       "accessCount": 3,
       "lastAccessed": 1777194280311,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/jobs.py",
+      "accessCount": 3,
+      "lastAccessed": 1777211675100,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/routes/check.py",
+      "accessCount": 3,
+      "lastAccessed": 1777211807536,
       "type": "file"
     },
     {
@@ -313,9 +325,9 @@
       "type": "file"
     },
     {
-      "path": "backend/app/jobs.py",
-      "accessCount": 1,
-      "lastAccessed": 1777132543655,
+      "path": "backend/app/path_mapper.py",
+      "accessCount": 2,
+      "lastAccessed": 1777211649955,
       "type": "file"
     },
     {
@@ -358,6 +370,12 @@
       "path": "backend/app/routes/defaults.py",
       "accessCount": 1,
       "lastAccessed": 1777193985520,
+      "type": "file"
+    },
+    {
+      "path": "docs/geometry-search-link-approach-plan.md",
+      "accessCount": 1,
+      "lastAccessed": 1777211445516,
       "type": "file"
     }
   ],

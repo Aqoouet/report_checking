@@ -84,3 +84,26 @@ def map_path(raw_path: str) -> str:
 def get_allowed_prefixes() -> list[str]:
     """Return all allowed Linux directory prefixes from the mapping."""
     return list(_MAPPING.values())
+
+
+def map_linux_to_windows(raw_path: str) -> str:
+    """Return Windows path for a Linux path, or the original if no mapping found."""
+    path = (raw_path or "").strip()
+    if not path:
+        return path
+    for win_prefix in _SORTED_KEYS:
+        linux_prefix: str = _MAPPING[win_prefix]
+        if path.lower().startswith(linux_prefix.lower().rstrip("/")):
+            remainder = path[len(linux_prefix.rstrip("/")) :].lstrip("/")
+            return win_prefix.rstrip("\\") + ("\\" + remainder.replace("/", "\\") if remainder else "")
+    return path
+
+
+def to_file_url(path: str) -> str:
+    """Convert a Windows or Linux absolute path to a file:/// URL."""
+    p = (path or "").strip()
+    if len(p) >= 2 and p[1] == ":":
+        return "file:///" + p.replace("\\", "/")
+    if p.startswith("/"):
+        return "file://" + p
+    return ""

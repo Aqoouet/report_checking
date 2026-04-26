@@ -73,5 +73,7 @@ export interface JobSummary {
   finished_at: number | null;
   error: string | null;
   artifact_dir: string | null;
+  artifact_dir_windows: string | null;
+  artifact_dir_file_url: string | null;
   failed_sections_count: number;
 }
