@@ -11,7 +11,8 @@ from app.openai_sync_client import get_range_client, openai_error_payload
 
 logger = logging.getLogger(__name__)
 
-_VALIDATE_RANGE_PROMPT = """Ты помощник по разбору диапазона разделов технического документа (.docx).
+_VALIDATE_RANGE_PROMPT = """/no_think
+Ты помощник по разбору диапазона разделов технического документа (.docx).
 
 ЗАДАЧА: распознай намерение пользователя, даже при опечатках. Возвращай valid=false только
 если намерение абсолютно непонятно.
@@ -162,7 +163,7 @@ def _create_completion(text: str, response_format: dict[str, Any] | None) -> Any
             {"role": "user", "content": f"Ввод: {text}"},
         ],
         "temperature": 0,
-        "max_tokens": 150,
+        "max_tokens": 400,
     }
     if response_format is not None:
         kwargs["response_format"] = response_format

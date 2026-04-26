@@ -41,7 +41,11 @@ _range_client_lock = Lock()
 
 
 def get_range_client() -> OpenAI:
-    """Dedicated client for range validation: no retries, hard 30 s timeout."""
+    """Dedicated client for range validation: no retries, hard 30 s timeout.
+
+    Uses OPENAI_VALIDATE_BASE_URL when set (e.g. a lightweight model on port 1235),
+    falling back to OPENAI_BASE_URL so existing deployments keep working.
+    """
     global _range_client
     with _range_client_lock:
         if _range_client is None:
@@ -53,9 +57,13 @@ def get_range_client() -> OpenAI:
                 )
             connect = get_connect_timeout()
             read = get_range_read_timeout()
+            base_url = (
+                os.getenv("OPENAI_VALIDATE_BASE_URL", "").strip()
+                or os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1")
+            )
             _range_client = OpenAI(
                 api_key=api_key,
-                base_url=os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1"),
+                base_url=base_url,
                 timeout=httpx.Timeout(connect=connect, read=read, write=read, pool=connect),
                 max_retries=0,
             )

@@ -27,6 +27,10 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-lm-studio}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://host.docker.internal:1234/v1}
+      # OPENAI_VALIDATE_BASE_URL — отдельный эндпоинт для AI-валидации диапазонов.
+      # Если не задан, используется OPENAI_BASE_URL.
+      # Пример: http://host.docker.internal:1235/v1  (отдельный LM Studio с маленькой моделью)
+      - OPENAI_VALIDATE_BASE_URL=${OPENAI_VALIDATE_BASE_URL:-}
       # OPENAI_MODEL — примеры имён (копировать одну строку):
       #   qwen3-coder-30b-a3b-instruct
       #   qwen3.6-35b-a3b
