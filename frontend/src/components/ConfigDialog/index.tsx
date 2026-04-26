@@ -15,14 +15,15 @@ export default function ConfigDialog({ onClose }: Props) {
     helpText,
     helpLoading,
     validation,
-    fileInputRef,
+    configFileInputRef,
     handleBackdrop,
     setFieldValue,
     toggleHelp,
     validateField,
-    handleBrowseInputPath,
-    handleFileChange,
-    handleSave,
+    handleLoadConfig,
+    handleConfigFileChange,
+    handleSaveConfig,
+    handleApply,
   } = useConfigDialog(onClose);
 
   const validationFields = new Set<keyof typeof values>([
@@ -38,9 +39,8 @@ export default function ConfigDialog({ onClose }: Props) {
     label: string;
     multiline?: boolean;
     readonly?: boolean;
-    browse?: boolean;
   }> = [
-    { key: "input_docx_path", label: "Путь к .docx файлу", browse: true },
+    { key: "input_docx_path", label: "Путь к .docx файлу" },
     { key: "output_dir", label: "Папка результатов", readonly: true },
     { key: "subchapters_range", label: "Диапазон подразделов" },
     { key: "chunk_size_tokens", label: "Размер чанка, токены" },
@@ -69,11 +69,11 @@ export default function ConfigDialog({ onClose }: Props) {
         ) : (
           <div className="cfg-form">
             <input
-              ref={fileInputRef}
+              ref={configFileInputRef}
               type="file"
-              accept=".docx"
+              accept=".yaml,.yml,text/yaml,application/x-yaml"
               style={{ display: "none" }}
-              onChange={handleFileChange}
+              onChange={handleConfigFileChange}
             />
 
             {fieldMeta.map((field) => {
@@ -90,19 +90,17 @@ export default function ConfigDialog({ onClose }: Props) {
                 <div key={field.key} className="cfg-form-field">
                   <div className="cfg-field-head">
                     <label className="cfg-field-label" htmlFor={`cfg-${field.key}`}>
-                      {field.label}
-                    </label>
-                    <div className="cfg-field-actions">
+                      <span>{field.label}</span>
                       <button
                         type="button"
-                        className="cfg-icon-btn"
+                        className="cfg-icon-btn cfg-icon-btn--help"
                         aria-label={`Справка: ${field.label}`}
                         title="Показать справку"
                         onClick={() => { void toggleHelp(field.key); }}
                       >
                         ?
                       </button>
-                    </div>
+                    </label>
                   </div>
 
                   <div className="cfg-field-input-row">
@@ -124,18 +122,6 @@ export default function ConfigDialog({ onClose }: Props) {
                         disabled={field.readonly}
                         spellCheck={false}
                       />
-                    )}
-
-                    {field.browse && !field.readonly && (
-                      <button
-                        type="button"
-                        className="cfg-icon-btn cfg-icon-btn--side"
-                        aria-label="Выбрать .docx файл"
-                        title="Выбрать .docx файл"
-                        onClick={handleBrowseInputPath}
-                      >
-                        📂
-                      </button>
                     )}
 
                     {hasValidationButton && (
@@ -179,12 +165,22 @@ export default function ConfigDialog({ onClose }: Props) {
           </div>
         )}
         <div className="modal-footer">
-          <button type="button" className="btn btn--secondary" onClick={onClose}>
-            Отмена
-          </button>
-          <button type="button" className="btn btn--primary" onClick={handleSave} disabled={saving || loading}>
-            {saving ? "Сохраняем…" : "Сохранить"}
-          </button>
+          <div className="modal-footer-group">
+            <button type="button" className="btn btn--secondary" onClick={handleLoadConfig} disabled={saving || loading}>
+              Загрузить конфигурацию
+            </button>
+            <button type="button" className="btn btn--secondary" onClick={handleSaveConfig} disabled={saving || loading}>
+              Сохранить конфигурацию
+            </button>
+          </div>
+          <div className="modal-footer-group">
+            <button type="button" className="btn btn--secondary" onClick={onClose}>
+              Отмена
+            </button>
+            <button type="button" className="btn btn--primary" onClick={handleApply} disabled={saving || loading}>
+              {saving ? "Применяем…" : "Применить"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

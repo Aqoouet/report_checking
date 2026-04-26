@@ -85,6 +85,9 @@ async def validate_range(range_text: str | None = Form(None)):
         return {"valid": True, "type": "sections", "items": [], "display": "", "suggestion": ""}
     if len(raw) > MAX_RANGE_SPEC_LEN:
         return {"valid": False, "range_message": "Range text is too long.", "server_error": False}
+    quick = parse_range_script(raw)
+    if quick.get("valid"):
+        return quick
     result = validate_range_with_ai(raw)
     if not result.get("valid") and result.get("server_error"):
         logger.warning("AI range validation failed: %s", result.get("range_message", "unknown error"))

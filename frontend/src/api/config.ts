@@ -41,7 +41,7 @@ export async function getConfig(): Promise<PipelineConfigData | null> {
   return data as unknown as PipelineConfigData;
 }
 
-export async function postConfig(data: Partial<PipelineConfigData>): Promise<void> {
+export async function postConfig(data: Partial<PipelineConfigData> & { _original_yaml?: string }): Promise<void> {
   const res = await fetch(`${BASE}/config`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Session-ID": getSessionId() },

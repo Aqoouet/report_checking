@@ -1,3 +1,4 @@
+import { load, dump } from "js-yaml";
 import { useEffect, useRef, useState, type Dispatch, type MouseEvent, type SetStateAction } from "react";
 import {
   fetchConfigDefaults,
@@ -155,16 +156,30 @@ function parseBackendFieldErrors(message: string): Partial<Record<ConfigField, s
   return fieldErrors;
 }
 
-function extractSelectedPath(file: File, rawInputValue: string): string | null {
-  const maybeFile = file as File & { path?: string };
-  if (typeof maybeFile.path === "string" && maybeFile.path.trim()) {
-    return maybeFile.path.trim();
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function asString(value: unknown): string {
+  if (value == null) return "";
+  return String(value);
+}
+
+function toYamlBackedFormValues(parsed: unknown, base: FormValues): FormValues {
+  if (!isRecord(parsed)) {
+    throw new Error("Файл конфигурации должен содержать YAML-объект с полями.");
   }
-  const candidate = rawInputValue.trim();
-  if (candidate && !candidate.toLowerCase().includes("fakepath")) {
-    return candidate;
-  }
-  return null;
+
+  return {
+    input_docx_path: "input_docx_path" in parsed ? asString(parsed.input_docx_path) : base.input_docx_path,
+    output_dir: "output_dir" in parsed ? asString(parsed.output_dir) : base.output_dir,
+    subchapters_range: "subchapters_range" in parsed ? asString(parsed.subchapters_range) : base.subchapters_range,
+    chunk_size_tokens: "chunk_size_tokens" in parsed ? asString(parsed.chunk_size_tokens) : base.chunk_size_tokens,
+    temperature: "temperature" in parsed ? asString(parsed.temperature) : base.temperature,
+    check_prompt: "check_prompt" in parsed ? asString(parsed.check_prompt) : base.check_prompt,
+    validation_prompt: "validation_prompt" in parsed ? asString(parsed.validation_prompt) : base.validation_prompt,
+    summary_prompt: "summary_prompt" in parsed ? asString(parsed.summary_prompt) : base.summary_prompt,
+  };
 }
 
 export function useConfigDialog(onClose: () => void) {
@@ -177,7 +192,8 @@ export function useConfigDialog(onClose: () => void) {
   const [helpText, setHelpText] = useState<HelpTextState>(createHelpTextState);
   const [helpLoading, setHelpLoading] = useState<HelpLoadingState>(createHelpLoadingState);
   const [validation, setValidation] = useState<ValidationStateMap>(createValidationState);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const configFileInputRef = useRef<HTMLInputElement>(null);
+  const [loadedOriginalYaml, setLoadedOriginalYaml] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -221,6 +237,7 @@ export function useConfigDialog(onClose: () => void) {
     setValues((prev) => ({ ...prev, [field]: value }));
     setValidation((prev) => ({ ...prev, [field]: { status: "idle", message: "" } }));
     setSaveError("");
+    setLoadedOriginalYaml("");
   };
 
   const toggleHelp = async (field: ConfigField) => {
@@ -386,29 +403,55 @@ export function useConfigDialog(onClose: () => void) {
     }
   };
 
-  const handleBrowseInputPath = () => {
-    fileInputRef.current?.click();
+  const handleLoadConfig = () => {
+    configFileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleConfigFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const selectedPath = extractSelectedPath(file, e.target.value);
-    if (selectedPath) {
-      setFieldValue("input_docx_path", selectedPath);
-    } else {
-      setValidation((prev) => ({
-        ...prev,
-        input_docx_path: {
-          status: "error",
-          message: "Этот браузер не раскрывает абсолютный путь файла. Введите путь вручную.",
-        },
-      }));
+    try {
+      const raw = await file.text();
+      const parsed = load(raw);
+      setValues((prev) => toYamlBackedFormValues(parsed, prev));
+      setValidation(createValidationState());
+      setSaveError("");
+      setLoadedOriginalYaml(raw);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Не удалось прочитать YAML-конфигурацию.");
+    } finally {
+      e.target.value = "";
     }
-    e.target.value = "";
   };
 
-  const handleSave = async () => {
+  const handleSaveConfig = () => {
+    const payload = {
+      input_docx_path: values.input_docx_path,
+      output_dir: values.output_dir,
+      subchapters_range: values.subchapters_range,
+      chunk_size_tokens: values.chunk_size_tokens.trim(),
+      temperature: values.temperature.trim() ? values.temperature.trim() : null,
+      check_prompt: values.check_prompt,
+      validation_prompt: values.validation_prompt,
+      summary_prompt: values.summary_prompt,
+    };
+    const yamlText = dump(payload, {
+      lineWidth: -1,
+      noRefs: true,
+      sortKeys: false,
+    });
+    const blob = new Blob([yamlText], { type: "application/x-yaml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "config.yaml";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleApply = async () => {
     setSaveError("");
     const fieldErrors: Partial<Record<ConfigField, string>> = {};
     const inputDocxPath = values.input_docx_path.trim();
@@ -457,7 +500,10 @@ export function useConfigDialog(onClose: () => void) {
 
     setSaving(true);
     try {
-      await postConfig(payload);
+      await postConfig({
+        ...payload,
+        _original_yaml: loadedOriginalYaml || undefined,
+      });
       onClose();
     } catch (err) {
       if (err instanceof ApiError && err.code === "ERR_CONFIG_VALIDATION_FAILED") {
@@ -479,13 +525,14 @@ export function useConfigDialog(onClose: () => void) {
     helpText,
     helpLoading,
     validation,
-    fileInputRef,
+    configFileInputRef,
     handleBackdrop,
     setFieldValue,
     toggleHelp,
     validateField,
-    handleBrowseInputPath,
-    handleFileChange,
-    handleSave,
+    handleLoadConfig,
+    handleConfigFileChange,
+    handleSaveConfig,
+    handleApply,
   };
 }

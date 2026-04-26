@@ -18,7 +18,7 @@ from app.jobs import JobStatus
 from app.routes.config import set_config
 from app.routes.defaults import get_config_defaults, get_field_help
 from app.routes.results import result, result_log, result_md, status
-from app.routes.validation import validate_output_dir_endpoint, validate_path_endpoint
+from app.routes.validation import validate_output_dir_endpoint, validate_path_endpoint, validate_range
 
 
 def _detail(exc: HTTPException) -> dict[str, Any]:
@@ -191,6 +191,22 @@ class ValidationRouteContractTests(unittest.TestCase):
                 "resolved_path": "/tmp/out",
             },
         )
+
+    def test_validate_range_uses_quick_parser_for_single_section(self) -> None:
+        with mock.patch("app.routes.validation.validate_range_with_ai") as ai_mock:
+            result = asyncio.run(validate_range("5"))
+
+        self.assertEqual(
+            result,
+            {
+                "valid": True,
+                "type": "sections",
+                "items": [{"start": "5", "end": "5"}],
+                "display": "Раздел: 5",
+                "suggestion": "",
+            },
+        )
+        ai_mock.assert_not_called()
 
 
 class DefaultsRouteContractTests(unittest.TestCase):
