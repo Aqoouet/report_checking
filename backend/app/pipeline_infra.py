@@ -67,11 +67,11 @@ class ArtifactLogger:
 
 
 def _write_config_yaml(config: PipelineConfig, path: Path) -> None:
+    if config.original_yaml:
+        write_artifact(path, config.original_yaml)
+        return
     payload = asdict(config)
-    write_artifact(
-        path,
-        yaml.safe_dump(payload, allow_unicode=True, sort_keys=False),
-    )
+    write_artifact(path, yaml.safe_dump(payload, allow_unicode=True, sort_keys=False))
 
 
 def _split_check_result_blocks(text: str) -> list[str]:

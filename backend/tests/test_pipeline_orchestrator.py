@@ -145,6 +145,46 @@ class PipelineOrchestratorTests(unittest.TestCase):
 
         asyncio.run(run_pipeline())
 
+    def test_run_preserves_original_yaml_in_artifact_config(self) -> None:
+        async def run_pipeline() -> None:
+            job = job_repo.create_job()
+            doc_data = DocData(
+                file_path="/tmp/input.docx",
+                sections=[Section(number="1", title="One", text="body", level=1)],
+            )
+            original_yaml = (
+                "# comment\n"
+                "input_docx_path: /tmp/input.docx\n"
+                "output_dir: /tmp/out\n"
+                "check_prompt: |\n"
+                "  line one\n"
+                "  line two\n"
+            )
+
+            async def fake_call(*args, **kwargs) -> str:
+                return "checked"
+
+            async def fake_run_in_executor(_executor, func):
+                return func()
+
+            fake_loop = types.SimpleNamespace(run_in_executor=fake_run_in_executor)
+            with tempfile.TemporaryDirectory() as tmp, mock.patch(
+                "app.pipeline_convert.parse_document", return_value=(doc_data, "# md")
+            ), mock.patch(
+                "app.pipeline_convert.asyncio.get_event_loop", return_value=fake_loop
+            ), mock.patch("app.pipeline_check.call_async", side_effect=fake_call):
+                cfg = _config(tmp)
+                cfg.original_yaml = original_yaml
+                await pipeline_orchestrator.run(job, cfg, _servers())
+                fresh = job_repo.get_job(job.id)
+                self.assertIsNotNone(fresh)
+                assert fresh is not None
+                artifact_dir = Path(fresh.artifact_dir)
+                saved = (artifact_dir / "config.yaml").read_text(encoding="utf-8")
+                self.assertEqual(saved, original_yaml)
+
+        asyncio.run(run_pipeline())
+
     def test_run_cancelled_marks_cancelled(self) -> None:
         async def run_pipeline() -> None:
             job = job_repo.create_job()

@@ -15,6 +15,7 @@ async def call_worker_chat(
     temperature: float | None = None,
     timeout: float = 1800.0,
 ) -> str:
+    base_url = server_url.rstrip("/")
     effective_model = model or get_model()
     body: dict[str, Any] = {
         "model": effective_model,
@@ -27,13 +28,13 @@ async def call_worker_chat(
         body["temperature"] = temperature
 
     async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(f"{server_url}/v1/chat/completions", json=body)
+        response = await client.post(f"{base_url}/v1/chat/completions", json=body)
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             body_text = response.text[:500].strip()
             raise httpx.HTTPStatusError(
-                f"HTTP {response.status_code} from {server_url}: {body_text}",
+                f"HTTP {response.status_code} from {base_url}: {body_text}",
                 request=exc.request,
                 response=exc.response,
             ) from exc

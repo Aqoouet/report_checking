@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import threading
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Callable
 
 from app.range_parser import parse_range_script
@@ -20,6 +20,7 @@ class PipelineConfig:
     chunk_size_tokens: int = 10000
     temperature: float | None = None
     model: str = ""
+    original_yaml: str = field(default="", repr=False)
 
 
 @dataclass
@@ -127,7 +128,9 @@ def get_config(session_id: str = "default") -> PipelineConfig | None:
 
 
 def config_to_dict(config: PipelineConfig) -> dict[str, Any]:
-    return asdict(config)
+    payload = asdict(config)
+    payload.pop("original_yaml", None)
+    return payload
 
 
 def to_dict(session_id: str = "default") -> dict[str, Any] | None:
@@ -149,6 +152,7 @@ def validate_and_set(
     resolved_docx: str,
     resolved_output: str,
     *,
+    original_yaml: str = "",
     validate_range_with_ai: Callable | None = None,
     session_id: str = "default",
 ) -> list[str]:
@@ -161,6 +165,7 @@ def validate_and_set(
         config = parse_config_payload(patched)
     except ValueError as exc:
         return [str(exc)]
+    config.original_yaml = original_yaml
 
     errors = _validate_fields(config, validate_range_with_ai=validate_range_with_ai)
     if not errors:

@@ -184,7 +184,10 @@ class RangeAiValidatorTests(unittest.TestCase):
 
 class WorkerAiClientTests(unittest.TestCase):
     def test_call_worker_chat_success(self) -> None:
+        seen_urls: list[str] = []
+
         async def handler(request: httpx.Request) -> httpx.Response:
+            seen_urls.append(str(request.url))
             body = json.loads(request.content.decode())
             self.assertEqual(body["model"], "model")
             return httpx.Response(
@@ -202,10 +205,11 @@ class WorkerAiClientTests(unittest.TestCase):
                 result = await worker_ai_client.call_worker_chat(
                     "text",
                     "prompt",
-                    "http://worker.test",
+                    "http://worker.test/",
                     model="model",
                 )
             self.assertEqual(result, "ok")
+            self.assertEqual(seen_urls, ["http://worker.test/v1/chat/completions"])
 
         asyncio.run(run())
 

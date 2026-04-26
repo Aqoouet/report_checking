@@ -45,6 +45,7 @@ async def set_config(request: Request):
         payload,
         resolved_docx,
         resolved_output,
+        original_yaml=str(payload.get("_original_yaml", "") or ""),
         validate_range_with_ai=validate_range,
         session_id=session_id,
     )
