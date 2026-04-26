@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import platform
-
 import yaml
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse
@@ -26,10 +24,9 @@ ALLOWED_HELP_FIELDS = {
 async def get_config_defaults() -> dict:
     with CONFIG_DEFAULTS_PATH.open("r", encoding="utf-8") as f:
         raw = yaml.safe_load(f)
-    is_windows = platform.system() == "Windows"
     return {
-        "input_docx_path": raw["input_docx_path_windows"] if is_windows else raw["input_docx_path_linux"],
-        "output_dir": raw["output_dir_windows"] if is_windows else raw["output_dir_linux"],
+        "input_docx_path": raw.get("input_docx_path_windows", raw.get("input_docx_path_linux", "")),
+        "output_dir": raw.get("output_dir_windows", raw.get("output_dir_linux", "")),
         "subchapters_range": raw.get("subchapters_range", ""),
         "chunk_size_tokens": raw.get("chunk_size_tokens", 3000),
         "temperature": raw.get("temperature"),
