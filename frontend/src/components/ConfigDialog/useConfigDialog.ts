@@ -319,6 +319,9 @@ export function useConfigDialog(onClose: () => void) {
       try {
         const result = await validateSubchaptersRange(values.subchapters_range.trim());
         if (result.valid) {
+          if (result.display) {
+            setValues((prev) => ({ ...prev, subchapters_range: result.display ?? prev.subchapters_range }));
+          }
           setValidation((prev) => ({
             ...prev,
             subchapters_range: {
