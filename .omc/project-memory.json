@@ -117,6 +117,12 @@
       "type": "file"
     },
     {
+      "path": "frontend/src/components/ConfigDialog/useConfigDialog.ts",
+      "accessCount": 15,
+      "lastAccessed": 1777216035870,
+      "type": "file"
+    },
+    {
       "path": "INDEX.md",
       "accessCount": 13,
       "lastAccessed": 1777213029145,
@@ -136,8 +142,14 @@
     },
     {
       "path": "frontend/src/api/types.ts",
+      "accessCount": 9,
+      "lastAccessed": 1777214884437,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/ConfigDialog/index.tsx",
       "accessCount": 8,
-      "lastAccessed": 1777211842802,
+      "lastAccessed": 1777216009205,
       "type": "file"
     },
     {
@@ -183,27 +195,21 @@
       "type": "file"
     },
     {
+      "path": "backend/app/range_ai_validator.py",
+      "accessCount": 6,
+      "lastAccessed": 1777213786069,
+      "type": "file"
+    },
+    {
       "path": "backend/app/worker_servers.py",
-      "accessCount": 5,
-      "lastAccessed": 1777151646159,
+      "accessCount": 6,
+      "lastAccessed": 1777213900441,
       "type": "file"
     },
     {
       "path": "frontend/src/components/ConfigDialog/yaml.ts",
       "accessCount": 5,
       "lastAccessed": 1777194132436,
-      "type": "file"
-    },
-    {
-      "path": "frontend/src/components/ConfigDialog/useConfigDialog.ts",
-      "accessCount": 5,
-      "lastAccessed": 1777194132841,
-      "type": "file"
-    },
-    {
-      "path": "frontend/src/components/ConfigDialog/index.tsx",
-      "accessCount": 5,
-      "lastAccessed": 1777194141574,
       "type": "file"
     },
     {
@@ -249,9 +255,15 @@
       "type": "file"
     },
     {
-      "path": "backend/app/range_ai_validator.py",
+      "path": "backend/app/openai_sync_client.py",
       "accessCount": 4,
-      "lastAccessed": 1777213240620,
+      "lastAccessed": 1777213990603,
+      "type": "file"
+    },
+    {
+      "path": ".env.example",
+      "accessCount": 4,
+      "lastAccessed": 1777214341575,
       "type": "file"
     },
     {
@@ -285,9 +297,9 @@
       "type": "file"
     },
     {
-      "path": "backend/app/openai_sync_client.py",
+      "path": "docker-compose.yml",
       "accessCount": 3,
-      "lastAccessed": 1777213187661,
+      "lastAccessed": 1777214013244,
       "type": "file"
     },
     {
@@ -312,12 +324,6 @@
       "path": "backend/app/artifact_writer.py",
       "accessCount": 2,
       "lastAccessed": 1777151529270,
-      "type": "file"
-    },
-    {
-      "path": ".env.example",
-      "accessCount": 2,
-      "lastAccessed": 1777151804478,
       "type": "file"
     },
     {

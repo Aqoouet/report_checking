@@ -16,7 +16,6 @@ export default function ConfigDialog({ onClose }: Props) {
     helpLoading,
     validation,
     configFileInputRef,
-    handleBackdrop,
     setFieldValue,
     toggleHelp,
     validateField,
@@ -51,7 +50,7 @@ export default function ConfigDialog({ onClose }: Props) {
   ];
 
   return (
-    <div className="modal-backdrop" onClick={handleBackdrop}>
+    <div className="modal-backdrop">
       <div className="modal-box modal-box--wide" role="dialog" aria-modal="true" aria-label="Настройки">
         <div className="modal-header">
           <div className="modal-header-left">

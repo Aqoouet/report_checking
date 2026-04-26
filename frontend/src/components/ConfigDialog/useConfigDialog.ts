@@ -1,5 +1,5 @@
 import { load, dump } from "js-yaml";
-import { useEffect, useRef, useState, type Dispatch, type MouseEvent, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
   fetchConfigDefaults,
   fetchDefaultPrompts,
@@ -220,18 +220,6 @@ export function useConfigDialog(onClose: () => void) {
       })
       .finally(() => setLoading(false));
   }, []);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
-
-  const handleBackdrop = (e: MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
-  };
 
   const setFieldValue = (field: ConfigField, value: string) => {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -534,7 +522,6 @@ export function useConfigDialog(onClose: () => void) {
     helpLoading,
     validation,
     configFileInputRef,
-    handleBackdrop,
     setFieldValue,
     toggleHelp,
     validateField,
