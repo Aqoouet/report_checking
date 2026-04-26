@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { cancelJob, type JobSummary } from "../../api";
+import { Icon } from "../Icon";
 import { formatDisplayError, type DisplayError } from "./errorDetails";
 import { useJobLog } from "./useJobLog";
 
@@ -82,13 +83,23 @@ export function JobRow({ job, onDelete }: Props) {
   return (
     <div className={`job-row job-row--${job.status}`}>
       <div className="job-row-header">
-        <span className="job-docx-name" title={job.docx_name}>{job.docx_name || "—"}</span>
+        <div className="job-docx-meta">
+          <span className="job-docx-icon-wrap">
+            <Icon name="i-document" className="job-docx-icon" />
+          </span>
+          <div className="job-docx-copy">
+            <span className="job-docx-name" title={job.docx_name}>{job.docx_name || "—"}</span>
+            <span className="job-time">{formatTime(job.submitted_at)}</span>
+          </div>
+        </div>
         <span className={`job-status ${STATUS_CLASS[job.status]}`}>{STATUS_LABEL[job.status]}</span>
-        <span className="job-time">{formatTime(job.submitted_at)}</span>
       </div>
 
       {job.status === "pending" && job.queue_position > 0 && (
-        <div className="job-queue-pos">Позиция в очереди: {job.queue_position}</div>
+        <div className="job-queue-pos">
+          <Icon name="i-clock" className="job-inline-icon" />
+          <span>Позиция в очереди: {job.queue_position}</span>
+        </div>
       )}
 
       {isProcessing && (
@@ -131,7 +142,8 @@ export function JobRow({ job, onDelete }: Props) {
             onClick={handleCancel}
             disabled={cancelling}
           >
-            {cancelling ? "Отменяем…" : "Отменить"}
+            <Icon name="i-stop" className="btn__icon btn__icon--sm" />
+            <span>{cancelling ? "Отменяем…" : "Отменить"}</span>
           </button>
         )}
         {(isProcessing || pendingCancel) && (
@@ -141,7 +153,8 @@ export function JobRow({ job, onDelete }: Props) {
             onClick={handleCancel}
             disabled={cancelling || pendingCancel}
           >
-            {cancelling ? "Останавливаем…" : pendingCancel ? "Отменяется…" : "Отменить"}
+            <Icon name="i-stop" className="btn__icon btn__icon--sm" />
+            <span>{cancelling ? "Останавливаем…" : pendingCancel ? "Отменяется…" : "Отменить"}</span>
           </button>
         )}
         {(isProcessing || pendingCancel) && (
@@ -150,12 +163,17 @@ export function JobRow({ job, onDelete }: Props) {
             className="btn btn--sm btn--outline"
             onClick={() => setLogOpen((o) => !o)}
           >
-            {logOpen ? "Скрыть лог" : "Показать лог"}
+            <Icon
+              name={logOpen ? "i-chevron-down" : "i-terminal"}
+              className="btn__icon btn__icon--sm"
+            />
+            <span>{logOpen ? "Скрыть лог" : "Показать лог"}</span>
           </button>
         )}
         {job.artifact_dir && (
           <div className="job-artifact-text">
-            Папка:{" "}
+            <Icon name="i-folder" className="job-inline-icon" />
+            <span>Папка:</span>{" "}
             <a
               href={job.artifact_dir_file_url ?? undefined}
               className="job-artifact-link"

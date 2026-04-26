@@ -1,4 +1,5 @@
 import { useConfigDialog } from "./useConfigDialog";
+import { Icon } from "../Icon";
 
 interface Props {
   onClose: () => void;
@@ -54,10 +55,13 @@ export default function ConfigDialog({ onClose }: Props) {
       <div className="modal-box modal-box--wide" role="dialog" aria-modal="true" aria-label="Настройки">
         <div className="modal-header">
           <div className="modal-header-left">
+            <div className="modal-kicker">Pipeline Config</div>
             <h2 className="modal-title">Настройки конфигурации</h2>
             <span className="modal-subtitle">Редактируйте параметры по полям</span>
           </div>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Закрыть">✕</button>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Закрыть">
+            <Icon name="i-close" className="modal-close__icon" />
+          </button>
         </div>
 
         {loading ? (
@@ -97,7 +101,7 @@ export default function ConfigDialog({ onClose }: Props) {
                         title="Показать справку"
                         onClick={() => { void toggleHelp(field.key); }}
                       >
-                        ?
+                        <Icon name="i-info" className="cfg-icon-btn__icon cfg-icon-btn__icon--help" />
                       </button>
                     </label>
                   </div>
@@ -132,7 +136,10 @@ export default function ConfigDialog({ onClose }: Props) {
                         onClick={() => { void validateField(field.key); }}
                         disabled={fieldValidation.status === "pending"}
                       >
-                        ✓
+                        <Icon
+                          name={fieldValidation.status === "pending" ? "i-spark" : "i-check"}
+                          className="cfg-icon-btn__icon"
+                        />
                       </button>
                     )}
                   </div>
@@ -166,18 +173,22 @@ export default function ConfigDialog({ onClose }: Props) {
         <div className="modal-footer">
           <div className="modal-footer-group">
             <button type="button" className="btn btn--secondary" onClick={handleLoadConfig} disabled={saving || loading}>
-              Загрузить конфигурацию
+              <Icon name="i-upload" className="btn__icon" />
+              <span>Загрузить конфигурацию</span>
             </button>
             <button type="button" className="btn btn--secondary" onClick={handleSaveConfig} disabled={saving || loading}>
-              Сохранить конфигурацию
+              <Icon name="i-download" className="btn__icon" />
+              <span>Сохранить конфигурацию</span>
             </button>
           </div>
           <div className="modal-footer-group">
             <button type="button" className="btn btn--secondary" onClick={onClose}>
-              Отмена
+              <Icon name="i-close" className="btn__icon" />
+              <span>Отмена</span>
             </button>
             <button type="button" className="btn btn--primary" onClick={handleApply} disabled={saving || loading}>
-              {saving ? "Применяем…" : "Применить"}
+              <Icon name={saving ? "i-spark" : "i-check"} className="btn__icon" />
+              <span>{saving ? "Применяем…" : "Применить"}</span>
             </button>
           </div>
         </div>
