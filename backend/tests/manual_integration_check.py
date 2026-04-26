@@ -1,3 +1,26 @@
+"""
+Manual integration harness for the running report-checker service.
+
+Run from the repo root on the target server:
+
+    python3 backend/tests/manual_integration_check.py
+
+Default behavior:
+- reads the prepared YAML config
+- rejects unallowlisted input/output paths before submit
+- prints the allowed writable roots
+
+Optional rewrite/staging mode:
+
+    python3 backend/tests/manual_integration_check.py --rewrite-paths
+
+Rewrite mode:
+- copies the input file into an allowlisted directory
+- rewrites only input_docx_path and output_dir
+- writes an exact .staged.yaml copy preserving comments and block formatting
+- submits the full job and waits until it reaches a terminal state
+"""
+
 import argparse
 import json
 import re
