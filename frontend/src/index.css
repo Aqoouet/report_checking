@@ -879,217 +879,166 @@ body {
   flex-shrink: 0;
 }
 
-/* ---- Config YAML editor layout ---- */
-.cfg-layout {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-  min-height: 0;
-  min-height: 500px;
-}
-
-.cfg-editor-col {
-  flex: 1;
+/* ---- Config form dialog ---- */
+.cfg-form {
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  border-right: 1px solid var(--border);
+  gap: 18px;
+  padding: 8px 4px 4px;
+  min-height: 0;
+  max-height: calc(100vh - 240px);
+  overflow-y: auto;
 }
 
-.cfg-editor-toolbar {
+.cfg-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cfg-field-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  background: #f9fafb;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.cfg-editor-label {
-  flex: 1;
-  font-size: 0.78rem;
+.cfg-field-label {
+  font-size: 0.88rem;
   font-weight: 600;
-  color: var(--text-muted);
-  font-family: ui-monospace, "Cascadia Code", monospace;
-}
-
-.cfg-yaml-editor {
-  flex: 1;
-  width: 100%;
-  padding: 14px 16px;
-  font-size: 0.82rem;
-  font-family: ui-monospace, "Cascadia Code", monospace;
-  line-height: 1.55;
-  resize: none;
-  border: none;
-  outline: none;
-  background: #fff;
   color: var(--text);
-  tab-size: 2;
-  min-height: 400px;
-}
-.cfg-yaml-editor:focus {
-  box-shadow: inset 0 0 0 2px var(--primary);
 }
 
-.cfg-parse-error,
+.cfg-field-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cfg-field-input-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.cfg-input,
+.cfg-textarea {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.92rem;
+  color: var(--text);
+  background: #fff;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+
+.cfg-input:focus,
+.cfg-textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.cfg-input--readonly {
+  background: #f8fafc;
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.cfg-textarea {
+  min-height: 140px;
+  resize: vertical;
+  line-height: 1.5;
+  font-family: ui-monospace, "Cascadia Code", monospace;
+}
+
+.cfg-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: var(--text);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color .15s, background .15s, color .15s, transform .15s;
+}
+
+.cfg-icon-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: #eff6ff;
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.cfg-icon-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.cfg-icon-btn--side {
+  margin-top: 1px;
+}
+
+.cfg-inline-panel {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cfg-inline-panel--help {
+  background: #f8fafc;
+  border: 1px solid #dbeafe;
+  color: #1e293b;
+}
+
+.cfg-field-result {
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.cfg-field-result--success {
+  background: #ecfdf5;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
+.cfg-field-result--error,
 .cfg-save-error {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 9px 12px;
   font-size: 0.8rem;
   line-height: 1.4;
-  flex-shrink: 0;
-  border-top: 1px solid transparent;
+  border: 1px solid #fca5a5;
 }
-.cfg-parse-error {
-  background: #fef9c3;
-  border-color: #fde047;
-  color: #713f12;
+
+.cfg-field-result--error {
+  background: #fee2e2;
+  color: #b91c1c;
 }
-.cfg-parse-error-content {
-  min-width: 0;
-}
-.cfg-field-errors {
-  margin: 4px 0 0;
-  padding-left: 18px;
-}
-.cfg-field-error-name {
-  font-family: ui-monospace, "Cascadia Code", monospace;
-  font-weight: 700;
-}
+
 .cfg-save-error {
   background: #fee2e2;
-  border-color: #fca5a5;
   color: var(--red);
 }
+
 .cfg-error-icon {
   flex-shrink: 0;
   font-style: normal;
 }
 
-/* ---- Config docs column ---- */
-.cfg-docs-col {
-  width: 260px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  background: #fafafa;
-}
-
-.cfg-docs-title {
-  padding: 10px 14px 6px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.cfg-params-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 0 8px;
-  flex-shrink: 0;
-}
-
-.cfg-param-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 10px;
-  background: none;
-  border: 1.5px solid transparent;
-  border-radius: 8px;
-  cursor: pointer;
-  text-align: left;
-  transition: background .15s, border-color .15s;
-}
-.cfg-param-item:hover {
-  background: #f0f4ff;
-  border-color: #bfdbfe;
-}
-.cfg-param-item--active {
-  background: #eff6ff;
-  border-color: var(--primary);
-}
-
-.cfg-param-key {
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-family: ui-monospace, "Cascadia Code", monospace;
-  color: var(--text);
-}
-
-.cfg-param-type {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
-
-.cfg-param-detail {
-  margin: 8px 8px 0;
-  padding: 12px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.cfg-param-detail-title {
-  font-size: 0.8rem;
-  font-weight: 700;
-  font-family: ui-monospace, "Cascadia Code", monospace;
-  color: var(--text);
-}
-
-.cfg-param-detail-type {
-  font-size: 0.72rem;
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.cfg-param-detail-desc {
-  font-size: 0.78rem;
-  color: var(--text);
-  line-height: 1.5;
-  margin: 0;
-}
-
-.cfg-param-detail-example-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-
-.cfg-param-detail-example {
-  font-size: 0.72rem;
-  font-family: ui-monospace, "Cascadia Code", monospace;
-  background: #f3f4f6;
-  border-radius: 6px;
-  padding: 8px 10px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.5;
-  color: var(--text);
-  margin: 0;
-}
-
-.cfg-docs-hint {
-  margin: 8px 8px 0;
-  padding: 10px 12px;
+.cfg-field-meta {
   font-size: 0.78rem;
   color: var(--text-muted);
-  line-height: 1.5;
-  background: #f3f4f6;
-  border-radius: 8px;
 }

@@ -1,4 +1,3 @@
-import { PARAM_DOCS } from "./paramDocs";
 import { useConfigDialog } from "./useConfigDialog";
 
 interface Props {
@@ -7,33 +6,57 @@ interface Props {
 
 export default function ConfigDialog({ onClose }: Props) {
   const {
-    yaml,
-    setYaml,
+    values,
     loading,
     saving,
     saveError,
-    parseErrors,
-    setParseErrors,
-    activeDoc,
-    setActiveDoc,
+    runtimeInfo,
+    helpOpen,
+    helpText,
+    helpLoading,
+    validation,
     fileInputRef,
     handleBackdrop,
-    handleLoadFile,
-    handleDownloadYaml,
+    setFieldValue,
+    toggleHelp,
+    validateField,
+    handleBrowseInputPath,
     handleFileChange,
     handleSave,
   } = useConfigDialog(onClose);
 
-  const activeParam = PARAM_DOCS.find((p) => p.key === activeDoc);
+  const validationFields = new Set<keyof typeof values>([
+    "input_docx_path",
+    "output_dir",
+    "subchapters_range",
+    "chunk_size_tokens",
+    "temperature",
+  ]);
+
+  const fieldMeta: Array<{
+    key: keyof typeof values;
+    label: string;
+    multiline?: boolean;
+    readonly?: boolean;
+    browse?: boolean;
+  }> = [
+    { key: "input_docx_path", label: "Путь к .docx файлу", browse: true },
+    { key: "output_dir", label: "Папка результатов", readonly: true },
+    { key: "subchapters_range", label: "Диапазон подразделов" },
+    { key: "chunk_size_tokens", label: "Размер чанка, токены" },
+    { key: "temperature", label: "Temperature" },
+    { key: "check_prompt", label: "Промпт проверки", multiline: true },
+    { key: "validation_prompt", label: "Промпт валидации", multiline: true },
+    { key: "summary_prompt", label: "Промпт суммаризации", multiline: true },
+  ];
 
   return (
     <div className="modal-backdrop" onClick={handleBackdrop}>
       <div className="modal-box modal-box--wide" role="dialog" aria-modal="true" aria-label="Настройки">
-
         <div className="modal-header">
           <div className="modal-header-left">
             <h2 className="modal-title">Настройки конфигурации</h2>
-            <span className="modal-subtitle">Редактируйте YAML напрямую</span>
+            <span className="modal-subtitle">Редактируйте параметры по полям</span>
           </div>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Закрыть">✕</button>
         </div>
@@ -44,91 +67,117 @@ export default function ConfigDialog({ onClose }: Props) {
             Загрузка конфигурации…
           </div>
         ) : (
-          <div className="cfg-layout">
-            <div className="cfg-editor-col">
-              <div className="cfg-editor-toolbar">
-                <span className="cfg-editor-label">config.yaml</span>
-                <button type="button" className="btn btn--sm btn--outline" onClick={handleLoadFile}>
-                  <span>📂</span> Загрузить файл
-                </button>
-                <button type="button" className="btn btn--sm btn--outline" onClick={handleDownloadYaml}>
-                  <span>💾</span> Сохранить файл
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".yaml,.yml,.txt"
-                  style={{ display: "none" }}
-                  onChange={handleFileChange}
-                />
-              </div>
+          <div className="cfg-form">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".docx"
+              style={{ display: "none" }}
+              onChange={handleFileChange}
+            />
 
-              <textarea
-                className="cfg-yaml-editor"
-                value={yaml}
-                onChange={(e) => { setYaml(e.target.value); setParseErrors([]); }}
-                spellCheck={false}
-                autoCorrect="off"
-                autoCapitalize="off"
-              />
+            {fieldMeta.map((field) => {
+              const fieldValidation = validation[field.key];
+              const hasValidationButton = validationFields.has(field.key);
+              const validationClass =
+                fieldValidation.status === "success"
+                  ? "cfg-field-result cfg-field-result--success"
+                  : fieldValidation.status === "error"
+                    ? "cfg-field-result cfg-field-result--error"
+                    : "cfg-field-result";
 
-              {parseErrors.length > 0 && (
-                <div className="cfg-parse-error">
-                  <span className="cfg-error-icon">⚠</span>
-                  <div className="cfg-parse-error-content">
-                    <div>Проверьте значения в YAML:</div>
-                    <ul className="cfg-field-errors">
-                      {parseErrors.map((error, index) => (
-                        <li key={`${error.field}-${index}`}>
-                          <span className="cfg-field-error-name">{error.field}</span>: {error.message}
-                        </li>
-                      ))}
-                    </ul>
+              return (
+                <div key={field.key} className="cfg-form-field">
+                  <div className="cfg-field-head">
+                    <label className="cfg-field-label" htmlFor={`cfg-${field.key}`}>
+                      {field.label}
+                    </label>
+                    <div className="cfg-field-actions">
+                      <button
+                        type="button"
+                        className="cfg-icon-btn"
+                        aria-label={`Справка: ${field.label}`}
+                        title="Показать справку"
+                        onClick={() => { void toggleHelp(field.key); }}
+                      >
+                        ?
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-              {saveError && (
-                <div className="cfg-save-error">
-                  <span className="cfg-error-icon">✕</span> {saveError}
-                </div>
-              )}
-            </div>
 
-            <div className="cfg-docs-col">
-              <div className="cfg-docs-title">Параметры</div>
-              <div className="cfg-params-list">
-                {PARAM_DOCS.map((p) => (
-                  <button
-                    key={p.key}
-                    type="button"
-                    className={`cfg-param-item ${activeDoc === p.key ? "cfg-param-item--active" : ""}`}
-                    onClick={() => setActiveDoc(activeDoc === p.key ? null : p.key)}
-                  >
-                    <span className="cfg-param-key">{p.key}</span>
-                    <span className="cfg-param-type">{p.type}</span>
-                  </button>
-                ))}
+                  <div className="cfg-field-input-row">
+                    {field.multiline ? (
+                      <textarea
+                        id={`cfg-${field.key}`}
+                        className="cfg-textarea"
+                        value={values[field.key]}
+                        onChange={(e) => setFieldValue(field.key, e.target.value)}
+                        spellCheck={false}
+                      />
+                    ) : (
+                      <input
+                        id={`cfg-${field.key}`}
+                        className={`cfg-input ${field.readonly ? "cfg-input--readonly" : ""}`}
+                        value={values[field.key]}
+                        onChange={(e) => setFieldValue(field.key, e.target.value)}
+                        readOnly={field.readonly}
+                        disabled={field.readonly}
+                        spellCheck={false}
+                      />
+                    )}
+
+                    {field.browse && !field.readonly && (
+                      <button
+                        type="button"
+                        className="cfg-icon-btn cfg-icon-btn--side"
+                        aria-label="Выбрать .docx файл"
+                        title="Выбрать .docx файл"
+                        onClick={handleBrowseInputPath}
+                      >
+                        📂
+                      </button>
+                    )}
+
+                    {hasValidationButton && (
+                      <button
+                        type="button"
+                        className="cfg-icon-btn cfg-icon-btn--side"
+                        aria-label={`Проверить поле ${field.label}`}
+                        title="Проверить значение"
+                        onClick={() => { void validateField(field.key); }}
+                        disabled={fieldValidation.status === "pending"}
+                      >
+                        ✓
+                      </button>
+                    )}
+                  </div>
+
+                  {field.key === "chunk_size_tokens" && runtimeInfo && (
+                    <div className="cfg-field-meta">
+                      Runtime максимум: {runtimeInfo.max_chunk_tokens.toLocaleString()}
+                    </div>
+                  )}
+
+                  {helpOpen[field.key] && (
+                    <div className="cfg-inline-panel cfg-inline-panel--help">
+                      {helpLoading[field.key] ? "Загрузка справки…" : helpText[field.key]}
+                    </div>
+                  )}
+
+                  {fieldValidation.status !== "idle" && (
+                    <div className={validationClass}>{fieldValidation.message}</div>
+                  )}
+                </div>
+              );
+            })}
+
+            {saveError && (
+              <div className="cfg-save-error">
+                <span className="cfg-error-icon">✕</span> {saveError}
               </div>
-
-              {activeParam && (
-                <div className="cfg-param-detail">
-                  <div className="cfg-param-detail-title">{activeParam.title}</div>
-                  <div className="cfg-param-detail-type">{activeParam.type}</div>
-                  <p className="cfg-param-detail-desc">{activeParam.desc}</p>
-                  <div className="cfg-param-detail-example-label">Пример:</div>
-                  <pre className="cfg-param-detail-example">{activeParam.example}</pre>
-                </div>
-              )}
-
-              {!activeParam && (
-                <div className="cfg-docs-hint">
-                  Нажмите на параметр выше, чтобы увидеть описание и пример.
-                </div>
-              )}
-            </div>
+            )}
           </div>
         )}
-
         <div className="modal-footer">
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Отмена

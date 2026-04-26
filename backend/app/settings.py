@@ -13,6 +13,8 @@ RESULT_DIR.mkdir(parents=True, exist_ok=True)
 DEFAULT_CHECK_PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "clarity.txt"
 DEFAULT_VALIDATION_PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "validation.txt"
 DEFAULT_SUMMARY_PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "summary.txt"
+CONFIG_DEFAULTS_PATH = Path(__file__).resolve().parent / "config_defaults.yaml"
+HELP_DIR = Path(__file__).resolve().parent / "help"
 CHECK_PROMPT_MAX_BYTES = 256 * 1024
 
 try:

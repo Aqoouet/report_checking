@@ -7,13 +7,14 @@ from fastapi import APIRouter, Form, HTTPException
 from app.error_codes import (
     ERR_ACCESS_DENIED,
     ERR_INPUT_DOCX_REQUIRED,
+    ERR_OUTPUT_DIR_REQUIRED,
     error_detail,
     error_detail_from_http_exception,
 )
 from app.range_ai_validator import validate_range as validate_range_with_ai
 from app.range_parser import parse_range_script
 from app.settings import MAX_RANGE_SPEC_LEN
-from app.validators import validate_file_path
+from app.validators import validate_file_path, validate_output_dir
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,32 @@ async def validate_path_endpoint(file_path: str | None = Form(None)):
             "valid": False,
             **detail,
             "mapped_path": "",
+        }
+
+
+@router.post("/validate_output_dir")
+async def validate_output_dir_endpoint(output_dir: str | None = Form(None)):
+    raw = (output_dir or "").strip()
+    if not raw:
+        detail = error_detail(ERR_OUTPUT_DIR_REQUIRED, message="Output directory is required.")
+        return {
+            "valid": False,
+            **detail,
+            "resolved_path": "",
+        }
+    try:
+        resolved = validate_output_dir(raw)
+        return {"valid": True, "message": "Output directory is accessible.", "resolved_path": str(resolved)}
+    except HTTPException as exc:
+        detail = error_detail_from_http_exception(
+            exc,
+            fallback=ERR_ACCESS_DENIED,
+            fallback_message="Output directory is not accessible.",
+        )
+        return {
+            "valid": False,
+            **detail,
+            "resolved_path": "",
         }
 
 

@@ -16,8 +16,9 @@ from app import job_repo
 from app.error_codes import ERR_ACCESS_DENIED, ERR_CONFIG_NOT_SET, api_error, error_detail_from_http_exception
 from app.jobs import JobStatus
 from app.routes.config import set_config
+from app.routes.defaults import get_config_defaults, get_field_help
 from app.routes.results import result, result_log, result_md, status
-from app.routes.validation import validate_path_endpoint
+from app.routes.validation import validate_output_dir_endpoint, validate_path_endpoint
 
 
 def _detail(exc: HTTPException) -> dict[str, Any]:
@@ -164,6 +165,48 @@ class ValidationRouteContractTests(unittest.TestCase):
                 "mapped_path": "",
             },
         )
+
+    def test_validate_output_dir_returns_error_payload_for_blank_input(self) -> None:
+        result = asyncio.run(validate_output_dir_endpoint(None))
+
+        self.assertEqual(
+            result,
+            {
+                "valid": False,
+                "code": "ERR_OUTPUT_DIR_REQUIRED",
+                "message": "Output directory is required.",
+                "resolved_path": "",
+            },
+        )
+
+    def test_validate_output_dir_returns_resolved_path(self) -> None:
+        with mock.patch("app.routes.validation.validate_output_dir", return_value=Path("/tmp/out")):
+            result = asyncio.run(validate_output_dir_endpoint("/tmp/out"))
+
+        self.assertEqual(
+            result,
+            {
+                "valid": True,
+                "message": "Output directory is accessible.",
+                "resolved_path": "/tmp/out",
+            },
+        )
+
+
+class DefaultsRouteContractTests(unittest.TestCase):
+    def test_config_defaults_returns_scalar_values(self) -> None:
+        result = asyncio.run(get_config_defaults())
+
+        self.assertIn("input_docx_path", result)
+        self.assertIn("output_dir", result)
+        self.assertIn("subchapters_range", result)
+        self.assertIn("chunk_size_tokens", result)
+        self.assertIn("temperature", result)
+
+    def test_field_help_returns_plain_text(self) -> None:
+        result = asyncio.run(get_field_help("temperature"))
+
+        self.assertIn("Температура", result)
 
 
 class ResultsRouteContractTests(unittest.TestCase):

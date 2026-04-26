@@ -12,6 +12,7 @@ from app.lifespan import lifespan
 from app.rate_limit import is_rate_limited
 from app.routes.check import router as check_router
 from app.routes.config import router as config_router
+from app.routes.defaults import router as defaults_router
 from app.routes.results import router as results_router
 from app.routes.runtime import router as runtime_router
 from app.routes.validation import router as validation_router
@@ -53,6 +54,7 @@ async def _security_headers(request: Request, call_next):
 
 
 app.include_router(config_router)
+app.include_router(defaults_router)
 app.include_router(check_router)
 app.include_router(results_router)
 app.include_router(validation_router)

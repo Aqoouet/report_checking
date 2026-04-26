@@ -12,6 +12,14 @@ export interface DefaultPrompts {
   summary_prompt: string;
 }
 
+export interface ConfigDefaults {
+  input_docx_path: string;
+  output_dir: string;
+  subchapters_range: string;
+  chunk_size_tokens: number;
+  temperature: number | null;
+}
+
 export interface PipelineConfigData {
   input_docx_path: string;
   output_dir: string;
@@ -21,6 +29,35 @@ export interface PipelineConfigData {
   subchapters_range: string;
   chunk_size_tokens: number;
   temperature: number | null;
+}
+
+export interface PathValidationResult {
+  valid: boolean;
+  message: string;
+  mapped_path: string;
+  code?: string;
+}
+
+export interface OutputDirValidationResult {
+  valid: boolean;
+  message: string;
+  resolved_path: string;
+  code?: string;
+}
+
+export interface RangeValidationItem {
+  start: string;
+  end: string;
+}
+
+export interface RangeValidationResult {
+  valid: boolean;
+  type?: string;
+  items?: RangeValidationItem[];
+  display?: string;
+  suggestion?: string;
+  range_message?: string;
+  server_error?: boolean;
 }
 
 export interface JobSummary {
