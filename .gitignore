@@ -30,3 +30,6 @@ Thumbs.db
 *.log
 .ruff_cache/
 .omc/
+
+# Design handoff artifacts
+design/
