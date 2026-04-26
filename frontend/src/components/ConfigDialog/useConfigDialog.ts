@@ -317,8 +317,10 @@ export function useConfigDialog(onClose: () => void) {
 
     if (field === "subchapters_range") {
       try {
-        const result = await validateSubchaptersRange(values.subchapters_range.trim());
+        const raw = values.subchapters_range.trim();
+        const result = await validateSubchaptersRange(raw);
         if (result.valid) {
+          const corrected = result.display && result.display !== raw;
           if (result.display) {
             setValues((prev) => ({ ...prev, subchapters_range: result.display ?? prev.subchapters_range }));
           }
@@ -326,7 +328,9 @@ export function useConfigDialog(onClose: () => void) {
             ...prev,
             subchapters_range: {
               status: "success",
-              message: result.display || "Диапазон корректен.",
+              message: corrected
+                ? `Автоматически скорректировано: ${result.display}`
+                : result.display || "Диапазон корректен.",
             },
           }));
         } else {
@@ -334,7 +338,8 @@ export function useConfigDialog(onClose: () => void) {
             ...prev,
             subchapters_range: {
               status: "error",
-              message: result.range_message || result.suggestion || "Диапазон не распознан.",
+              message: result.range_message
+                || (result.suggestion ? `Вероятно вы имели ввиду: ${result.suggestion}` : "Диапазон не распознан."),
             },
           }));
         }
