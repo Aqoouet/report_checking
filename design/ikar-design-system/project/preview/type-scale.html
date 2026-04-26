@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Type — Scale</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; background:var(--ink-50); color:var(--fg-1); padding:32px; }
+  .wrap { max-width:900px; }
+  .eyebrow { margin:0 0 8px; }
+  h1 { margin:0 0 8px; }
+  p.lede { margin:0 0 28px; color:var(--fg-2); max-width:60ch; }
+  table { width:100%; border-collapse:collapse; background:var(--white); border:1px solid var(--ink-200); }
+  th, td { padding:14px 16px; text-align:left; border-bottom:1px solid var(--ink-200); vertical-align:middle; }
+  th { font-family:var(--font-display); font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-500); background:var(--ink-100); }
+  td.token { font-family:var(--font-mono); font-size:12px; color:var(--ink-500); width:130px; }
+  td.size { font-family:var(--font-mono); font-size:12px; color:var(--ink-500); width:80px; }
+  td.use { font-size:13px; color:var(--fg-3); width:200px; }
+  td.sample { color:var(--fg-1); }
+  .s-mega { font-family:var(--font-display); font-size:84px; font-weight:700; line-height:1; text-transform:uppercase; letter-spacing:-.01em; }
+  .s-3xl { font-family:var(--font-display); font-size:56px; font-weight:700; line-height:1.05; text-transform:uppercase; }
+  .s-2xl { font-family:var(--font-display); font-size:40px; font-weight:700; line-height:1.1; text-transform:uppercase; }
+  .s-xl  { font-family:var(--font-display); font-size:28px; font-weight:600; line-height:1.2; text-transform:uppercase; }
+  .s-lg  { font-family:var(--font-display); font-size:22px; font-weight:600; line-height:1.2; }
+  .s-md  { font-family:var(--font-sans); font-size:18px; line-height:1.6; }
+  .s-base{ font-family:var(--font-sans); font-size:16px; line-height:1.5; }
+  .s-sm  { font-family:var(--font-sans); font-size:14px; line-height:1.5; color:var(--fg-3); }
+  .s-xs  { font-family:var(--font-sans); font-size:12px; line-height:1.5; color:var(--fg-3); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">02 · Typography</div>
+  <h1>SCALE</h1>
+  <p class="lede">Big jumps between display sizes — the brand wants confident, monumental headlines. Body sizes are dense and conservative, suited to spec-heavy reading.</p>
+
+  <table>
+    <tr><th>Token</th><th>Size</th><th>Use</th><th>Sample</th></tr>
+    <tr><td class="token">--text-4xl</td><td class="size">84 / 88</td><td class="use">Mega display, hero</td><td class="sample s-mega">ИКАР</td></tr>
+    <tr><td class="token">--text-3xl</td><td class="size">56 / 60</td><td class="use">Hero display</td><td class="sample s-3xl">Авиационные системы</td></tr>
+    <tr><td class="token">--text-2xl</td><td class="size">40 / 44</td><td class="use">H1 / section</td><td class="sample s-2xl">Основные компетенции</td></tr>
+    <tr><td class="token">--text-xl</td><td class="size">28 / 34</td><td class="use">H2</td><td class="sample s-xl">Инженерный центр</td></tr>
+    <tr><td class="token">--text-lg</td><td class="size">22 / 28</td><td class="use">H3, modal title</td><td class="sample s-lg">Беспилотные системы</td></tr>
+    <tr><td class="token">--text-md</td><td class="size">18 / 30</td><td class="use">Lede, intro</td><td class="sample s-md">Многолетний опыт инженерных работ для российских и зарубежных клиентов.</td></tr>
+    <tr><td class="token">--text-base</td><td class="size">16 / 24</td><td class="use">Body</td><td class="sample s-base">Размещено на территории ОЭЗ «Технополис-Москва». Команда более 1 000 специалистов.</td></tr>
+    <tr><td class="token">--text-sm</td><td class="size">14 / 21</td><td class="use">Secondary, captions</td><td class="sample s-sm">+7 (495) 221 56 00 · info@ikarcenter.ru</td></tr>
+    <tr><td class="token">--text-xs</td><td class="size">12 / 18</td><td class="use">Meta, footnotes</td><td class="sample s-xs">2-я Хуторская улица, 38А стр. 9, Москва</td></tr>
+  </table>
+</div>
+</body>
+</html>

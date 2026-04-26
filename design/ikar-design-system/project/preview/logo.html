@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Logo — Lockup</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; background:var(--ink-50); color:var(--fg-1); padding:32px; font-family:var(--font-sans); }
+  .wrap { max-width:840px; }
+  .eyebrow { margin:0 0 8px; }
+  h1 { margin:0 0 8px; }
+  p.lede { margin:0 0 28px; color:var(--fg-2); max-width:60ch; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .panel { padding:48px 32px; border:1px solid var(--ink-200); display:flex; align-items:center; justify-content:center; min-height:160px; }
+  .panel.dark { background:var(--ink-950); border-color:var(--ink-700); }
+  .panel.light { background:var(--white); }
+  .panel.brand { background:var(--ikar-orange-500); }
+  .panel-cap { display:flex; justify-content:space-between; padding:10px 14px; background:var(--ink-100); font-family:var(--font-mono); font-size:11px; color:var(--ink-500); border:1px solid var(--ink-200); border-bottom:0; text-transform:uppercase; letter-spacing:.06em; }
+  .panel-block { margin-bottom:14px; }
+  /* Inline logos with alt fills */
+  .mark-orange, .mark-white, .mark-black { width:80px; height:80px; }
+  .lockup-light { display:flex; align-items:center; gap:14px; }
+  .lockup-light .word { font-family:var(--font-display); font-weight:700; font-size:42px; text-transform:uppercase; letter-spacing:.04em; line-height:.9; }
+  .lockup-light .sub { font-family:var(--font-display); font-weight:400; font-size:9px; letter-spacing:.25em; color:var(--ink-500); margin-top:4px; }
+  .rules { background:var(--white); border:1px solid var(--ink-200); padding:20px 24px; }
+  .rules h3 { margin:0 0 12px; font-size:14px; }
+  .rules ul { margin:0; padding-left:20px; color:var(--fg-2); font-size:13px; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">03 · Brand</div>
+  <h1>LOGO</h1>
+  <p class="lede">A planet with an orbital ring — the orbit suggests aviation, atmosphere, the boundary the company crosses. The wordmark sits to the right in heavy condensed caps with a thin uppercase descriptor below.</p>
+
+  <div class="panel-block">
+    <div class="panel-cap"><span>Primary · on dark</span><span>preferred</span></div>
+    <div class="panel dark">
+      <div class="lockup-light">
+        <svg class="mark-orange" viewBox="0 0 64 64" aria-hidden="true"><g transform="rotate(-22 32 32)"><ellipse cx="32" cy="32" rx="30" ry="7.5" fill="none" stroke="#0a0a0a" stroke-width="3.5"/></g><circle cx="32" cy="32" r="21" fill="#f26522"/><g transform="rotate(-22 32 32)"><path d="M 11.74 37.53 A 30 7.5 0 0 0 52.26 37.53" fill="none" stroke="#0a0a0a" stroke-width="3.5"/></g></svg>
+        <div>
+          <div class="word" style="color:#fff">ИКАР</div>
+          <div class="sub">ГРУППА КОМПАНИЙ</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="panel-cap"><span>On light</span><span>secondary</span></div>
+      <div class="panel light">
+        <div class="lockup-light">
+          <svg class="mark-orange" viewBox="0 0 64 64"><g transform="rotate(-22 32 32)"><ellipse cx="32" cy="32" rx="30" ry="7.5" fill="none" stroke="#0a0a0a" stroke-width="3.5"/></g><circle cx="32" cy="32" r="21" fill="#f26522"/><g transform="rotate(-22 32 32)"><path d="M 11.74 37.53 A 30 7.5 0 0 0 52.26 37.53" fill="none" stroke="#0a0a0a" stroke-width="3.5"/></g></svg>
+          <div>
+            <div class="word" style="color:var(--ink-950)">ИКАР</div>
+            <div class="sub">ГРУППА КОМПАНИЙ</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="panel-cap"><span>Reverse · on brand</span><span>limited</span></div>
+      <div class="panel brand">
+        <div class="lockup-light">
+          <svg class="mark-white" viewBox="0 0 64 64"><g transform="rotate(-22 32 32)"><ellipse cx="32" cy="32" rx="30" ry="7.5" fill="none" stroke="#ffffff" stroke-width="3.5"/></g><circle cx="32" cy="32" r="21" fill="#0a0a0a"/><g transform="rotate(-22 32 32)"><path d="M 11.74 37.53 A 30 7.5 0 0 0 52.26 37.53" fill="none" stroke="#ffffff" stroke-width="3.5"/></g></svg>
+          <div>
+            <div class="word" style="color:#fff">ИКАР</div>
+            <div class="sub" style="color:rgba(255,255,255,.75)">ГРУППА КОМПАНИЙ</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rules">
+    <h3 style="font-family:var(--font-display);text-transform:uppercase;letter-spacing:.06em;color:var(--ink-500);">USAGE RULES</h3>
+    <ul>
+      <li>Clear-space minimum equals the height of the planet disc on all four sides.</li>
+      <li>Mark-only allowed at &lt; 32 px; never compress the wordmark to fit.</li>
+      <li>Never recolor the orange. On photography, place over the darkest available area.</li>
+      <li>The descriptor «ГРУППА КОМПАНИЙ» drops at sizes below 24 px wordmark height.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

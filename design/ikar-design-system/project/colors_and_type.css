@@ -1,0 +1,256 @@
+/* =========================================================
+   Ikar Design System — Corporate Aerospace Identity
+   Source: ikarcenter.ru (ГК «ИКАР»)
+   - Orange brand mark on black/dark backgrounds
+   - Industrial, technical, engineering tone
+   - Cyrillic-first typography, condensed display + clean sans
+   ========================================================= */
+
+/* ---------- Web fonts ----------
+   The site uses a heavy condensed grotesque for display
+   (closest free analog: Oswald / Roboto Condensed) and a
+   neutral sans for body (closest: PT Sans / Inter).
+   Both have full Cyrillic coverage. */
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=PT+Sans:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* =========================================================
+     COLOR — Brand orange (the planet + ring mark)
+     Sampled from logo, CTAs, accent overlines on photos.
+     ========================================================= */
+  --ikar-orange-50:  #fff4ec;
+  --ikar-orange-100: #ffe2cc;
+  --ikar-orange-200: #ffc299;
+  --ikar-orange-300: #ffa166;
+  --ikar-orange-400: #ff8533;
+  --ikar-orange-500: #f26522;   /* primary brand */
+  --ikar-orange-600: #e15518;   /* hover / CTA */
+  --ikar-orange-700: #b8420f;
+  --ikar-orange-800: #8a2f08;
+  --ikar-orange-900: #4a1804;
+
+  /* =========================================================
+     COLOR — Neutrals: black-first, for dark hero surfaces
+     ========================================================= */
+  --ink-1000: #000000;
+  --ink-950:  #0a0a0a;          /* page bg on hero */
+  --ink-900:  #141414;          /* nav bar */
+  --ink-800:  #1c1c1c;
+  --ink-700:  #2a2a2a;          /* card on dark */
+  --ink-600:  #3a3a3a;
+  --ink-500:  #5a5a5a;          /* divider on dark */
+  --ink-400:  #8a8a8a;          /* muted text on dark */
+  --ink-300:  #b8b8b8;
+  --ink-200:  #d8d8d8;
+  --ink-100:  #ececec;          /* light surface */
+  --ink-50:   #f6f6f6;          /* page bg on light */
+  --white:    #ffffff;
+
+  /* =========================================================
+     COLOR — Semantic states (kept utilitarian for tech UI)
+     ========================================================= */
+  --success: #2f9e44;
+  --success-tint: #e8f5ec;
+  --warning: #e8a008;
+  --warning-tint: #fdf3d8;
+  --danger:  #d92e2e;
+  --danger-tint: #fbe5e5;
+  --info:    var(--ikar-orange-500);
+
+  /* =========================================================
+     SEMANTIC TOKENS — surface (light theme = sub-pages)
+     ========================================================= */
+  --bg:             var(--ink-50);
+  --card:           var(--white);
+  --surface-muted:  var(--ink-100);
+
+  --primary:        var(--ikar-orange-500);
+  --primary-hover:  var(--ikar-orange-600);
+  --primary-tint:   var(--ikar-orange-50);
+  --on-primary:     var(--white);
+
+  --fg-1: var(--ink-950);       /* primary text on light */
+  --fg-2: var(--ink-700);
+  --fg-3: var(--ink-500);
+  --fg-4: var(--ink-400);
+
+  --border:        var(--ink-200);
+  --border-subtle: var(--ink-100);
+
+  /* =========================================================
+     SEMANTIC TOKENS — surface (dark theme = hero/nav)
+     Apply by adding [data-theme="dark"] on a container.
+     ========================================================= */
+  --dark-bg:        var(--ink-950);
+  --dark-card:      var(--ink-700);
+  --dark-fg-1:      var(--white);
+  --dark-fg-2:      var(--ink-200);
+  --dark-fg-3:      var(--ink-400);
+  --dark-border:    var(--ink-700);
+
+  /* =========================================================
+     SPACING & RADIUS — sharp, industrial, mostly rectilinear
+     The site uses 0–4px radii almost exclusively.
+     ========================================================= */
+  --radius-none: 0;
+  --radius-xs:   2px;
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+  --space-12: 80px;
+  --space-14: 112px;
+
+  /* =========================================================
+     SHADOWS — minimal; the brand prefers flat surfaces
+     ========================================================= */
+  --shadow-sm:  0 1px 2px rgba(0,0,0,.06);
+  --shadow-md:  0 6px 24px rgba(0,0,0,.10);
+  --shadow-lg:  0 18px 48px rgba(0,0,0,.18);
+  --shadow-focus: 0 0 0 3px rgba(242, 101, 34, .35);
+
+  /* =========================================================
+     TYPE — families
+     ========================================================= */
+  --font-display: 'Oswald', 'PT Sans Narrow', 'Arial Narrow', system-ui, sans-serif;
+  --font-sans:    'PT Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Fira Mono', monospace;
+
+  /* =========================================================
+     TYPE — scale (corporate hierarchy: dense, big display)
+     Display is uppercase Cyrillic, tight tracking.
+     ========================================================= */
+  --text-xs:   12px;   /* meta, captions */
+  --text-sm:   14px;   /* secondary body */
+  --text-base: 16px;   /* body */
+  --text-md:   18px;   /* lede */
+  --text-lg:   22px;   /* h3 */
+  --text-xl:   28px;   /* h2 */
+  --text-2xl:  40px;   /* h1 / section */
+  --text-3xl:  56px;   /* hero display */
+  --text-4xl:  84px;   /* mega — large screens */
+
+  --leading-tight: 1.05;
+  --leading-snug:  1.2;
+  --leading-base:  1.5;
+  --leading-loose: 1.65;
+
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  --tracking-tight:  -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.04em;
+  --tracking-wider:  0.08em;    /* eyebrows, nav */
+}
+
+/* =========================================================
+   SEMANTIC TYPE STYLES
+   ========================================================= */
+
+.display, h1.display {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
+}
+
+h1, .h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-snug);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
+}
+
+h2, .h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  text-transform: uppercase;
+  color: var(--fg-1);
+}
+
+h3, .h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  color: var(--fg-1);
+}
+
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--primary);
+}
+
+.nav-item {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+p, .body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-base);
+  color: var(--fg-2);
+}
+
+.lede {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-loose);
+  color: var(--fg-2);
+}
+
+.meta, .small {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--fg-3);
+}
+
+code, .code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--ink-100);
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+}
+
+/* =========================================================
+   MOTION
+   ========================================================= */
+:root {
+  --ease-default: ease;
+  --ease-out:     cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 0.15s;
+  --duration-base: 0.25s;
+  --duration-slow: 0.45s;
+}

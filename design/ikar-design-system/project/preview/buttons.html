@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Buttons</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; background:var(--ink-50); color:var(--fg-1); padding:32px; font-family:var(--font-sans); }
+  .wrap { max-width:840px; }
+  .eyebrow { margin:0 0 8px; }
+  h1 { margin:0 0 8px; }
+  p.lede { margin:0 0 28px; color:var(--fg-2); max-width:60ch; }
+  .row { background:var(--white); border:1px solid var(--ink-200); padding:24px; margin-bottom:14px; }
+  .row.dark { background:var(--ink-950); border-color:var(--ink-700); }
+  .row .head { font-family:var(--font-display); text-transform:uppercase; letter-spacing:.08em; font-size:12px; color:var(--ink-500); margin-bottom:14px; }
+  .row.dark .head { color:var(--ink-400); }
+  .stack { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+
+  .btn { font-family:var(--font-display); text-transform:uppercase; font-weight:600; letter-spacing:.04em; font-size:14px; padding:12px 22px; border:1px solid transparent; cursor:pointer; transition:.2s; border-radius:var(--radius-sm); }
+  .btn.lg { padding:16px 28px; font-size:15px; }
+  .btn.sm { padding:8px 14px; font-size:12px; }
+  .btn-primary { background:var(--primary); color:var(--white); }
+  .btn-primary:hover { background:var(--primary-hover); }
+  .btn-secondary { background:transparent; color:var(--fg-1); border-color:var(--ink-300); }
+  .btn-secondary:hover { border-color:var(--ink-950); }
+  .btn-ghost { background:transparent; color:var(--primary); }
+  .btn-ghost:hover { background:var(--ikar-orange-50); }
+  .btn-block { display:block; width:100%; padding:18px; }
+  .btn-disabled { background:var(--ink-200); color:var(--ink-400); cursor:not-allowed; }
+  .row.dark .btn-secondary { color:#fff; border-color:var(--ink-500); }
+  .row.dark .btn-secondary:hover { border-color:#fff; }
+  .row.dark .btn-ghost { color:var(--primary); }
+  .row.dark .btn-ghost:hover { background:rgba(242,101,34,.12); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">04 · Components</div>
+  <h1>BUTTONS</h1>
+  <p class="lede">Sharp rectangles, uppercase Cyrillic labels, no rounded pill shapes. Primary is full-bleed orange; secondary is an outlined neutral; the ghost variant is reserved for tertiary actions.</p>
+
+  <div class="row">
+    <div class="head">VARIANTS · LIGHT</div>
+    <div class="stack">
+      <button class="btn btn-primary">УЗНАТЬ БОЛЬШЕ</button>
+      <button class="btn btn-secondary">СВЯЗАТЬСЯ</button>
+      <button class="btn btn-ghost">ВСЕ ПРОЕКТЫ →</button>
+      <button class="btn btn-primary btn-disabled" disabled>НЕДОСТУПНО</button>
+    </div>
+  </div>
+
+  <div class="row dark">
+    <div class="head">VARIANTS · DARK</div>
+    <div class="stack">
+      <button class="btn btn-primary">УЗНАТЬ БОЛЬШЕ</button>
+      <button class="btn btn-secondary">СВЯЗАТЬСЯ</button>
+      <button class="btn btn-ghost">ВСЕ ПРОЕКТЫ →</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="head">SIZES</div>
+    <div class="stack">
+      <button class="btn btn-primary lg">КРУПНЫЙ CTA</button>
+      <button class="btn btn-primary">СРЕДНИЙ</button>
+      <button class="btn btn-primary sm">МАЛЫЙ</button>
+    </div>
+  </div>
+
+  <div class="row" style="max-width:420px;">
+    <div class="head">FULL-WIDTH (COOKIE BAR / MOBILE)</div>
+    <button class="btn btn-primary btn-block">ПОНЯТНО</button>
+  </div>
+</div>
+</body>
+</html>

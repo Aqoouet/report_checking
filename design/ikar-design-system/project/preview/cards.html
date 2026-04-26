@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cards</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; background:var(--ink-50); padding:32px; font-family:var(--font-sans); color:var(--fg-1); }
+  .wrap { max-width:1100px; }
+  .eyebrow { margin:0 0 8px; }
+  h1 { margin:0 0 8px; }
+  p.lede { margin:0 0 28px; color:var(--fg-2); max-width:60ch; }
+  .panel-cap { display:flex; justify-content:space-between; padding:10px 14px; background:var(--ink-100); font-family:var(--font-mono); font-size:11px; color:var(--ink-500); border:1px solid var(--ink-200); border-bottom:0; text-transform:uppercase; letter-spacing:.06em; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:28px; }
+
+  /* Capability card — light, with orange overline */
+  .cap { background:var(--white); border:1px solid var(--ink-200); padding:28px 24px; transition:.2s; cursor:pointer; }
+  .cap:hover { border-color:var(--ink-950); }
+  .cap .num { font-family:var(--font-display); font-size:13px; letter-spacing:.18em; color:var(--primary); margin-bottom:18px; text-transform:uppercase; }
+  .cap h3 { font-family:var(--font-display); font-size:22px; font-weight:600; line-height:1.15; text-transform:uppercase; margin:0 0 14px; color:var(--ink-950); }
+  .cap p { font-size:14px; line-height:1.55; color:var(--fg-3); margin:0 0 22px; }
+  .cap .more { font-family:var(--font-display); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-950); display:flex; align-items:center; gap:10px; }
+  .cap .more::after { content:"→"; color:var(--primary); font-size:18px; }
+
+  /* Project card — dark, image dominant */
+  .proj { background:var(--ink-900); color:#fff; border:1px solid var(--ink-700); overflow:hidden; cursor:pointer; transition:.2s; }
+  .proj:hover { border-color:var(--primary); }
+  .proj .media { height:160px; position:relative; background:
+      repeating-linear-gradient(45deg, #1a1a1a 0 14px, #141414 14px 28px),
+      radial-gradient(ellipse at 60% 60%, rgba(242,101,34,.25), transparent 70%);
+    overflow:hidden;
+  }
+  .proj .media::after { content:""; position:absolute; inset:0; background:linear-gradient(to bottom, transparent 50%, rgba(0,0,0,.85)); }
+  .proj .tag { position:absolute; top:14px; left:14px; background:var(--primary); color:#fff; font-family:var(--font-display); font-size:10px; letter-spacing:.12em; text-transform:uppercase; padding:4px 8px; z-index:2; }
+  .proj .body { padding:20px 22px; }
+  .proj .meta { font-family:var(--font-mono); font-size:11px; color:var(--ink-400); letter-spacing:.05em; }
+  .proj h3 { font-family:var(--font-display); font-weight:700; font-size:18px; line-height:1.2; text-transform:uppercase; margin:8px 0 12px; }
+  .proj .specs { display:flex; gap:18px; padding-top:14px; border-top:1px solid var(--ink-700); margin-top:14px; }
+  .proj .specs div { font-family:var(--font-mono); font-size:11px; color:var(--ink-300); }
+  .proj .specs div b { display:block; font-family:var(--font-display); color:#fff; font-size:14px; font-weight:600; margin-bottom:2px; }
+
+  /* Stat card */
+  .stat { background:var(--ink-950); color:#fff; padding:32px 28px; }
+  .stat .lab { font-family:var(--font-display); font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--primary); margin-bottom:18px; }
+  .stat .num { font-family:var(--font-display); font-size:64px; font-weight:700; line-height:1; }
+  .stat .desc { font-size:13px; color:var(--ink-300); margin-top:14px; line-height:1.5; }
+
+  .planet-mini { width:48px; height:48px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #ff8a3d, #b8420f 70%); display:inline-block; margin-bottom:18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">04 · Components</div>
+  <h1>CARDS</h1>
+  <p class="lede">Three card patterns for the corporate site: capability cards (light, indexed, calm), project cards (dark, image-led, technical), and statistic cards (single big numeral, brand orange label).</p>
+
+  <div class="panel-cap"><span>CAPABILITY CARD · light</span><span>used in «Основные компетенции»</span></div>
+  <div class="grid">
+    <div class="cap">
+      <div class="num">01 / Авиация</div>
+      <h3>Беспилотные<br>авиационные системы</h3>
+      <p>Разработка вертолётных, самолётных и мультироторных БАС для грузоперевозок и мониторинга.</p>
+      <div class="more">Подробнее</div>
+    </div>
+    <div class="cap">
+      <div class="num">02 / Инжиниринг</div>
+      <h3>Инженерно-конструкторские работы</h3>
+      <p>Прочностные расчёты МКЭ, проектирование из композитов и металлов, выпуск конструкторской документации.</p>
+      <div class="more">Подробнее</div>
+    </div>
+    <div class="cap">
+      <div class="num">03 / Производство</div>
+      <h3>Опытное и серийное производство</h3>
+      <p>Производственный комплекс на территории ОЭЗ «Технополис-Москва». Полный цикл от макета до серии.</p>
+      <div class="more">Подробнее</div>
+    </div>
+  </div>
+
+  <div class="panel-cap"><span>PROJECT CARD · dark</span><span>used in «Продукция / Проекты»</span></div>
+  <div class="grid">
+    <div class="proj">
+      <div class="media"><div class="tag">UAS · Helicopter</div></div>
+      <div class="body">
+        <div class="meta">IKR-204A · ROTORCRAFT</div>
+        <h3>Транспортный беспилотный вертолёт</h3>
+        <div class="specs">
+          <div><b>250 кг</b>полезная нагрузка</div>
+          <div><b>4 ч</b>в воздухе</div>
+          <div><b>180 км/ч</b>макс. скорость</div>
+        </div>
+      </div>
+    </div>
+    <div class="proj">
+      <div class="media"><div class="tag">UAS · Fixed-wing</div></div>
+      <div class="body">
+        <div class="meta">IKR-FW-12 · MONITORING</div>
+        <h3>Самолёт для мониторинга и съёмки</h3>
+        <div class="specs">
+          <div><b>12 ч</b>в воздухе</div>
+          <div><b>1 200 км</b>дальность</div>
+          <div><b>3 500 м</b>потолок</div>
+        </div>
+      </div>
+    </div>
+    <div class="proj">
+      <div class="media"><div class="tag">Engineering</div></div>
+      <div class="body">
+        <div class="meta">CASE · AIRBUS / KASKOL</div>
+        <h3>Расчёты усталостной прочности фюзеляжа</h3>
+        <div class="specs">
+          <div><b>МКЭ</b>методика</div>
+          <div><b>20 лет</b>экспертизы</div>
+          <div><b>200+</b>проектов</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-cap"><span>STAT CARD · dark</span><span>landing accent</span></div>
+  <div class="grid">
+    <div class="stat"><div class="lab">Команда</div><div class="num">1 000+</div><div class="desc">Высококвалифицированных инженеров и молодых специалистов в Москве.</div></div>
+    <div class="stat"><div class="lab">Опыт</div><div class="num">20</div><div class="desc">Лет инженерно-конструкторских работ для российских и зарубежных клиентов.</div></div>
+    <div class="stat"><div class="lab">Проекты</div><div class="num">200+</div><div class="desc">В авиации, инжиниринге и научно-исследовательских работах.</div></div>
+  </div>
+</div>
+</body>
+</html>

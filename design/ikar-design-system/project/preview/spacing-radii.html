@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spacing & Radii</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; background:var(--ink-50); padding:32px; font-family:var(--font-sans); color:var(--fg-1); }
+  .wrap { max-width:840px; }
+  .eyebrow { margin:0 0 8px; }
+  h1 { margin:0 0 8px; }
+  p.lede { margin:0 0 28px; color:var(--fg-2); max-width:60ch; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .panel { background:var(--white); border:1px solid var(--ink-200); padding:24px; }
+  .panel h3 { margin:0 0 16px; font-family:var(--font-display); font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-500); }
+  .row { display:flex; align-items:center; gap:14px; margin-bottom:8px; font-family:var(--font-mono); font-size:12px; color:var(--ink-500); }
+  .row .bar { background:var(--primary); height:14px; }
+  .row .label { width:90px; flex-shrink:0; }
+  .row .px { width:54px; color:var(--ink-400); flex-shrink:0; text-align:right; }
+
+  .radii { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; }
+  .ra { background:var(--ink-950); color:#fff; aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; font-family:var(--font-mono); font-size:11px; }
+  .ra .num { font-family:var(--font-display); font-size:18px; font-weight:600; }
+  .ra .name { color:var(--ink-400); }
+
+  .shadows { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:14px; }
+  .sh { background:var(--white); padding:24px; aspect-ratio:1.4; display:flex; flex-direction:column; justify-content:flex-end; }
+  .sh-sm { box-shadow:var(--shadow-sm); }
+  .sh-md { box-shadow:var(--shadow-md); }
+  .sh-lg { box-shadow:var(--shadow-lg); }
+  .sh .name { font-family:var(--font-display); text-transform:uppercase; letter-spacing:.06em; font-size:13px; color:var(--ink-700); }
+  .sh .val { font-family:var(--font-mono); font-size:11px; color:var(--ink-500); margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">06 · Spacing</div>
+  <h1>SPACING & RADII</h1>
+  <p class="lede">A 4-px base. Spacing favours dense industrial layouts; radii stay near-zero — chrome, badges, and CTAs use 0–4 px corners. Soft 8-px rounding only for floating UI elements (scroll-to-top, modals).</p>
+
+  <div class="grid2">
+    <div class="panel">
+      <h3>SPACING SCALE</h3>
+      <div class="row"><span class="label">--space-1</span><div class="bar" style="width:4px"></div><span class="px">4 px</span></div>
+      <div class="row"><span class="label">--space-2</span><div class="bar" style="width:8px"></div><span class="px">8 px</span></div>
+      <div class="row"><span class="label">--space-3</span><div class="bar" style="width:12px"></div><span class="px">12 px</span></div>
+      <div class="row"><span class="label">--space-4</span><div class="bar" style="width:16px"></div><span class="px">16 px</span></div>
+      <div class="row"><span class="label">--space-5</span><div class="bar" style="width:20px"></div><span class="px">20 px</span></div>
+      <div class="row"><span class="label">--space-6</span><div class="bar" style="width:24px"></div><span class="px">24 px</span></div>
+      <div class="row"><span class="label">--space-7</span><div class="bar" style="width:32px"></div><span class="px">32 px</span></div>
+      <div class="row"><span class="label">--space-8</span><div class="bar" style="width:40px"></div><span class="px">40 px</span></div>
+      <div class="row"><span class="label">--space-9</span><div class="bar" style="width:48px"></div><span class="px">48 px</span></div>
+      <div class="row"><span class="label">--space-10</span><div class="bar" style="width:64px"></div><span class="px">64 px</span></div>
+      <div class="row"><span class="label">--space-12</span><div class="bar" style="width:80px"></div><span class="px">80 px</span></div>
+      <div class="row"><span class="label">--space-14</span><div class="bar" style="width:112px"></div><span class="px">112 px</span></div>
+    </div>
+    <div class="panel">
+      <h3>RADII</h3>
+      <div class="radii">
+        <div class="ra"><div class="num" style="border-radius:0;background:var(--primary);width:36px;height:36px;"></div><div class="name">0 · none</div></div>
+        <div class="ra"><div class="num" style="border-radius:2px;background:var(--primary);width:36px;height:36px;"></div><div class="name">2 · xs</div></div>
+        <div class="ra"><div class="num" style="border-radius:4px;background:var(--primary);width:36px;height:36px;"></div><div class="name">4 · sm</div></div>
+        <div class="ra"><div class="num" style="border-radius:6px;background:var(--primary);width:36px;height:36px;"></div><div class="name">6 · md</div></div>
+        <div class="ra"><div class="num" style="border-radius:8px;background:var(--primary);width:36px;height:36px;"></div><div class="name">8 · lg</div></div>
+        <div class="ra"><div class="num" style="border-radius:50%;background:var(--primary);width:36px;height:36px;"></div><div class="name">∞ · pill</div></div>
+      </div>
+      <div style="margin-top:24px;">
+        <h3>SHADOWS</h3>
+        <div class="shadows">
+          <div class="sh sh-sm"><div class="name">SM</div><div class="val">subtle</div></div>
+          <div class="sh sh-md"><div class="name">MD</div><div class="val">card</div></div>
+          <div class="sh sh-lg"><div class="name">LG</div><div class="val">modal</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

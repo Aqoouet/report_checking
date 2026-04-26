@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nav Bar</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; background:var(--ink-50); color:var(--fg-1); padding:32px; font-family:var(--font-sans); }
+  .wrap { max-width:980px; }
+  .eyebrow { margin:0 0 8px; }
+  h1 { margin:0 0 8px; }
+  p.lede { margin:0 0 28px; color:var(--fg-2); max-width:60ch; }
+
+  .navbar { background:#000; color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; }
+  .navbar .brand { display:flex; align-items:center; gap:10px; }
+  .navbar .brand svg { width:36px; height:36px; }
+  .navbar .brand .word { font-family:var(--font-display); font-weight:700; font-size:24px; letter-spacing:.04em; line-height:.9; text-transform:uppercase; }
+  .navbar .brand .sub { font-family:var(--font-display); font-size:7px; letter-spacing:.3em; color:#999; margin-top:2px; text-transform:uppercase; }
+  .navbar nav { display:flex; gap:28px; align-items:center; }
+  .navbar nav a { font-family:var(--font-display); text-transform:uppercase; color:#fff; font-size:13px; letter-spacing:.06em; text-decoration:none; padding:6px 0; border-bottom:2px solid transparent; }
+  .navbar nav a:hover { border-color:var(--primary); }
+  .navbar nav a.active { color:var(--primary); }
+  .navbar .right { display:flex; align-items:center; gap:18px; }
+  .lang { font-family:var(--font-display); font-size:13px; letter-spacing:.1em; text-transform:uppercase; color:#fff; text-decoration:underline; cursor:pointer; }
+  .menu-icon { width:32px; height:32px; padding:6px; cursor:pointer; }
+
+  .mobile { max-width:380px; margin-top:24px; background:#000; color:#fff; }
+  .mobile .top { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid #2a2a2a; }
+  .mobile .row-link { display:flex; align-items:center; gap:14px; padding:14px 18px; border-bottom:1px solid #1c1c1c; font-family:var(--font-display); text-transform:uppercase; letter-spacing:.06em; font-size:13px; color:#fff; }
+  .mobile .row-link svg { width:14px; height:14px; color:var(--primary); flex-shrink:0; }
+  .panel-cap { display:flex; justify-content:space-between; padding:10px 14px; background:var(--ink-100); font-family:var(--font-mono); font-size:11px; color:var(--ink-500); border:1px solid var(--ink-200); border-bottom:0; text-transform:uppercase; letter-spacing:.06em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">04 · Components</div>
+  <h1>NAV BAR</h1>
+  <p class="lede">A black band, full bleed, with the orange mark hugging the left edge. Active links flash brand orange; section markers use a 2-px under-rule. Mobile collapses to a hamburger plus orange chevron list.</p>
+
+  <div class="panel-cap"><span>Desktop · primary</span><span>height 64</span></div>
+  <div class="navbar">
+    <div class="brand">
+      <svg viewBox="0 0 64 64"><g transform="rotate(-22 32 32)"><ellipse cx="32" cy="32" rx="30" ry="7.5" fill="none" stroke="#0a0a0a" stroke-width="3.5"/></g><circle cx="32" cy="32" r="21" fill="#f26522"/><g transform="rotate(-22 32 32)"><path d="M 11.74 37.53 A 30 7.5 0 0 0 52.26 37.53" fill="none" stroke="#0a0a0a" stroke-width="3.5"/></g></svg>
+      <div>
+        <div class="word">ИКАР</div>
+        <div class="sub">Группа компаний</div>
+      </div>
+    </div>
+    <nav>
+      <a href="#" class="active">ГЛАВНАЯ</a>
+      <a href="#">О КОМПАНИИ</a>
+      <a href="#">ПРОИЗВОДСТВО</a>
+      <a href="#">ПРОДУКЦИЯ</a>
+      <a href="#">ИНЖЕНЕРНЫЙ ЦЕНТР</a>
+      <a href="#">ВАКАНСИИ</a>
+    </nav>
+    <div class="right">
+      <span class="lang">EN</span>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;" class="panel-cap"><span>Mobile · expanded</span><span>width 380</span></div>
+  <div class="mobile" style="border:1px solid var(--ink-700)">
+    <div class="top">
+      <div class="brand" style="display:flex;align-items:center;gap:10px;">
+        <svg viewBox="0 0 64 64" width="32" height="32"><g transform="rotate(-22 32 32)"><ellipse cx="32" cy="32" rx="30" ry="7.5" fill="none" stroke="#0a0a0a" stroke-width="3.5"/></g><circle cx="32" cy="32" r="21" fill="#f26522"/><g transform="rotate(-22 32 32)"><path d="M 11.74 37.53 A 30 7.5 0 0 0 52.26 37.53" fill="none" stroke="#0a0a0a" stroke-width="3.5"/></g></svg>
+        <div style="font-family:var(--font-display);font-weight:700;text-transform:uppercase;font-size:18px;letter-spacing:.04em;">ИКАР</div>
+      </div>
+      <span class="lang" style="font-size:14px;">EN</span>
+    </div>
+    <div class="row-link"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>О компании</div>
+    <div class="row-link"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Производство</div>
+    <div class="row-link"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Продукция</div>
+    <div class="row-link"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Инженерный центр</div>
+    <div class="row-link"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Вакансии</div>
+    <div class="row-link"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Пресс-центр</div>
+    <div class="row-link"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Контакты</div>
+    <div class="row-link"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Горячая линия</div>
+  </div>
+</div>
+</body>
+</html>

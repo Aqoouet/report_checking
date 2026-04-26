@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hero Section</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; background:var(--ink-50); padding:32px; font-family:var(--font-sans); color:var(--fg-1); }
+  .wrap { max-width:1100px; }
+  .eyebrow { margin:0 0 8px; }
+  h1 { margin:0 0 8px; }
+  p.lede { margin:0 0 28px; color:var(--fg-2); max-width:60ch; }
+  .panel-cap { display:flex; justify-content:space-between; padding:10px 14px; background:var(--ink-100); font-family:var(--font-mono); font-size:11px; color:var(--ink-500); border:1px solid var(--ink-200); border-bottom:0; text-transform:uppercase; letter-spacing:.06em; }
+
+  .hero { position:relative; background:#000; color:#fff; padding:80px 56px 72px; overflow:hidden; }
+  .hero::before { content:""; position:absolute; inset:0; background-image:
+    linear-gradient(135deg, rgba(0,0,0,.85), rgba(0,0,0,.55) 40%, rgba(20,20,20,.4)),
+    repeating-linear-gradient(45deg, rgba(242,101,34,.05) 0 1px, transparent 1px 14px),
+    radial-gradient(ellipse at 75% 50%, rgba(242,101,34,.18), transparent 60%);
+    pointer-events:none;
+  }
+  .hero::after { content:""; position:absolute; right:-80px; top:50%; transform:translateY(-50%); width:520px; height:520px; border:1px solid rgba(242,101,34,.25); border-radius:50%; pointer-events:none; }
+  .hero .ring2 { content:""; position:absolute; right:40px; top:50%; transform:translateY(-50%); width:340px; height:340px; border:1px solid rgba(242,101,34,.4); border-radius:50%; pointer-events:none; }
+  .hero .planet { position:absolute; right:160px; top:50%; transform:translateY(-50%); width:160px; height:160px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #ff8a3d, #b8420f 70%, #4a1804); box-shadow: 0 0 60px rgba(242,101,34,.4); }
+  .hero .content { position:relative; z-index:1; max-width:640px; }
+  .hero .label { font-family:var(--font-display); text-transform:uppercase; letter-spacing:.18em; font-size:13px; color:var(--primary); margin-bottom:18px; }
+  .hero h2 { font-family:var(--font-display); font-weight:700; font-size:60px; line-height:1.02; text-transform:uppercase; letter-spacing:-.01em; margin:0 0 24px; }
+  .hero h2 .accent { color:var(--primary); }
+  .hero p { font-size:17px; line-height:1.6; color:var(--ink-200); max-width:48ch; margin:0 0 36px; }
+  .hero .cta-row { display:flex; gap:14px; align-items:center; }
+  .btn { font-family:var(--font-display); text-transform:uppercase; font-weight:600; letter-spacing:.05em; font-size:14px; padding:16px 28px; border:1px solid transparent; cursor:pointer; border-radius:var(--radius-sm); }
+  .btn-primary { background:var(--primary); color:#fff; }
+  .btn-secondary { background:transparent; color:#fff; border-color:var(--ink-500); }
+
+  .meta-strip { background:var(--ink-900); color:var(--ink-300); display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--ink-700); }
+  .meta-strip .item { padding:24px 28px; border-right:1px solid var(--ink-700); }
+  .meta-strip .item:last-child { border-right:0; }
+  .meta-strip .num { font-family:var(--font-display); font-weight:700; font-size:36px; color:#fff; line-height:1; }
+  .meta-strip .lab { font-family:var(--font-sans); font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-400); margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">04 · Components</div>
+  <h1>HERO SECTION</h1>
+  <p class="lede">Cinematic, dark, technical. A render or photo of an aircraft component sits behind a heavy condensed headline. Orange punctuates only the eyebrow, an accent word, and the primary CTA. A statistics strip anchors the bottom edge.</p>
+
+  <div class="panel-cap"><span>Hero · home / landing</span><span>height 560</span></div>
+  <div style="border:1px solid var(--ink-700)">
+    <div class="hero">
+      <div class="ring2"></div>
+      <div class="planet"></div>
+      <div class="content">
+        <div class="label">Группа компаний «ИКАР»</div>
+        <h2>Ведущий <span class="accent">инженерно-производственный</span> холдинг</h2>
+        <p>Центр разработки и производства авиационных систем и компонентов. 20 лет инженерно-конструкторских работ для российских и зарубежных заказчиков.</p>
+        <div class="cta-row">
+          <button class="btn btn-primary">УЗНАТЬ БОЛЬШЕ →</button>
+          <button class="btn btn-secondary">ВСЕ ПРОЕКТЫ</button>
+        </div>
+      </div>
+    </div>
+    <div class="meta-strip">
+      <div class="item"><div class="num">20+</div><div class="lab">ЛЕТ ОПЫТА</div></div>
+      <div class="item"><div class="num">1 000+</div><div class="lab">СПЕЦИАЛИСТОВ</div></div>
+      <div class="item"><div class="num">200+</div><div class="lab">ПРОЕКТОВ В АВИАЦИИ</div></div>
+      <div class="item"><div class="num">2002</div><div class="lab">ОСНОВАН AIRBUS / KASKOL</div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

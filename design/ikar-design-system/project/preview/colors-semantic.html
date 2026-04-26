@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Colors — Semantic States</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; background:var(--ink-50); color:var(--fg-1); font-family:var(--font-sans); padding:32px; }
+  .wrap { max-width:840px; }
+  h1 { margin:0 0 8px; }
+  .eyebrow { margin:0 0 8px; }
+  p { color:var(--fg-2); margin:0 0 28px; max-width:60ch; }
+  .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  .row { background:var(--white); border:1px solid var(--ink-200); padding:18px; }
+  .swatches { display:flex; gap:0; margin-bottom:14px; }
+  .sw { flex:1; height:54px; display:flex; align-items:flex-end; padding:6px; font-family:var(--font-mono); font-size:11px; color:var(--white); }
+  .sw.tint { color:var(--ink-700); }
+  .name { font-family:var(--font-display); text-transform:uppercase; font-size:14px; letter-spacing:.06em; margin-bottom:4px; }
+  .desc { color:var(--fg-3); font-size:13px; }
+  .demo { margin-top:12px; padding:10px 12px; font-size:13px; display:flex; align-items:center; gap:8px; }
+  .dot { width:8px; height:8px; border-radius:50%; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">01 · Colors</div>
+  <h1>SEMANTIC STATES</h1>
+  <p>Sparse, utilitarian, kept calm. State color is for system messaging — production telemetry, validation, certification status — not for emphasis. Brand orange remains the only celebratory hue.</p>
+
+  <div class="grid">
+    <div class="row">
+      <div class="swatches"><div class="sw" style="background:var(--success)">#2f9e44</div><div class="sw tint" style="background:var(--success-tint)">#e8f5ec</div></div>
+      <div class="name">SUCCESS</div>
+      <div class="desc">Certification passed, build green, milestone complete.</div>
+      <div class="demo" style="background:var(--success-tint);color:var(--success)"><span class="dot" style="background:var(--success)"></span>Сертификация пройдена</div>
+    </div>
+    <div class="row">
+      <div class="swatches"><div class="sw" style="background:var(--warning)">#e8a008</div><div class="sw tint" style="background:var(--warning-tint)">#fdf3d8</div></div>
+      <div class="name">WARNING</div>
+      <div class="desc">Tolerance flag, deferred work, advisory.</div>
+      <div class="demo" style="background:var(--warning-tint);color:#7a5500"><span class="dot" style="background:var(--warning)"></span>Требует проверки</div>
+    </div>
+    <div class="row">
+      <div class="swatches"><div class="sw" style="background:var(--danger)">#d92e2e</div><div class="sw tint" style="background:var(--danger-tint)">#fbe5e5</div></div>
+      <div class="name">DANGER</div>
+      <div class="desc">Hard stop. Failed test, blocking error, anomaly.</div>
+      <div class="demo" style="background:var(--danger-tint);color:var(--danger)"><span class="dot" style="background:var(--danger)"></span>Ошибка в чертеже</div>
+    </div>
+    <div class="row">
+      <div class="swatches"><div class="sw" style="background:var(--info)">#f26522</div><div class="sw tint" style="background:var(--ikar-orange-50)">#fff4ec</div></div>
+      <div class="name">INFO · BRAND</div>
+      <div class="desc">In-progress, attention, brand-flavored notice.</div>
+      <div class="demo" style="background:var(--ikar-orange-50);color:var(--ikar-orange-700)"><span class="dot" style="background:var(--info)"></span>Обновление документации</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
